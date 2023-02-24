@@ -1,18 +1,18 @@
 mod grid;
 mod molecule;
 
-use std::ptr::null;
 use ruscii::app::{App, State};
 use ruscii::terminal::{Window};
 use ruscii::drawing::{Pencil};
 use ruscii::keyboard::{KeyEvent, Key};
 use ruscii::spatial::{Vec2};
 use ruscii::terminal::Color::{LightGrey, Red, White};
-use crate::molecule::Bond::{DoubleV, SingleV, TripleV};
 use crate::molecule::Atom::{C, H, O};
-use crate::molecule::Bond::{DoubleH, SingleH, TripleH};
 use crate::grid::GridState;
+use crate::molecule::BondOrder::{Double, Single, Triple};
+use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Symbol;
+use crate::molecule::Bond;
 
 fn main() {
     let mut species_name = "add components".to_string();
@@ -61,25 +61,25 @@ fn main() {
                         }
                         KeyEvent::Pressed(Key::F1) => {
                             if graph.atom_adjacent() {
-                                graph.insert(Symbol::Bond(SingleH));
+                                graph.insert(Symbol::Bond(Bond::new(Single, Horiz)));
                             } else {
-                                graph.insert(Symbol::Bond(SingleV));
+                                graph.insert(Symbol::Bond(Bond::new(Single, Vert)));
                             }
                             key = "F1";
                         }
                         KeyEvent::Pressed(Key::F2) => {
                             if graph.atom_adjacent() {
-                                graph.insert(Symbol::Bond(DoubleH));
+                                graph.insert(Symbol::Bond(Bond::new(Double, Horiz)));
                             } else {
-                                graph.insert(Symbol::Bond(DoubleV));
+                                graph.insert(Symbol::Bond(Bond::new(Double, Vert)));
                             }
                             key = "F2";
                         }
                         KeyEvent::Pressed(Key::F3) => {
                             if graph.atom_adjacent() {
-                                graph.insert(Symbol::Bond(TripleH));
+                                graph.insert(Symbol::Bond(Bond::new(Triple, Horiz)));
                             } else {
-                                graph.insert(Symbol::Bond(TripleV));
+                                graph.insert(Symbol::Bond(Bond::new(Triple, Vert)));
                             }
                             key = "F3";
                         }
@@ -137,7 +137,7 @@ fn main() {
             }
             let current_cell = graph.current_cell();
             if current_cell.pos.x == graph.cursor.x && current_cell.pos.y == graph.cursor.y {
-                pencil.draw_text(&format!("cells[{}][{}] = {}", current_cell.pos.x, current_cell.pos.y, match current_cell.sym {
+                pencil.draw_text(&format!("cells[{}][{}] = {}", current_cell.pos.x, current_cell.pos.y, match &current_cell.sym {
                     Symbol::Atom(it) => { format! {"Atom::{}", it.symbol()} }
                     Symbol::Bond(it) => { format! {"Bond::{}", it.symbol()} }
                     Symbol::None => { format!("None") }
@@ -158,10 +158,10 @@ fn main() {
         pencil.draw_text(&format!(" sym | {}", match graph.current_cell().sym {
             Symbol::Atom(it) => { format!("Atom {}", it.symbol()) }
             Symbol::Bond(it) => {
-                match it {
-                    SingleH | SingleV => format!("Bond 1x"),
-                    DoubleH | DoubleV => format!("Bond 2x"),
-                    TripleH | TripleV => format!("Bond 3x"),
+                match it.order {
+                    Single => format!("Bond 1x"),
+                    Double => format!("Bond 2x"),
+                    Triple => format!("Bond 3x"),
                 }
             }
             Symbol::None => { format!("") }

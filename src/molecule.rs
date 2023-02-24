@@ -1,5 +1,6 @@
 use crate::molecule::Atom::{C, H, O};
-use crate::molecule::Bond::{DoubleH, DoubleV, SingleH, SingleV, TripleH, TripleV};
+use crate::molecule::BondOrder::{Double, Single, Triple};
+use crate::molecule::BondOrientation::{Horiz, Vert};
 
 #[derive(Clone)]
 pub enum Symbol {
@@ -25,25 +26,55 @@ impl Atom {
     }
 }
 
+#[derive(Copy)]
+pub struct Bond {
+    pub order: BondOrder,
+    pub orient: BondOrientation
+}
+
 #[derive(Clone, Copy)]
-pub enum Bond {
-    SingleV,
-    SingleH,
-    DoubleV,
-    DoubleH,
-    TripleV,
-    TripleH,
+pub enum BondOrder {
+    Single, Double, Triple
+}
+
+#[derive(Clone, Copy)]
+pub enum BondOrientation {
+    Vert, Horiz
 }
 
 impl Bond {
+    pub(crate) fn new(order: BondOrder, orient: BondOrientation) -> Bond {
+        Bond { order, orient }
+    }
+
     pub(crate) fn symbol(&self) -> &str {
-        match *self {
-            SingleH => "———",
-            SingleV => " | ",
-            DoubleH => "===",
-            DoubleV => " ‖ ",
-            TripleH => "≡≡≡",
-            TripleV => " T ",
+        match (&self.order, &self.orient) {
+            (Single, Horiz) => "———",
+            (Single, Vert) => " | ",
+            (Double, Horiz) => "===",
+            (Double, Vert) => " ‖ ",
+            (Triple, Horiz) => "≡≡≡",
+            (Triple, Vert) => " T ",
         }
+    }
+
+    pub(crate) fn is_horizontal(&self) -> bool {
+        match self.orient {
+            Horiz => true,
+            Vert => false
+        }
+    }
+
+    pub(crate) fn is_vertical(&self) -> bool {
+        match self.orient {
+            Horiz => false,
+            Vert => true
+        }
+    }
+}
+
+impl Clone for Bond {
+    fn clone(&self) -> Self {
+        Self { order: self.order.clone(), orient: self.orient.clone() }
     }
 }

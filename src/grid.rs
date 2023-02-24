@@ -8,6 +8,7 @@ pub struct GridState {
     pub cursor: Vec2,
 }
 
+#[derive(Clone)]
 pub struct Cell {
     pub sym: Symbol,
     pub pos: Vec2,
@@ -79,6 +80,43 @@ impl GridState {
         count
     }
 
+    pub fn find_all<F>(&self, predicate: F) -> Vec<Cell>
+        where
+            F: Fn(&Cell) -> bool,
+    {
+        let mut cells: Vec<Cell> = vec![];
+        for row in &self.cells[..] {
+            for cell in row {
+                if predicate(&cell) {
+                    cells.push(cell.clone());
+                }
+            }
+        }
+        cells
+    }
+
+    pub fn chain_endpoints(&self) -> Vec<Cell> {
+        let mut endpoints: Vec<Cell> = vec![];
+        for cell in self.find_all(|element| match element.sym {
+            Symbol::Atom(it) => match it {
+                C => true,
+                _ => false
+            },
+            _ => false
+        }) {
+            if Neighbors::get(&self, cell.pos).count(|element| match element.sym {
+                Symbol::Atom(it) => match it {
+                    C => true,
+                    _ => false
+                },
+                _ => false
+            }) <= 1 {
+                endpoints.push(cell);
+            }
+        };
+        endpoints
+    }
+
     pub fn simply_connected(&self) -> bool {
         for row in self.cells.iter() {
             for cell in row {
@@ -87,7 +125,7 @@ impl GridState {
                     Symbol::Atom(C) => temp = cell,
                     _ => continue
                 }
-                let neighbors = Neighbors::new(&self, temp.pos);
+                let neighbors = Neighbors::get(&self, temp.pos);
             }
         };
         false
@@ -146,17 +184,43 @@ impl GridState {
 }
 
 pub struct Neighbors {
-    pub cell: Vec2,
-    pub neighbors: Vec<Symbol>,
+    pub pos: Vec2,
+    pub neighbors: Vec<Cell>,
 }
 
 impl Neighbors {
-    pub fn new(graph: &GridState, pos: Vec2) -> Neighbors {
-        let mut neighbors: Vec<Symbol> = vec!();
-        neighbors.push(graph.cells[(pos.x + 1) as usize][pos.y as usize].sym.clone());
-        neighbors.push(graph.cells[pos.x as usize][(pos.y + 1) as usize].sym.clone());
-        neighbors.push(graph.cells[(pos.x - 1) as usize][pos.y as usize].sym.clone());
-        neighbors.push(graph.cells[pos.x as usize][(pos.y - 1) as usize].sym.clone());
-        Neighbors { cell: pos, neighbors }
+    pub fn get(graph: &GridState, pos: Vec2) -> Neighbors {
+        let adjacents = vec![
+            (1, 0, true),
+            (0, 1, false),
+            (-1, 0, true),
+            (0, -1, false),
+        ];
+        let mut neighbors: Vec<Cell> = vec!();
+
+        for (x, y, isHorizontal) in adjacents {
+            match &graph.cells[(pos.x + x) as usize][(pos.y + y) as usize].sym {
+                Symbol::Bond(it) => {
+                    if isHorizontal == it.is_horizontal() {
+                        neighbors.push(graph.cells[(pos.x + x * 2) as usize][(pos.y + y * 2) as usize].clone())
+                    }
+                }
+                _ => ()
+            }
+        }
+        Neighbors { pos, neighbors }
+    }
+
+    pub fn count<F>(&self, predicate: F) -> i32
+        where
+            F: Fn(&Cell) -> bool,
+    {
+        let mut count = 0;
+        for cell in &self.neighbors {
+            if predicate(&cell) {
+                count += 1;
+            }
+        }
+        count
     }
 }

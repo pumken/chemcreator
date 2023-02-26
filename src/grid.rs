@@ -148,7 +148,7 @@ impl GridState {
                 10 => "dec",
                 _ => {
                     success = false;
-                    return "".to_string();
+                    ""
                 }
             };
             let suffix = if hydrogen == 2 * carbon - 2 {
@@ -177,7 +177,7 @@ impl Index<usize> for GridState {
         let begin = *&self.size.y as usize * index;
         let end = *&self.size.y as usize * (index + 1);
 
-        if begin < 0 || end >= self.cells.len() {
+        if end > self.cells.len() {
             panic!("index out of bounds: the len is {} but the index is {index}", &self.size.x)
         }
         &self.cells[begin..end]
@@ -189,7 +189,7 @@ impl IndexMut<usize> for GridState {
         let begin = *&self.size.y as usize * index;
         let end = *&self.size.y as usize * (index + 1);
 
-        if begin < 0 || end >= self.cells.len() {
+        if end > self.cells.len() {
             panic!("index out of bounds: the len is {} but the index is {index}", &self.size.x)
         }
         &mut self.cells[begin..end]
@@ -238,10 +238,10 @@ impl Neighbors {
         ];
         let mut neighbors: Vec<Cell> = vec!();
 
-        for (x, y, isHorizontal) in adjacents {
+        for (x, y, is_horizontal) in adjacents {
             match &graph[(pos.x + x) as usize][(pos.y + y) as usize].sym {
                 Symbol::Bond(it) => {
-                    if isHorizontal == it.is_horizontal() {
+                    if is_horizontal == it.is_horizontal() {
                         neighbors.push(graph[(pos.x + x * 2) as usize][(pos.y + y * 2) as usize].clone())
                     }
                 }

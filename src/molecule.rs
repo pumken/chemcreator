@@ -1,3 +1,5 @@
+use ruscii::terminal::Color;
+use ruscii::terminal::Color::{LightGrey, Red, White};
 use crate::molecule::Atom::{C, H, O};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
@@ -18,6 +20,19 @@ pub enum Symbol {
     Atom(Atom),
     Bond(Bond),
     None,
+}
+
+impl Symbol {
+    pub(crate) fn color(&self) -> Color {
+        match &self {
+            Symbol::Atom(it) => match it {
+                C => LightGrey,
+                O => Red,
+                _ => White
+            },
+            _ => White
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -73,13 +88,6 @@ impl Bond {
         match self.orient {
             Horiz => true,
             Vert => false
-        }
-    }
-
-    pub(crate) fn is_vertical(&self) -> bool {
-        match self.orient {
-            Horiz => false,
-            Vert => true
         }
     }
 }

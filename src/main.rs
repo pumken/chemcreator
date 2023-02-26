@@ -16,11 +16,13 @@ use crate::molecule::Symbol;
 use crate::molecule::Bond;
 
 fn main() {
-    let mut species_name = "add components".to_string();
-    let mut graph = GridState::new(20, 10);
     let mut app = App::new();
-    let mut key = "start";
-    let mut mode = Mode::Insert;
+    let mut graph = GridState::new(20, 10);
+    let mut mode = Mode::Normal;
+    let mut menu_name = "                ChemCreator                ".to_string();
+    let mut menu_pos  = "      Written in Rust by Gavin Tran.       ".to_string();
+    let mut menu_sym  = "To start, enter insert mode by pressing F8.".to_string();
+    let mut menu_key   = "          You're using version 1.          ";
 
     app.run(|app_state: &mut State, window: &mut Window| {
         for key_event in app_state.keyboard().last_key_events() {
@@ -30,35 +32,35 @@ fn main() {
                         KeyEvent::Pressed(Key::Esc) => mode = Mode::Normal,
                         KeyEvent::Pressed(Key::Right) => {
                             graph.cursor.x += 1;
-                            key = "->";
+                            menu_key = "->";
                         }
                         KeyEvent::Pressed(Key::Left) => {
                             graph.cursor.x -= 1;
-                            key = "<-";
+                            menu_key = "<-";
                         }
                         KeyEvent::Pressed(Key::Up) => {
                             graph.cursor.y -= 1;
-                            key = "^";
+                            menu_key = "^";
                         }
                         KeyEvent::Pressed(Key::Down) => {
                             graph.cursor.y += 1;
-                            key = "down";
+                            menu_key = "down";
                         }
                         KeyEvent::Pressed(Key::Backspace) => {
                             graph.insert(Symbol::None);
-                            key = "Backspace";
+                            menu_key = "Backspace";
                         }
                         KeyEvent::Pressed(Key::Tab) => {
                             graph.insert(Symbol::Atom(C));
-                            key = "Tab";
+                            menu_key = "Tab";
                         }
                         KeyEvent::Pressed(Key::Enter) => {
                             graph.insert(Symbol::Atom(H));
-                            key = "Enter";
+                            menu_key = "Enter";
                         }
                         KeyEvent::Pressed(Key::F4) => {
                             graph.insert(Symbol::Atom(O));
-                            key = "F4";
+                            menu_key = "F4";
                         }
                         KeyEvent::Pressed(Key::F1) => {
                             if graph.atom_adjacent() {
@@ -66,7 +68,7 @@ fn main() {
                             } else {
                                 graph.insert(Symbol::Bond(Bond::new(Single, Vert)));
                             }
-                            key = "F1";
+                            menu_key = "F1";
                         }
                         KeyEvent::Pressed(Key::F2) => {
                             if graph.atom_adjacent() {
@@ -74,7 +76,7 @@ fn main() {
                             } else {
                                 graph.insert(Symbol::Bond(Bond::new(Double, Vert)));
                             }
-                            key = "F2";
+                            menu_key = "F2";
                         }
                         KeyEvent::Pressed(Key::F3) => {
                             if graph.atom_adjacent() {
@@ -82,10 +84,10 @@ fn main() {
                             } else {
                                 graph.insert(Symbol::Bond(Bond::new(Triple, Vert)));
                             }
-                            key = "F3";
+                            menu_key = "F3";
                         }
                         _ => {
-                            key = match key_event {
+                            menu_key = match key_event {
                                 KeyEvent::Pressed(_) => { "Pressed" }
                                 KeyEvent::Released(_) => { "Released" }
                             }
@@ -98,33 +100,33 @@ fn main() {
                         KeyEvent::Pressed(Key::Q) => app_state.stop(),
                         KeyEvent::Pressed(Key::F8) => {
                             mode = Mode::Insert;
-                            key = "F8";
+                            menu_key = "F8";
                         }
-                        _ => {
-                            key = match key_event {
-                                KeyEvent::Pressed(_) => { "Pressed" }
-                                KeyEvent::Released(_) => { "Released" }
-                            }
-                        }
+                        _ => ()
                     }
                 }
             }
-            species_name = graph.simple_counter();
+
+            menu_name = graph.simple_counter();
+            menu_pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
+            menu_sym = match graph.current_cell().sym {
+                Symbol::Atom(it) => { format!("Atom {}", it.symbol()) }
+                Symbol::Bond(it) => {
+                    match it.order {
+                        Single => format!("Bond 1x"),
+                        Double => format!("Bond 2x"),
+                        Triple => format!("Bond 3x"),
+                    }
+                }
+                Symbol::None => { format!("") }
+            }
         }
 
-
         let mut pencil = Pencil::new(window.canvas_mut());
+
+        // Grid
         for cell in graph.cells.iter() {
-            pencil.set_foreground(
-                match &cell.sym {
-                    Symbol::Atom(it) => match it {
-                        C => LightGrey,
-                        O => Red,
-                        _ => White
-                    },
-                    _ => White
-                }
-            );
+            pencil.set_foreground(*&cell.sym.color());
             pencil.draw_text(&format!("{}", match &cell.sym {
                 Symbol::Atom(it) => { it.symbol() }
                 Symbol::Bond(it) => { it.symbol() }
@@ -133,16 +135,9 @@ fn main() {
                     Mode::Normal => "   ",
                 }
             }), Vec2::xy(cell.pos.x * 3, cell.pos.y));
-            pencil.set_foreground(White);
         }
-        let current_cell = graph.current_cell();
-        if current_cell.pos.x == graph.cursor.x && current_cell.pos.y == graph.cursor.y {
-            pencil.draw_text(&format!("cells[{}][{}] = {}", current_cell.pos.x, current_cell.pos.y, match &current_cell.sym {
-                Symbol::Atom(it) => { format! {"Atom::{}", it.symbol()} }
-                Symbol::Bond(it) => { format! {"Bond::{}", it.symbol()} }
-                Symbol::None => { format!("None") }
-            }), Vec2::xy(graph.size.x * 3 + 3, 7));
-        }
+
+        // Insert mode and cursor
         match mode {
             Mode::Insert => {
                 pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 0));
@@ -151,21 +146,12 @@ fn main() {
             }
             _ => ()
         }
-        pencil.draw_text(&format!("Name | {}", species_name), Vec2::xy(graph.size.x * 3 + 3, 1));
-        pencil.draw_text(&format!("   x | {}", graph.cursor.x), Vec2::xy(graph.size.x * 3 + 3, 2));
-        pencil.draw_text(&format!("   y | {}", graph.cursor.y), Vec2::xy(graph.size.x * 3 + 3, 3));
-        pencil.draw_text(&format!(" sym | {}", match graph.current_cell().sym {
-            Symbol::Atom(it) => { format!("Atom {}", it.symbol()) }
-            Symbol::Bond(it) => {
-                match it.order {
-                    Single => format!("Bond 1x"),
-                    Double => format!("Bond 2x"),
-                    Triple => format!("Bond 3x"),
-                }
-            }
-            Symbol::None => { format!("") }
-        }), Vec2::xy(graph.size.x * 3 + 3, 4));
-        pencil.draw_text(&format!(" key | {}", key), Vec2::xy(graph.size.x * 3 + 3, 5));
+
+        // Menu
+        pencil.draw_text(&format!("name | {}", menu_name), Vec2::xy(graph.size.x * 3 + 3, 1));
+        pencil.draw_text(&format!(" pos | {}", menu_pos), Vec2::xy(graph.size.x * 3 + 3, 2));
+        pencil.draw_text(&format!(" sym | {}", menu_sym), Vec2::xy(graph.size.x * 3 + 3, 3));
+        pencil.draw_text(&format!(" key | {}", menu_key), Vec2::xy(graph.size.x * 3 + 3, 4));
     });
 }
 

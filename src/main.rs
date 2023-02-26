@@ -1,5 +1,6 @@
 mod grid;
 mod molecule;
+mod r#macro;
 
 use ruscii::app::{App, State};
 use ruscii::terminal::{Window};
@@ -141,20 +142,20 @@ fn main() {
                     Symbol::Atom(it) => { format! {"Atom::{}", it.symbol()} }
                     Symbol::Bond(it) => { format! {"Bond::{}", it.symbol()} }
                     Symbol::None => { format!("None") }
-                }), Vec2::xy(graph.size.x * 3 + 3, 7));
+                }), Vec2::xy(graph.size().x * 3 + 3, 7));
             }
         }
         match mode {
             Mode::Insert => {
-                pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 0));
+                pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size().x * 3 + 3, 0));
                 pencil.draw_text("<", Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y));
                 pencil.draw_text(">", Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y));
             }
             _ => ()
         }
-        pencil.draw_text(&format!("Name | {}", species_name), Vec2::xy(graph.size.x * 3 + 3, 1));
-        pencil.draw_text(&format!("   x | {}", graph.cursor.x), Vec2::xy(graph.size.x * 3 + 3, 2));
-        pencil.draw_text(&format!("   y | {}", graph.cursor.y), Vec2::xy(graph.size.x * 3 + 3, 3));
+        pencil.draw_text(&format!("Name | {}", species_name), Vec2::xy(graph.size().x * 3 + 3, 1));
+        pencil.draw_text(&format!("   x | {}", graph.cursor.x), Vec2::xy(graph.size().x * 3 + 3, 2));
+        pencil.draw_text(&format!("   y | {}", graph.cursor.y), Vec2::xy(graph.size().x * 3 + 3, 3));
         pencil.draw_text(&format!(" sym | {}", match graph.current_cell().sym {
             Symbol::Atom(it) => { format!("Atom {}", it.symbol()) }
             Symbol::Bond(it) => {
@@ -165,8 +166,8 @@ fn main() {
                 }
             }
             Symbol::None => { format!("") }
-        }), Vec2::xy(graph.size.x * 3 + 3, 4));
-        pencil.draw_text(&format!(" key | {}", key), Vec2::xy(graph.size.x * 3 + 3, 5));
+        }), Vec2::xy(graph.size().x * 3 + 3, 4));
+        pencil.draw_text(&format!(" key | {}", key), Vec2::xy(graph.size().x * 3 + 3, 5));
     });
 }
 

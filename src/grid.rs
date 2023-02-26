@@ -1,11 +1,20 @@
+use std::ops::Index;
 use ruscii::spatial::Vec2;
 use crate::molecule::Atom::{C, H};
-use crate::molecule::Symbol;
+use crate::molecule::{GroupType, Symbol};
 
 pub struct GridState {
     pub cells: Vec<Vec<Cell>>,
-    pub size: Vec2,
     pub cursor: Vec2,
+}
+
+pub struct Molecule {
+    pub groups: Vec<Group>
+}
+
+pub struct Group {
+    pub cells: Vec<Cell>,
+    pub class: GroupType
 }
 
 #[derive(Clone)]
@@ -29,9 +38,15 @@ impl GridState {
 
         GridState {
             cells: temp,
-            size: Vec2::xy(width, height),
             cursor: Vec2::xy(0, 0),
         }
+    }
+
+    pub fn size(&self) -> Vec2 {
+        Vec2::xy(
+            self.cells.len(),
+            self.cells[0].len()
+        )
     }
 
     pub fn insert(&mut self, symbol: Symbol) {
@@ -180,6 +195,14 @@ impl GridState {
                 "unidentified".to_string()
             }
         }
+    }
+}
+
+impl Index<usize> for GridState {
+    type Output = Cell;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        todo!()
     }
 }
 

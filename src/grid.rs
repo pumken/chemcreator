@@ -1,11 +1,15 @@
+use std::iter::Cloned;
+use itertools::Itertools;
 use std::ops::{Index, IndexMut};
+use std::slice::Iter;
+use std::vec::IntoIter;
 use ruscii::spatial::Vec2;
 use crate::molecule::Atom::{C, H};
 use crate::molecule::{GroupType, Symbol};
 
+#[derive(Clone)]
 pub struct GridState {
-    pub cells: Vec<Cell>,
-    // privatize when i figure out how to implement an iterator
+    cells: Vec<Cell>,
     pub size: Vec2,
     pub cursor: Vec2,
 }
@@ -70,6 +74,24 @@ impl GridState {
             }
         }
         count
+    }
+
+    fn grouped(&self) -> Vec<Vec<Cell>> {
+        self.cells
+            .iter()
+            .group_by(|a| a.pos.x)
+            .into_iter()
+            .map(|(_, group)| group.map(|c| c.to_owned()).collect())
+            .collect::<Vec<Vec<Cell>>>()
+    }
+
+    pub fn into_iter(self) -> IntoIter<Vec<Cell>> {
+        self.grouped().into_iter()
+    }
+
+    /// Returns the length of a column of the grid.
+    pub fn len(&self) -> usize {
+        self.size.x as usize
     }
 
     pub fn atom_adjacent(&self) -> bool {
@@ -195,18 +217,6 @@ impl IndexMut<usize> for GridState {
         &mut self.cells[begin..end]
     }
 }
-
-// Fix later
-// impl Iterator for GridState {
-//     type Item = Vec<&mut Cell>;
-//
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.cells
-//             .group_by(|a, b| a.pos.x == b.pos.x)
-//             .collect()
-//             .next()
-//     }
-// }
 
 pub struct Molecule {
     pub groups: Vec<Group>,

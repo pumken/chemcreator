@@ -7,7 +7,6 @@ use ruscii::terminal::{Window};
 use ruscii::drawing::{Pencil};
 use ruscii::keyboard::{KeyEvent, Key};
 use ruscii::spatial::{Vec2};
-use ruscii::terminal::Color::{LightGrey, Red, White};
 use crate::molecule::Atom::{C, H, O};
 use crate::grid::GridState;
 use crate::molecule::BondOrder::{Double, Single, Triple};
@@ -125,7 +124,8 @@ fn main() {
         let mut pencil = Pencil::new(window.canvas_mut());
 
         // Grid
-        for cell in graph.cells.iter() {
+        // Could optimize by not copying the entire graph, figure out later
+        for cell in graph.clone().into_iter().flatten() {
             pencil.set_foreground(*&cell.sym.color());
             pencil.draw_text(&format!("{}", match &cell.sym {
                 Symbol::Atom(it) => { it.symbol() }

@@ -1,74 +1,41 @@
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 use ruscii::spatial::Vec2;
 use crate::molecule::Atom::{C, H};
 use crate::molecule::{GroupType, Symbol};
 
 pub struct GridState {
-    pub cells: Vec<Vec<Cell>>,
+    pub cells: Vec<Cell>,
+    // privatize when i figure out how to implement an iterator
+    pub size: Vec2,
     pub cursor: Vec2,
 }
 
-pub struct Molecule {
-    pub groups: Vec<Group>
-}
-
-pub struct Group {
-    pub cells: Vec<Cell>,
-    pub class: GroupType
-}
-
-#[derive(Clone)]
-pub struct Cell {
-    pub sym: Symbol,
-    pub pos: Vec2,
-}
-
 impl GridState {
-    pub fn new(width: i32, height: i32) -> GridState {
-        let mut temp: Vec<Vec<Cell>> = Vec::with_capacity(width as usize);
+    pub fn new(width: usize, height: usize) -> GridState {
+        let mut cells = Vec::with_capacity(width * height);
 
-        for x in (0 as usize)..(width as usize) {
-            let mut temp1 = Vec::with_capacity(height as usize);
-            for y in (0 as usize)..(height as usize) {
+        for x in (0 as usize)..width {
+            for y in (0 as usize)..height {
                 let new_cell = Cell { sym: Symbol::None, pos: Vec2::xy(x, y) };
-                temp1.push(new_cell);
+                cells.push(new_cell);
             }
-            temp.push(temp1);
         }
 
         GridState {
-            cells: temp,
+            cells,
+            size: Vec2::xy(width, height),
             cursor: Vec2::xy(0, 0),
         }
-    }
-
-    pub fn size(&self) -> Vec2 {
-        Vec2::xy(
-            self.cells.len(),
-            self.cells[0].len()
-        )
     }
 
     pub fn insert(&mut self, symbol: Symbol) {
         let x = self.cursor.x as usize;
         let y = self.cursor.y as usize;
-        self.cells[x][y].sym = symbol;
+        self[x][y].sym = symbol;
     }
 
     pub fn current_cell(&self) -> &Cell {
-        &self.cells[self.cursor.x as usize][self.cursor.y as usize]
-    }
-
-    pub fn atom_adjacent(&self) -> bool {
-        let left = &self.cells[self.cursor.x as usize - 1][self.cursor.y as usize];
-        let right = &self.cells[self.cursor.x as usize + 1][self.cursor.y as usize];
-        match left.sym {
-            Symbol::Atom(_) => true,
-            _ => match right.sym {
-                Symbol::Atom(_) => true,
-                _ => false
-            }
-        }
+        &self[self.cursor.x as usize][self.cursor.y as usize]
     }
 
     pub fn find<F>(&self, predicate: F) -> Option<&Cell>
@@ -76,23 +43,7 @@ impl GridState {
             F: Fn(&Cell) -> bool,
     {
         self.cells.iter()
-            .flatten()
             .find(|&element| predicate(element))
-    }
-
-    pub fn count<F>(&self, predicate: F) -> i32
-        where
-            F: Fn(&Cell) -> bool,
-    {
-        let mut count = 0;
-        for row in &self.cells[..] {
-            for cell in row {
-                if predicate(&cell) {
-                    count += 1;
-                }
-            }
-        }
-        count
     }
 
     pub fn find_all<F>(&self, predicate: F) -> Vec<Cell>
@@ -100,14 +51,37 @@ impl GridState {
             F: Fn(&Cell) -> bool,
     {
         let mut cells: Vec<Cell> = vec![];
-        for row in &self.cells[..] {
-            for cell in row {
-                if predicate(&cell) {
-                    cells.push(cell.clone());
-                }
+        for cell in &self.cells[..] {
+            if predicate(&cell) {
+                cells.push(cell.clone());
             }
         }
         cells
+    }
+
+    pub fn count<F>(&self, predicate: F) -> i32
+        where
+            F: Fn(&Cell) -> bool,
+    {
+        let mut count = 0;
+        for cell in &self.cells[..] {
+            if predicate(&cell) {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    pub fn atom_adjacent(&self) -> bool {
+        let left = &self[self.cursor.x as usize - 1][self.cursor.y as usize];
+        let right = &self[self.cursor.x as usize + 1][self.cursor.y as usize];
+        match left.sym {
+            Symbol::Atom(_) => true,
+            _ => match right.sym {
+                Symbol::Atom(_) => true,
+                _ => false
+            }
+        }
     }
 
     pub fn chain_endpoints(&self) -> Vec<Cell> {
@@ -133,15 +107,13 @@ impl GridState {
     }
 
     pub fn simply_connected(&self) -> bool {
-        for row in self.cells.iter() {
-            for cell in row {
-                let temp;
-                match cell.sym {
-                    Symbol::Atom(C) => temp = cell,
-                    _ => continue
-                }
-                let neighbors = Neighbors::get(&self, temp.pos);
+        for cell in self.cells.iter() {
+            let temp;
+            match cell.sym {
+                Symbol::Atom(C) => temp = cell,
+                _ => continue
             }
+            let neighbors = Neighbors::get(&self, temp.pos);
         };
         false
     }
@@ -199,11 +171,56 @@ impl GridState {
 }
 
 impl Index<usize> for GridState {
-    type Output = Cell;
+    type Output = [Cell];
 
     fn index(&self, index: usize) -> &Self::Output {
-        todo!()
+        let begin = *&self.size.y as usize * index;
+        let end = *&self.size.y as usize * (index + 1);
+
+        if begin < 0 || end >= self.cells.len() {
+            panic!("index out of bounds: the len is {} but the index is {index}", &self.size.x)
+        }
+        &self.cells[begin..end]
     }
+}
+
+impl IndexMut<usize> for GridState {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        let begin = *&self.size.y as usize * index;
+        let end = *&self.size.y as usize * (index + 1);
+
+        if begin < 0 || end >= self.cells.len() {
+            panic!("index out of bounds: the len is {} but the index is {index}", &self.size.x)
+        }
+        &mut self.cells[begin..end]
+    }
+}
+
+// Fix later
+// impl Iterator for GridState {
+//     type Item = Vec<&mut Cell>;
+//
+//     fn next(&mut self) -> Option<Self::Item> {
+//         self.cells
+//             .group_by(|a, b| a.pos.x == b.pos.x)
+//             .collect()
+//             .next()
+//     }
+// }
+
+pub struct Molecule {
+    pub groups: Vec<Group>,
+}
+
+pub struct Group {
+    pub cells: Vec<Cell>,
+    pub class: GroupType,
+}
+
+#[derive(Clone)]
+pub struct Cell {
+    pub sym: Symbol,
+    pub pos: Vec2,
 }
 
 pub struct Neighbors {
@@ -222,10 +239,10 @@ impl Neighbors {
         let mut neighbors: Vec<Cell> = vec!();
 
         for (x, y, isHorizontal) in adjacents {
-            match &graph.cells[(pos.x + x) as usize][(pos.y + y) as usize].sym {
+            match &graph[(pos.x + x) as usize][(pos.y + y) as usize].sym {
                 Symbol::Bond(it) => {
                     if isHorizontal == it.is_horizontal() {
-                        neighbors.push(graph.cells[(pos.x + x * 2) as usize][(pos.y + y * 2) as usize].clone())
+                        neighbors.push(graph[(pos.x + x * 2) as usize][(pos.y + y * 2) as usize].clone())
                     }
                 }
                 _ => ()

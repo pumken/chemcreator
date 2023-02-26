@@ -114,48 +114,46 @@ fn main() {
 
 
         let mut pencil = Pencil::new(window.canvas_mut());
-        for x in graph.cells.iter() {
-            for cell in x.iter() {
-                pencil.set_foreground(
-                    match &cell.sym {
-                        Symbol::Atom(it) => match it {
-                            C => LightGrey,
-                            O => Red,
-                            _ => White
-                        },
+        for cell in graph.cells.iter() {
+            pencil.set_foreground(
+                match &cell.sym {
+                    Symbol::Atom(it) => match it {
+                        C => LightGrey,
+                        O => Red,
                         _ => White
-                    }
-                );
-                pencil.draw_text(&format!("{}", match &cell.sym {
-                    Symbol::Atom(it) => { it.symbol() }
-                    Symbol::Bond(it) => { it.symbol() }
-                    Symbol::None => match mode {
-                        Mode::Insert => " • ",
-                        Mode::Normal => "   ",
-                    }
-                }), Vec2::xy(cell.pos.x * 3, cell.pos.y));
-                pencil.set_foreground(White);
-            }
-            let current_cell = graph.current_cell();
-            if current_cell.pos.x == graph.cursor.x && current_cell.pos.y == graph.cursor.y {
-                pencil.draw_text(&format!("cells[{}][{}] = {}", current_cell.pos.x, current_cell.pos.y, match &current_cell.sym {
-                    Symbol::Atom(it) => { format! {"Atom::{}", it.symbol()} }
-                    Symbol::Bond(it) => { format! {"Bond::{}", it.symbol()} }
-                    Symbol::None => { format!("None") }
-                }), Vec2::xy(graph.size().x * 3 + 3, 7));
-            }
+                    },
+                    _ => White
+                }
+            );
+            pencil.draw_text(&format!("{}", match &cell.sym {
+                Symbol::Atom(it) => { it.symbol() }
+                Symbol::Bond(it) => { it.symbol() }
+                Symbol::None => match mode {
+                    Mode::Insert => " • ",
+                    Mode::Normal => "   ",
+                }
+            }), Vec2::xy(cell.pos.x * 3, cell.pos.y));
+            pencil.set_foreground(White);
+        }
+        let current_cell = graph.current_cell();
+        if current_cell.pos.x == graph.cursor.x && current_cell.pos.y == graph.cursor.y {
+            pencil.draw_text(&format!("cells[{}][{}] = {}", current_cell.pos.x, current_cell.pos.y, match &current_cell.sym {
+                Symbol::Atom(it) => { format! {"Atom::{}", it.symbol()} }
+                Symbol::Bond(it) => { format! {"Bond::{}", it.symbol()} }
+                Symbol::None => { format!("None") }
+            }), Vec2::xy(graph.size.x * 3 + 3, 7));
         }
         match mode {
             Mode::Insert => {
-                pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size().x * 3 + 3, 0));
+                pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 0));
                 pencil.draw_text("<", Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y));
                 pencil.draw_text(">", Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y));
             }
             _ => ()
         }
-        pencil.draw_text(&format!("Name | {}", species_name), Vec2::xy(graph.size().x * 3 + 3, 1));
-        pencil.draw_text(&format!("   x | {}", graph.cursor.x), Vec2::xy(graph.size().x * 3 + 3, 2));
-        pencil.draw_text(&format!("   y | {}", graph.cursor.y), Vec2::xy(graph.size().x * 3 + 3, 3));
+        pencil.draw_text(&format!("Name | {}", species_name), Vec2::xy(graph.size.x * 3 + 3, 1));
+        pencil.draw_text(&format!("   x | {}", graph.cursor.x), Vec2::xy(graph.size.x * 3 + 3, 2));
+        pencil.draw_text(&format!("   y | {}", graph.cursor.y), Vec2::xy(graph.size.x * 3 + 3, 3));
         pencil.draw_text(&format!(" sym | {}", match graph.current_cell().sym {
             Symbol::Atom(it) => { format!("Atom {}", it.symbol()) }
             Symbol::Bond(it) => {
@@ -166,8 +164,8 @@ fn main() {
                 }
             }
             Symbol::None => { format!("") }
-        }), Vec2::xy(graph.size().x * 3 + 3, 4));
-        pencil.draw_text(&format!(" key | {}", key), Vec2::xy(graph.size().x * 3 + 3, 5));
+        }), Vec2::xy(graph.size.x * 3 + 3, 4));
+        pencil.draw_text(&format!(" key | {}", key), Vec2::xy(graph.size.x * 3 + 3, 5));
     });
 }
 

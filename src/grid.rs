@@ -8,14 +8,14 @@ use crate::molecule::Atom::{C, H};
 use crate::molecule::{GroupType, Symbol};
 
 #[derive(Clone)]
-pub struct GridState {
+pub(crate) struct GridState {
     cells: Vec<Cell>,
-    pub size: Vec2,
-    pub cursor: Vec2,
+    pub(crate) size: Vec2,
+    pub(crate) cursor: Vec2,
 }
 
 impl GridState {
-    pub fn new(width: usize, height: usize) -> GridState {
+    pub(crate) fn new(width: usize, height: usize) -> GridState {
         let mut cells = Vec::with_capacity(width * height);
 
         for x in (0 as usize)..width {
@@ -32,17 +32,17 @@ impl GridState {
         }
     }
 
-    pub fn insert(&mut self, symbol: Symbol) {
+    pub(crate) fn insert(&mut self, symbol: Symbol) {
         let x = self.cursor.x as usize;
         let y = self.cursor.y as usize;
         self[x][y].sym = symbol;
     }
 
-    pub fn current_cell(&self) -> &Cell {
+    pub(crate) fn current_cell(&self) -> &Cell {
         &self[self.cursor.x as usize][self.cursor.y as usize]
     }
 
-    pub fn find<F>(&self, predicate: F) -> Option<&Cell>
+    pub(crate) fn find<F>(&self, predicate: F) -> Option<&Cell>
         where
             F: Fn(&Cell) -> bool,
     {
@@ -50,7 +50,7 @@ impl GridState {
             .find(|&element| predicate(element))
     }
 
-    pub fn find_all<F>(&self, predicate: F) -> Vec<Cell>
+    pub(crate) fn find_all<F>(&self, predicate: F) -> Vec<Cell>
         where
             F: Fn(&Cell) -> bool,
     {
@@ -63,7 +63,7 @@ impl GridState {
         cells
     }
 
-    pub fn count<F>(&self, predicate: F) -> i32
+    pub(crate) fn count<F>(&self, predicate: F) -> i32
         where
             F: Fn(&Cell) -> bool,
     {
@@ -85,16 +85,16 @@ impl GridState {
             .collect::<Vec<Vec<Cell>>>()
     }
 
-    pub fn into_iter(self) -> IntoIter<Vec<Cell>> {
+    pub(crate) fn into_iter(self) -> IntoIter<Vec<Cell>> {
         self.grouped().into_iter()
     }
 
     /// Returns the length of a column of the grid.
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.size.x as usize
     }
 
-    pub fn atom_adjacent(&self) -> bool {
+    pub(crate) fn atom_adjacent(&self) -> bool {
         let left = &self[self.cursor.x as usize - 1][self.cursor.y as usize];
         let right = &self[self.cursor.x as usize + 1][self.cursor.y as usize];
         match left.sym {
@@ -106,7 +106,7 @@ impl GridState {
         }
     }
 
-    pub fn chain_endpoints(&self) -> Vec<Cell> {
+    pub(crate) fn chain_endpoints(&self) -> Vec<Cell> {
         let mut endpoints: Vec<Cell> = vec![];
         for cell in self.find_all(|element| match element.sym {
             Symbol::Atom(it) => match it {
@@ -128,7 +128,7 @@ impl GridState {
         endpoints
     }
 
-    pub fn simply_connected(&self) -> bool {
+    pub(crate) fn simply_connected(&self) -> bool {
         for cell in self.cells.iter() {
             let temp;
             match cell.sym {
@@ -140,7 +140,7 @@ impl GridState {
         false
     }
 
-    pub fn simple_counter(&self) -> String {
+    pub(crate) fn simple_counter(&self) -> String {
         let mut success = true;
         {
             let carbon = self.count(|element| match element.sym {
@@ -218,28 +218,28 @@ impl IndexMut<usize> for GridState {
     }
 }
 
-pub struct Molecule {
-    pub groups: Vec<Group>,
+pub(crate) struct Molecule {
+    pub(crate) groups: Vec<Group>,
 }
 
-pub struct Group {
-    pub cells: Vec<Cell>,
-    pub class: GroupType,
+pub(crate) struct Group {
+    pub(crate) cells: Vec<Cell>,
+    pub(crate) class: GroupType,
 }
 
 #[derive(Clone)]
-pub struct Cell {
-    pub sym: Symbol,
-    pub pos: Vec2,
+pub(crate) struct Cell {
+    pub(crate) sym: Symbol,
+    pub(crate) pos: Vec2,
 }
 
-pub struct Neighbors {
-    pub pos: Vec2,
-    pub neighbors: Vec<Cell>,
+pub(crate) struct Neighbors {
+    pub(crate) pos: Vec2,
+    pub(crate) neighbors: Vec<Cell>,
 }
 
 impl Neighbors {
-    pub fn get(graph: &GridState, pos: Vec2) -> Neighbors {
+    pub(crate) fn get(graph: &GridState, pos: Vec2) -> Neighbors {
         let adjacents = vec![
             (1, 0, true),
             (0, 1, false),
@@ -261,7 +261,7 @@ impl Neighbors {
         Neighbors { pos, neighbors }
     }
 
-    pub fn count<F>(&self, predicate: F) -> i32
+    pub(crate) fn count<F>(&self, predicate: F) -> i32
         where
             F: Fn(&Cell) -> bool,
     {

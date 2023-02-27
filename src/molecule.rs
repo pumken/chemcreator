@@ -4,7 +4,7 @@ use crate::molecule::Atom::{C, H, O};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 
-pub enum GroupType {
+pub(crate) enum GroupType {
     /* Alkyl groups */
     Methyl, Ethyl, Propyl, Isopropyl, Butyl, Pentyl, Hexyl, Heptyl, Octyl, Nonyl, Decyl,
     /* Alkenyl groups in future */
@@ -16,7 +16,7 @@ pub enum GroupType {
 }
 
 #[derive(Clone)]
-pub enum Symbol {
+pub(crate) enum Symbol {
     Atom(Atom),
     Bond(Bond),
     None,
@@ -36,30 +36,30 @@ impl Symbol {
 }
 
 #[derive(Clone, Copy)]
-pub enum Atom {
+pub(crate) enum Atom {
     C,
     H,
     O,
 }
 
 #[derive(Copy)]
-pub struct Bond {
-    pub order: BondOrder,
-    pub orient: BondOrientation
+pub(crate) struct Bond {
+    pub(crate) order: BondOrder,
+    pub(crate) orient: BondOrientation
 }
 
 #[derive(Clone, Copy)]
-pub enum BondOrder {
+pub(crate) enum BondOrder {
     Single, Double, Triple
 }
 
 #[derive(Clone, Copy)]
-pub enum BondOrientation {
+pub(crate) enum BondOrientation {
     Vert, Horiz
 }
 
 impl Atom {
-    pub fn symbol(&self) -> &str {
+    pub(crate) fn symbol(&self) -> &str {
         match *self {
             C => "[C]",
             H => "[H]",

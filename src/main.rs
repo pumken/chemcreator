@@ -6,10 +6,7 @@ use ruscii::terminal::Window;
 
 use crate::grid::GridState;
 use crate::input::{handle_insertion, handle_movement};
-use crate::molecule::Atom::{C, H, O};
-use crate::molecule::Bond;
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Symbol;
 
 mod grid;

@@ -1,18 +1,36 @@
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{LightGrey, Red, White};
+use crate::grid::GridState;
 use crate::molecule::Atom::{C, H, O};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 
 pub(crate) enum GroupType {
     /* Alkyl groups */
-    Methyl, Ethyl, Propyl, Isopropyl, Butyl, Pentyl, Hexyl, Heptyl, Octyl, Nonyl, Decyl,
+    Methyl,
+    Ethyl,
+    Propyl,
+    Isopropyl,
+    Butyl,
+    Pentyl,
+    Hexyl,
+    Heptyl,
+    Octyl,
+    Nonyl,
+    Decyl,
     /* Alkenyl groups in future */
     /* Alkynyl groups in future */
     /* Halide groups */
-    Bromo, Chloro, Fluoro, Iodo,
+    Bromo,
+    Chloro,
+    Fluoro,
+    Iodo,
     /* General groups */
-    Hydroxyl, Carbonyl, Carboxyl, /* Phenyl later */ Ester, Ether
+    Hydroxyl,
+    Carbonyl,
+    Carboxyl,
+    /* Phenyl later */ Ester,
+    Ether,
 }
 
 #[derive(Clone)]
@@ -45,34 +63,10 @@ pub(crate) enum Atom {
 #[derive(Copy)]
 pub(crate) struct Bond {
     pub(crate) order: BondOrder,
-    pub(crate) orient: BondOrientation
-}
-
-#[derive(Clone, Copy)]
-pub(crate) enum BondOrder {
-    Single, Double, Triple
-}
-
-#[derive(Clone, Copy)]
-pub(crate) enum BondOrientation {
-    Vert, Horiz
-}
-
-impl Atom {
-    pub(crate) fn symbol(&self) -> &str {
-        match *self {
-            C => "[C]",
-            H => "[H]",
-            O => "[O]"
-        }
-    }
+    pub(crate) orient: BondOrientation,
 }
 
 impl Bond {
-    pub(crate) fn new(order: BondOrder, orient: BondOrientation) -> Bond {
-        Bond { order, orient }
-    }
-
     pub(crate) fn symbol(&self) -> &str {
         match (&self.order, &self.orient) {
             (Single, Horiz) => "———",
@@ -84,10 +78,37 @@ impl Bond {
         }
     }
 
-    pub(crate) fn is_horizontal(&self) -> bool {
-        match self.orient {
-            Horiz => true,
-            Vert => false
+    pub(crate) fn adjusted(order: BondOrder, graph: &GridState) -> Bond {
+        Bond {
+            order,
+            orient: if graph.atom_adjacent() {
+                Horiz
+            } else {
+                Vert
+            },
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum BondOrder {
+    Single,
+    Double,
+    Triple,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum BondOrientation {
+    Vert,
+    Horiz,
+}
+
+impl Atom {
+    pub(crate) fn symbol(&self) -> &str {
+        match *self {
+            C => "[C]",
+            H => "[H]",
+            O => "[O]"
         }
     }
 }

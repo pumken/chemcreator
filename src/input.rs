@@ -3,7 +3,6 @@ use crate::grid::GridState;
 use crate::molecule::{Bond, Symbol};
 use crate::molecule::Atom::{C, H, O};
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::BondOrientation::{Horiz, Vert};
 
 pub(crate) fn handle_insertion(key_event: &KeyEvent, graph: &mut GridState) -> Option<&'static str> {
     match key_event {
@@ -20,27 +19,15 @@ pub(crate) fn handle_insertion(key_event: &KeyEvent, graph: &mut GridState) -> O
             Some("F4")
         }
         KeyEvent::Pressed(Key::F1) => {
-            if graph.atom_adjacent() {
-                graph.insert(Symbol::Bond(Bond::new(Single, Horiz)));
-            } else {
-                graph.insert(Symbol::Bond(Bond::new(Single, Vert)));
-            }
+            graph.insert(Symbol::Bond(Bond::adjusted(Single, &graph)));
             Some("F1")
         }
         KeyEvent::Pressed(Key::F2) => {
-            if graph.atom_adjacent() {
-                graph.insert(Symbol::Bond(Bond::new(Double, Horiz)));
-            } else {
-                graph.insert(Symbol::Bond(Bond::new(Double, Vert)));
-            }
+            graph.insert(Symbol::Bond(Bond::adjusted(Double, &graph)));
             Some("F2")
         }
         KeyEvent::Pressed(Key::F3) => {
-            if graph.atom_adjacent() {
-                graph.insert(Symbol::Bond(Bond::new(Triple, Horiz)));
-            } else {
-                graph.insert(Symbol::Bond(Bond::new(Triple, Vert)));
-            }
+            graph.insert(Symbol::Bond(Bond::adjusted(Triple, &graph)));
             Some("F3")
         }
         KeyEvent::Pressed(Key::Backspace) => {

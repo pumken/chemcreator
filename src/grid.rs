@@ -39,32 +39,7 @@ impl GridState {
         &self.cells[self.cursor.x as usize][self.cursor.y as usize]
     }
 
-    pub(crate) fn find<F>(&self, predicate: F) -> Option<&Cell>
-        where
-            F: Fn(&Cell) -> bool,
-    {
-        self.cells.iter()
-            .flatten()
-            .find(|&element| predicate(element))
-    }
-
-    pub(crate) fn find_all<F>(&self, predicate: F) -> Vec<Cell>
-        where
-            F: Fn(&Cell) -> bool,
-    {
-        let mut cells: Vec<Cell> = vec![];
-        for cell in self.cells.iter().flatten() {
-            if predicate(&cell) {
-                cells.push(cell.clone());
-            }
-        }
-        cells
-    }
-
-    pub(crate) fn count<F>(&self, predicate: F) -> i32
-        where
-            F: Fn(&Cell) -> bool,
-    {
+    pub(crate) fn count(&self, predicate: fn(&Cell) -> bool) -> i32 {
         let mut count = 0;
         for cell in self.cells.iter().flatten() {
             if predicate(&cell) {
@@ -72,11 +47,6 @@ impl GridState {
             }
         }
         count
-    }
-
-    /// Returns the length of a column of the grid.
-    pub(crate) fn len(&self) -> usize {
-        self.size.x as usize
     }
 
     pub(crate) fn atom_adjacent(&self) -> bool {
@@ -89,28 +59,6 @@ impl GridState {
                 _ => false
             }
         }
-    }
-
-    pub(crate) fn chain_endpoints(&self) -> Vec<Cell> {
-        let mut endpoints: Vec<Cell> = vec![];
-        for cell in self.find_all(|element| match element.sym {
-            Symbol::Atom(it) => match it {
-                C => true,
-                _ => false
-            },
-            _ => false
-        }) {
-            if Neighbors::get(&self, cell.pos).count(|element| match element.sym {
-                Symbol::Atom(it) => match it {
-                    C => true,
-                    _ => false
-                },
-                _ => false
-            }) <= 1 {
-                endpoints.push(cell);
-            }
-        };
-        endpoints
     }
 
     pub(crate) fn simple_counter(&self) -> String {
@@ -178,46 +126,4 @@ pub(crate) struct Group {
 pub(crate) struct Cell {
     pub(crate) sym: Symbol,
     pub(crate) pos: Vec2,
-}
-
-pub(crate) struct Neighbors {
-    pub(crate) pos: Vec2,
-    pub(crate) neighbors: Vec<Cell>,
-}
-
-impl Neighbors {
-    pub(crate) fn get(graph: &GridState, pos: Vec2) -> Neighbors {
-        let adjacents = vec![
-            (1, 0, true),
-            (0, 1, false),
-            (-1, 0, true),
-            (0, -1, false),
-        ];
-        let mut neighbors: Vec<Cell> = vec!();
-
-        for (x, y, is_horizontal) in adjacents {
-            match &graph.cells[(pos.x + x) as usize][(pos.y + y) as usize].sym {
-                Symbol::Bond(it) => {
-                    if is_horizontal == it.is_horizontal() {
-                        neighbors.push(graph.cells[(pos.x + x * 2) as usize][(pos.y + y * 2) as usize].clone())
-                    }
-                }
-                _ => ()
-            }
-        }
-        Neighbors { pos, neighbors }
-    }
-
-    pub(crate) fn count<F>(&self, predicate: F) -> i32
-        where
-            F: Fn(&Cell) -> bool,
-    {
-        let mut count = 0;
-        for cell in &self.neighbors {
-            if predicate(&cell) {
-                count += 1;
-            }
-        }
-        count
-    }
 }

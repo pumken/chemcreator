@@ -1,28 +1,25 @@
-use std::iter::Cloned;
-use itertools::Itertools;
-use std::ops::{Index, IndexMut};
-use std::slice::Iter;
-use std::vec::IntoIter;
 use ruscii::spatial::Vec2;
 use crate::molecule::Atom::{C, H};
 use crate::molecule::{GroupType, Symbol};
 
 #[derive(Clone)]
 pub(crate) struct GridState {
-    cells: Vec<Cell>,
+    pub(crate) cells: Vec<Vec<Cell>>,
     pub(crate) size: Vec2,
     pub(crate) cursor: Vec2,
 }
 
 impl GridState {
     pub(crate) fn new(width: usize, height: usize) -> GridState {
-        let mut cells = Vec::with_capacity(width * height);
+        let mut cells = vec![];
 
         for x in (0 as usize)..width {
+            let mut row = vec![];
             for y in (0 as usize)..height {
                 let new_cell = Cell { sym: Symbol::None, pos: Vec2::xy(x, y) };
-                cells.push(new_cell);
+                row.push(new_cell);
             }
+            cells.push(row);
         }
 
         GridState {
@@ -35,11 +32,11 @@ impl GridState {
     pub(crate) fn insert(&mut self, symbol: Symbol) {
         let x = self.cursor.x as usize;
         let y = self.cursor.y as usize;
-        self[x][y].sym = symbol;
+        self.cells[x][y].sym = symbol;
     }
 
     pub(crate) fn current_cell(&self) -> &Cell {
-        &self[self.cursor.x as usize][self.cursor.y as usize]
+        &self.cells[self.cursor.x as usize][self.cursor.y as usize]
     }
 
     pub(crate) fn find<F>(&self, predicate: F) -> Option<&Cell>
@@ -47,6 +44,7 @@ impl GridState {
             F: Fn(&Cell) -> bool,
     {
         self.cells.iter()
+            .flatten()
             .find(|&element| predicate(element))
     }
 
@@ -55,7 +53,7 @@ impl GridState {
             F: Fn(&Cell) -> bool,
     {
         let mut cells: Vec<Cell> = vec![];
-        for cell in &self.cells[..] {
+        for cell in self.cells.iter().flatten() {
             if predicate(&cell) {
                 cells.push(cell.clone());
             }
@@ -68,25 +66,12 @@ impl GridState {
             F: Fn(&Cell) -> bool,
     {
         let mut count = 0;
-        for cell in &self.cells[..] {
+        for cell in self.cells.iter().flatten() {
             if predicate(&cell) {
                 count += 1;
             }
         }
         count
-    }
-
-    fn grouped(&self) -> Vec<Vec<Cell>> {
-        self.cells
-            .iter()
-            .group_by(|a| a.pos.x)
-            .into_iter()
-            .map(|(_, group)| group.map(|c| c.to_owned()).collect())
-            .collect::<Vec<Vec<Cell>>>()
-    }
-
-    pub(crate) fn into_iter(self) -> IntoIter<Vec<Cell>> {
-        self.grouped().into_iter()
     }
 
     /// Returns the length of a column of the grid.
@@ -95,8 +80,8 @@ impl GridState {
     }
 
     pub(crate) fn atom_adjacent(&self) -> bool {
-        let left = &self[self.cursor.x as usize - 1][self.cursor.y as usize];
-        let right = &self[self.cursor.x as usize + 1][self.cursor.y as usize];
+        let left = &self.cells[self.cursor.x as usize - 1][self.cursor.y as usize];
+        let right = &self.cells[self.cursor.x as usize + 1][self.cursor.y as usize];
         match left.sym {
             Symbol::Atom(_) => true,
             _ => match right.sym {
@@ -126,18 +111,6 @@ impl GridState {
             }
         };
         endpoints
-    }
-
-    pub(crate) fn simply_connected(&self) -> bool {
-        for cell in self.cells.iter() {
-            let temp;
-            match cell.sym {
-                Symbol::Atom(C) => temp = cell,
-                _ => continue
-            }
-            let neighbors = Neighbors::get(&self, temp.pos);
-        };
-        false
     }
 
     pub(crate) fn simple_counter(&self) -> String {
@@ -192,32 +165,6 @@ impl GridState {
     }
 }
 
-impl Index<usize> for GridState {
-    type Output = [Cell];
-
-    fn index(&self, index: usize) -> &Self::Output {
-        let begin = *&self.size.y as usize * index;
-        let end = *&self.size.y as usize * (index + 1);
-
-        if end > self.cells.len() {
-            panic!("index out of bounds: the len is {} but the index is {index}", &self.size.x)
-        }
-        &self.cells[begin..end]
-    }
-}
-
-impl IndexMut<usize> for GridState {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        let begin = *&self.size.y as usize * index;
-        let end = *&self.size.y as usize * (index + 1);
-
-        if end > self.cells.len() {
-            panic!("index out of bounds: the len is {} but the index is {index}", &self.size.x)
-        }
-        &mut self.cells[begin..end]
-    }
-}
-
 pub(crate) struct Molecule {
     pub(crate) groups: Vec<Group>,
 }
@@ -249,10 +196,10 @@ impl Neighbors {
         let mut neighbors: Vec<Cell> = vec!();
 
         for (x, y, is_horizontal) in adjacents {
-            match &graph[(pos.x + x) as usize][(pos.y + y) as usize].sym {
+            match &graph.cells[(pos.x + x) as usize][(pos.y + y) as usize].sym {
                 Symbol::Bond(it) => {
                     if is_horizontal == it.is_horizontal() {
-                        neighbors.push(graph[(pos.x + x * 2) as usize][(pos.y + y * 2) as usize].clone())
+                        neighbors.push(graph.cells[(pos.x + x * 2) as usize][(pos.y + y * 2) as usize].clone())
                     }
                 }
                 _ => ()

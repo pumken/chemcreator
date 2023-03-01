@@ -125,7 +125,7 @@ fn main() {
 
         // Grid
         // Could optimize by not copying the entire graph, figure out later
-        for cell in graph.clone().into_iter().flatten() {
+        for cell in graph.cells.iter().flatten() {
             pencil.set_foreground(*&cell.sym.color());
             pencil.draw_text(&format!("{}", match &cell.sym {
                 Symbol::Atom(it) => { it.symbol() }

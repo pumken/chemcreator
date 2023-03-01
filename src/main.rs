@@ -1,18 +1,21 @@
-mod grid;
-mod molecule;
-mod r#macro;
-
 use ruscii::app::{App, State};
-use ruscii::terminal::{Window};
-use ruscii::drawing::{Pencil};
-use ruscii::keyboard::{KeyEvent, Key};
-use ruscii::spatial::{Vec2};
-use crate::molecule::Atom::{C, H, O};
+use ruscii::drawing::Pencil;
+use ruscii::keyboard::{Key, KeyEvent};
+use ruscii::spatial::Vec2;
+use ruscii::terminal::Window;
+
 use crate::grid::GridState;
+use crate::input::{handle_insertion, handle_movement};
+use crate::molecule::Atom::{C, H, O};
+use crate::molecule::Bond;
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Symbol;
-use crate::molecule::Bond;
+
+mod grid;
+mod molecule;
+mod r#macro;
+mod input;
 
 fn main() {
     let mut app = App::new();
@@ -24,67 +27,13 @@ fn main() {
     let mut menu_key   = "          You're using version 1.          ";
 
     app.run(|app_state: &mut State, window: &mut Window| {
-        for key_event in app_state.keyboard().last_key_events() {
-            match mode {
-                Mode::Insert => {
+        match mode {
+            Mode::Insert => {
+                for key_event in app_state.keyboard().last_key_events() {
+                    if let Some(it) = handle_insertion(key_event, &mut graph) { menu_key = it; };
+                    if let Some(it) = handle_movement(key_event, &mut graph) { menu_key = it; }
                     match key_event {
                         KeyEvent::Pressed(Key::Esc) => mode = Mode::Normal,
-                        KeyEvent::Pressed(Key::Right) => {
-                            graph.cursor.x += 1;
-                            menu_key = "->";
-                        }
-                        KeyEvent::Pressed(Key::Left) => {
-                            graph.cursor.x -= 1;
-                            menu_key = "<-";
-                        }
-                        KeyEvent::Pressed(Key::Up) => {
-                            graph.cursor.y -= 1;
-                            menu_key = "^";
-                        }
-                        KeyEvent::Pressed(Key::Down) => {
-                            graph.cursor.y += 1;
-                            menu_key = "down";
-                        }
-                        KeyEvent::Pressed(Key::Backspace) => {
-                            graph.insert(Symbol::None);
-                            menu_key = "Backspace";
-                        }
-                        KeyEvent::Pressed(Key::Tab) => {
-                            graph.insert(Symbol::Atom(C));
-                            menu_key = "Tab";
-                        }
-                        KeyEvent::Pressed(Key::Enter) => {
-                            graph.insert(Symbol::Atom(H));
-                            menu_key = "Enter";
-                        }
-                        KeyEvent::Pressed(Key::F4) => {
-                            graph.insert(Symbol::Atom(O));
-                            menu_key = "F4";
-                        }
-                        KeyEvent::Pressed(Key::F1) => {
-                            if graph.atom_adjacent() {
-                                graph.insert(Symbol::Bond(Bond::new(Single, Horiz)));
-                            } else {
-                                graph.insert(Symbol::Bond(Bond::new(Single, Vert)));
-                            }
-                            menu_key = "F1";
-                        }
-                        KeyEvent::Pressed(Key::F2) => {
-                            if graph.atom_adjacent() {
-                                graph.insert(Symbol::Bond(Bond::new(Double, Horiz)));
-                            } else {
-                                graph.insert(Symbol::Bond(Bond::new(Double, Vert)));
-                            }
-                            menu_key = "F2";
-                        }
-                        KeyEvent::Pressed(Key::F3) => {
-                            if graph.atom_adjacent() {
-                                graph.insert(Symbol::Bond(Bond::new(Triple, Horiz)));
-                            } else {
-                                graph.insert(Symbol::Bond(Bond::new(Triple, Vert)));
-                            }
-                            menu_key = "F3";
-                        }
                         _ => {
                             menu_key = match key_event {
                                 KeyEvent::Pressed(_) => { "Pressed" }
@@ -93,7 +42,23 @@ fn main() {
                         }
                     }
                 }
-                Mode::Normal => {
+
+                menu_name = graph.simple_counter();
+                menu_pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
+                menu_sym = match graph.current_cell().sym {
+                    Symbol::Atom(it) => { format!("Atom {}", it.symbol()) }
+                    Symbol::Bond(it) => {
+                        match it.order {
+                            Single => format!("Bond 1x"),
+                            Double => format!("Bond 2x"),
+                            Triple => format!("Bond 3x"),
+                        }
+                    }
+                    Symbol::None => { format!("") }
+                }
+            }
+            Mode::Normal => {
+                for key_event in app_state.keyboard().last_key_events() {
                     match key_event {
                         KeyEvent::Pressed(Key::Esc) => app_state.stop(),
                         KeyEvent::Pressed(Key::Q) => app_state.stop(),
@@ -104,20 +69,6 @@ fn main() {
                         _ => ()
                     }
                 }
-            }
-
-            menu_name = graph.simple_counter();
-            menu_pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
-            menu_sym = match graph.current_cell().sym {
-                Symbol::Atom(it) => { format!("Atom {}", it.symbol()) }
-                Symbol::Bond(it) => {
-                    match it.order {
-                        Single => format!("Bond 1x"),
-                        Double => format!("Bond 2x"),
-                        Triple => format!("Bond 3x"),
-                    }
-                }
-                Symbol::None => { format!("") }
             }
         }
 

@@ -156,6 +156,7 @@ pub(crate) trait Invert {
 }
 
 impl Invert for Vec2 {
+    /// Inverts the `y` of this [Vec2]. For *why* this exists, see [Invert].
     fn inv(mut self, graph: &GridState) -> Vec2 {
         self.y = graph.size.y - self.y - 1;
         self

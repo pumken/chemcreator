@@ -24,7 +24,7 @@ mod algorithm;
 fn main() {
     let mut app = App::new();
     let mut graph = GridState::new(20, 10);
-    let mut mode = Mode::Insert;
+    let mut mode = Mode::Start;
     let mut menu_name = "                ChemCreator                ".to_string();
     let mut menu_pos  = "      Written in Rust by Gavin Tran.       ".to_string();
     let mut menu_sym  = "To start, enter insert mode by pressing F8.".to_string();
@@ -84,7 +84,7 @@ fn main() {
                         _ => {
                             menu_key = match key_event {
                                 KeyEvent::Pressed(_) => { "Pressed" }
-                                KeyEvent::Released(_) => { "Released" }
+                                KeyEvent::Released(_) => { "" }
                             }
                         }
                     }
@@ -108,14 +108,23 @@ fn main() {
                 }
             }
             Mode::Normal => {
+                menu_pos = "".to_string();
+                menu_sym = "".to_string();
+                menu_key = "";
+                menu_err = "".to_string();
                 for key_event in app_state.keyboard().last_key_events() {
                     match key_event {
                         KeyEvent::Pressed(Key::Esc) => app_state.stop(),
-                        KeyEvent::Pressed(Key::Q) => app_state.stop(),
-                        KeyEvent::Pressed(Key::F8) => {
-                            mode = Mode::Insert;
-                            menu_key = "F8";
-                        }
+                        KeyEvent::Pressed(Key::F8) => mode = Mode::Insert,
+                        _ => ()
+                    }
+                }
+            }
+            Mode::Start => {
+                for key_event in app_state.keyboard().last_key_events() {
+                    match key_event {
+                        KeyEvent::Pressed(Key::Esc) => app_state.stop(),
+                        KeyEvent::Pressed(Key::F8) => mode = Mode::Insert,
                         _ => ()
                     }
                 }
@@ -134,6 +143,7 @@ fn main() {
                 Symbol::None => match mode {
                     Mode::Insert => " • ",
                     Mode::Normal => "   ",
+                    _ => "   "
                 }
             }), Vec2::xy(cell.pos.x * 3, cell.pos.y).inv(&graph));
         }
@@ -141,7 +151,7 @@ fn main() {
         // Insert mode and cursor
         match mode {
             Mode::Insert => {
-                pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 0));
+                pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 1));
                 pencil.draw_text("<", Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y).inv(&graph));
                 pencil.draw_text(">", Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(&graph));
             }
@@ -149,12 +159,16 @@ fn main() {
         }
 
         // Menu
-        pencil.draw_text(&format!("name | {}", menu_name), Vec2::xy(graph.size.x * 3 + 3, 1));
-        pencil.draw_text(&format!(" pos | {}", menu_pos), Vec2::xy(graph.size.x * 3 + 3, 2));
-        pencil.draw_text(&format!(" sym | {}", menu_sym), Vec2::xy(graph.size.x * 3 + 3, 3));
-        pencil.draw_text(&format!(" key | {}", menu_key), Vec2::xy(graph.size.x * 3 + 3, 4));
+        pencil.draw_text(match mode {
+            Mode::Start => "",
+            _ => "ChemCreator"
+        }, Vec2::xy(graph.size.x * 3 + 3, 0));
+        pencil.draw_text(&format!("name | {}", menu_name), Vec2::xy(graph.size.x * 3 + 3, 2));
+        pencil.draw_text(&format!(" pos | {}", menu_pos), Vec2::xy(graph.size.x * 3 + 3, 3));
+        pencil.draw_text(&format!(" sym | {}", menu_sym), Vec2::xy(graph.size.x * 3 + 3, 4));
+        pencil.draw_text(&format!(" key | {}", menu_key), Vec2::xy(graph.size.x * 3 + 3, 5));
         pencil.set_foreground(Red);
-        pencil.draw_text(&format!("{}", menu_err), Vec2::xy(graph.size.x * 3 + 3, 6));
+        pencil.draw_text(&format!("{}", menu_err), Vec2::xy(graph.size.x * 3 + 3, 7));
     });
 }
 
@@ -162,4 +176,5 @@ fn main() {
 enum Mode {
     Insert,
     Normal,
+    Start,
 }

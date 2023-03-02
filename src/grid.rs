@@ -48,6 +48,34 @@ impl GridState {
         &mut self.cells[self.cursor.x as usize][self.cursor.y as usize]
     }
 
+    /// Moves the cursor upwards safely.
+    pub(crate) fn move_up(&mut self) {
+        if self.cursor.y != self.size.y - 1 {
+            self.cursor.y += 1;
+        }
+    }
+
+    /// Moves the cursor downwards safely.
+    pub(crate) fn move_down(&mut self) {
+        if self.cursor.y != 0 {
+            self.cursor.y -= 1;
+        }
+    }
+
+    /// Moves the cursor leftwards safely.
+    pub(crate) fn move_left(&mut self) {
+        if self.cursor.x != 0 {
+            self.cursor.x -= 1;
+        }
+    }
+
+    /// Moves the cursor rightwards safely.
+    pub(crate) fn move_right(&mut self) {
+        if self.cursor.x != self.size.x - 1 {
+            self.cursor.x += 1;
+        }
+    }
+
     /// Returns the number of [Cell]s that satisfy the given `predicate`.
     pub(crate) fn count(&self, predicate: fn(&Cell) -> bool) -> i32 {
         let mut count = 0;
@@ -64,11 +92,8 @@ impl GridState {
         let left = &self.cells[self.cursor.x as usize - 1][self.cursor.y as usize];
         let right = &self.cells[self.cursor.x as usize + 1][self.cursor.y as usize];
 
-        if let Symbol::Atom(_) = left.sym {
-            if let Symbol::Atom(_) = right.sym {
-                return true;
-            }
-        }
+        if let Symbol::Atom(_) = left.sym { return true }
+        if let Symbol::Atom(_) = right.sym { return true }
         false
     }
 
@@ -120,4 +145,19 @@ impl GridState {
 pub(crate) struct Cell {
     pub(crate) sym: Symbol,
     pub(crate) pos: Vec2,
+}
+
+/// A trait made specifically for [Vec2] to invert the graph so that the origin is in the
+/// bottom-left corner rather than the top left corner.
+///
+/// The sole function returns a [Vec2] because it is not expected that any other type will use it.
+pub(crate) trait Invert {
+    fn inv(self, graph: &GridState) -> Vec2;
+}
+
+impl Invert for Vec2 {
+    fn inv(mut self, graph: &GridState) -> Vec2 {
+        self.y = graph.size.y - self.y - 1;
+        self
+    }
 }

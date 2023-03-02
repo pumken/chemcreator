@@ -10,7 +10,7 @@ use ruscii::spatial::Vec2;
 use ruscii::terminal::Color::Red;
 use ruscii::terminal::Window;
 
-use crate::grid::GridState;
+use crate::grid::{GridState, Invert};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::{Bond, Symbol};
 use crate::molecule::Atom::{C, H, O};
@@ -65,19 +65,19 @@ fn main() {
                             menu_key = "Backspace";
                         }
                         KeyEvent::Pressed(Key::Right) => {
-                            graph.cursor.x += 1;
+                            graph.move_right();
                             menu_key = "->";
                         }
                         KeyEvent::Pressed(Key::Left) => {
-                            graph.cursor.x -= 1;
+                            graph.move_left();
                             menu_key = "<-";
                         }
                         KeyEvent::Pressed(Key::Up) => {
-                            graph.cursor.y -= 1;
+                            graph.move_up();
                             menu_key = "↑";
                         }
                         KeyEvent::Pressed(Key::Down) => {
-                            graph.cursor.y += 1;
+                            graph.move_down();
                             menu_key = "↓";
                         }
                         KeyEvent::Pressed(Key::Esc) => mode = Mode::Normal,
@@ -135,15 +135,15 @@ fn main() {
                     Mode::Insert => " • ",
                     Mode::Normal => "   ",
                 }
-            }), Vec2::xy(cell.pos.x * 3, cell.pos.y));
+            }), Vec2::xy(cell.pos.x * 3, cell.pos.y).inv(&graph));
         }
 
         // Insert mode and cursor
         match mode {
             Mode::Insert => {
                 pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 0));
-                pencil.draw_text("<", Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y));
-                pencil.draw_text(">", Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y));
+                pencil.draw_text("<", Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y).inv(&graph));
+                pencil.draw_text(">", Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(&graph));
             }
             _ => ()
         }

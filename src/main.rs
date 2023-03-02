@@ -7,7 +7,7 @@ use ruscii::app::{App, State};
 use ruscii::drawing::Pencil;
 use ruscii::keyboard::{Key, KeyEvent};
 use ruscii::spatial::Vec2;
-use ruscii::terminal::Color::Red;
+use ruscii::terminal::Color::{Cyan, Red, White};
 use ruscii::terminal::Window;
 
 use crate::grid::{GridState, Invert};
@@ -152,8 +152,10 @@ fn main() {
         match mode {
             Mode::Insert => {
                 pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 1));
+                pencil.set_foreground(Cyan);
                 pencil.draw_text("<", Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y).inv(&graph));
                 pencil.draw_text(">", Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(&graph));
+                pencil.set_foreground(White);
             }
             _ => ()
         }

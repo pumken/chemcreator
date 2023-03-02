@@ -13,7 +13,7 @@ pub(crate) struct GridState {
 
 impl GridState {
     /// Creates a new [GridState] with the given `width` and `height` populated by [Cell]s that
-    /// all contain [Symbol::None] and with the cursor set to position (0, 0).
+    /// all contain [Symbol::None] and with the cursor set to the center.
     pub(crate) fn new(width: usize, height: usize) -> GridState {
         let mut cells = vec![];
 
@@ -29,7 +29,7 @@ impl GridState {
         GridState {
             cells,
             size: Vec2::xy(width, height),
-            cursor: Vec2::xy(0, 0),
+            cursor: Vec2::xy(width / 2, height / 2),
         }
     }
 

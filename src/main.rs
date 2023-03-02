@@ -23,12 +23,13 @@ mod algorithm;
 
 fn main() {
     let mut app = App::new();
+    let version = env!("CARGO_PKG_VERSION");
     let mut graph = GridState::new(20, 10);
     let mut mode = Mode::Start;
     let mut menu_name = "                ChemCreator                ".to_string();
     let mut menu_pos  = "      Written in Rust by Gavin Tran.       ".to_string();
     let mut menu_sym  = "To start, enter insert mode by pressing F8.".to_string();
-    let mut menu_key   = "          You're using version 1.          ";
+    let mut menu_key   = "";  // Overridden in Start mode to retain &str type
     let mut menu_err  = "".to_string();
 
     app.run(|app_state: &mut State, window: &mut Window| {
@@ -66,11 +67,11 @@ fn main() {
                         }
                         KeyEvent::Pressed(Key::Right) => {
                             graph.move_right();
-                            menu_key = "->";
+                            menu_key = "→";
                         }
                         KeyEvent::Pressed(Key::Left) => {
                             graph.move_left();
-                            menu_key = "<-";
+                            menu_key = "←";
                         }
                         KeyEvent::Pressed(Key::Up) => {
                             graph.move_up();
@@ -133,19 +134,30 @@ fn main() {
 
         let mut pencil = Pencil::new(window.canvas_mut());
 
-        // Grid
-        // Could optimize by not copying the entire graph, figure out later
-        for cell in graph.cells.iter().flatten() {
-            pencil.set_foreground(*&cell.sym.color());
-            pencil.draw_text(&format!("{}", match &cell.sym {
-                Symbol::Atom(it) => { it.symbol() }
-                Symbol::Bond(it) => { it.symbol() }
-                Symbol::None => match mode {
-                    Mode::Insert => " • ",
-                    Mode::Normal => "   ",
-                    _ => "   "
+        // Grid and startup screen
+        match mode {
+            Mode::Start => {
+                pencil.draw_text("┌────┐          ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 2).inv(&graph));
+                pencil.draw_text("│  C │hem       ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 1).inv(&graph));
+                pencil.draw_text("└────┼────┐     ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 0).inv(&graph));
+                pencil.draw_text("     │ Cr │eator", Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 1).inv(&graph));
+                pencil.draw_text("     └────┘     ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 2).inv(&graph));
+                pencil.draw_text("    Release 1   ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 3).inv(&graph));
+            }
+            _ => {
+                for cell in graph.cells.iter().flatten() {
+                    pencil.set_foreground(*&cell.sym.color());
+                    pencil.draw_text(&format!("{}", match &cell.sym {
+                        Symbol::Atom(it) => { it.symbol() }
+                        Symbol::Bond(it) => { it.symbol() }
+                        Symbol::None => match mode {
+                            Mode::Insert => " • ",
+                            Mode::Normal => "   ",
+                            _ => "   "
+                        }
+                    }), Vec2::xy(cell.pos.x * 3, cell.pos.y).inv(&graph));
                 }
-            }), Vec2::xy(cell.pos.x * 3, cell.pos.y).inv(&graph));
+            }
         }
 
         // Insert mode and cursor
@@ -168,7 +180,10 @@ fn main() {
         pencil.draw_text(&format!("name | {}", menu_name), Vec2::xy(graph.size.x * 3 + 3, 2));
         pencil.draw_text(&format!(" pos | {}", menu_pos), Vec2::xy(graph.size.x * 3 + 3, 3));
         pencil.draw_text(&format!(" sym | {}", menu_sym), Vec2::xy(graph.size.x * 3 + 3, 4));
-        pencil.draw_text(&format!(" key | {}", menu_key), Vec2::xy(graph.size.x * 3 + 3, 5));
+        pencil.draw_text(&format!(" key | {}", match mode {
+            Mode::Start => format!("        You're using version {version}.          ").to_string(),
+            _ => menu_key.to_string()
+        }), Vec2::xy(graph.size.x * 3 + 3, 5));
         pencil.set_foreground(Red);
         pencil.draw_text(&format!("{}", menu_err), Vec2::xy(graph.size.x * 3 + 3, 7));
     });

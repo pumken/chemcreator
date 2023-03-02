@@ -1,0 +1,11 @@
+[package]
+name = "chemcreator"
+version = "1.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ruscii = "0.3.2"
+itertools = "0.10.5"
+thiserror = "1.0.38"

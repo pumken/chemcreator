@@ -151,3 +151,8 @@ impl Clone for Bond {
         Self { order: self.order.clone(), orient: self.orient.clone() }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+}

@@ -140,6 +140,63 @@ impl GridState {
     }
 }
 
+/// A struct used to move around a [GridState] and borrow __immutable__ references to its cells.
+///
+/// Not to be confused with the pointer in computer science used to store a memory address.
+///
+/// > There are only two hard things in Computer Science: cache invalidation and naming things.
+/// > — Phil Karlton
+pub(crate) struct Pointer<'a> {
+    pub(crate) graph: &'a GridState,
+    pub(crate) pos: Vec2
+}
+
+impl Pointer<'_> {
+    pub(crate) fn new<'a>(cell: &Cell, graph: &'a GridState) -> Pointer<'a> {
+        Pointer { graph, pos: cell.pos }
+    }
+
+    pub(crate) fn borrow(&self) -> &Cell {
+        &self.graph.cells[self.pos.x as usize][self.pos.y as usize]
+    }
+
+    pub(crate) fn move_up(&mut self) -> bool {
+        if self.pos.y < self.graph.size.y - 1 {
+            self.pos.y += 1;
+            true
+        } else  {
+            false
+        }
+    }
+
+    pub(crate) fn move_down(&mut self) -> bool {
+        if self.pos.y > 0 {
+            self.pos.y -= 1;
+            true
+        } else  {
+            false
+        }
+    }
+
+    pub(crate) fn move_left(&mut self) -> bool {
+        if self.pos.x > 0 {
+            self.pos.y -= 1;
+            true
+        } else  {
+            false
+        }
+    }
+
+    pub(crate) fn move_right(&mut self) -> bool {
+        if self.pos.x < self.graph.size.x - 1 {
+            self.pos.x += 1;
+            true
+        } else  {
+            false
+        }
+    }
+}
+
 /// Represents a cell in the [GridState].
 #[derive(Clone, Debug)]
 pub(crate) struct Cell {

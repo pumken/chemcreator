@@ -12,8 +12,8 @@ use ruscii::terminal::Window;
 
 use crate::grid::{GridState, Invert};
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::{Bond, Symbol};
-use crate::molecule::Atom::{C, H, O};
+use crate::molecule::Cell;
+use crate::molecule::Element::{C, H, O};
 
 mod grid;
 mod molecule;
@@ -38,31 +38,31 @@ fn main() {
                 for key_event in app_state.keyboard().last_key_events() {
                     match key_event {
                         KeyEvent::Pressed(Key::Tab) => {
-                            graph.insert(Symbol::Atom(C));
+                            graph.put_atom(C);
                             menu_key = "Tab";
                         }
                         KeyEvent::Pressed(Key::Enter) => {
-                            graph.insert(Symbol::Atom(H));
+                            graph.put_atom(H);
                             menu_key = "Enter";
                         }
                         KeyEvent::Pressed(Key::F4) => {
-                            graph.insert(Symbol::Atom(O));
+                            graph.put_atom(O);
                             menu_key = "F4";
                         }
                         KeyEvent::Pressed(Key::F1) => {
-                            graph.insert(Symbol::Bond(Bond::adjusted(Single, &graph)));
+                            graph.put_bond(Single);
                             menu_key = "F1";
                         }
                         KeyEvent::Pressed(Key::F2) => {
-                            graph.insert(Symbol::Bond(Bond::adjusted(Double, &graph)));
+                            graph.put_bond(Double);
                             menu_key = "F2";
                         }
                         KeyEvent::Pressed(Key::F3) => {
-                            graph.insert(Symbol::Bond(Bond::adjusted(Triple, &graph)));
+                            graph.put_bond(Triple);
                             menu_key = "F3";
                         }
                         KeyEvent::Pressed(Key::Backspace) => {
-                            graph.insert(Symbol::None);
+                            graph.clear();
                             menu_key = "Backspace";
                         }
                         KeyEvent::Pressed(Key::Right) => {
@@ -96,16 +96,16 @@ fn main() {
                     Err(it) => ("unidentified".to_string(), it.to_string()),
                 };
                 menu_pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
-                menu_sym = match graph.current_cell().sym {
-                    Symbol::Atom(it) => { format!("Atom {}", it.symbol()) }
-                    Symbol::Bond(it) => {
+                menu_sym = match graph.current_cell() {
+                    Cell::Atom(it) => { format!("Atom {}", it.symbol()) }
+                    Cell::Bond(it) => {
                         match it.order {
                             Single => format!("Bond 1x"),
                             Double => format!("Bond 2x"),
                             Triple => format!("Bond 3x"),
                         }
                     }
-                    Symbol::None => { format!("") }
+                    Cell::None(_) => { format!("") }
                 }
             }
             Mode::Normal => {
@@ -146,16 +146,16 @@ fn main() {
             }
             _ => {
                 for cell in graph.cells.iter().flatten() {
-                    pencil.set_foreground(*&cell.sym.color());
-                    pencil.draw_text(&format!("{}", match &cell.sym {
-                        Symbol::Atom(it) => { it.symbol() }
-                        Symbol::Bond(it) => { it.symbol() }
-                        Symbol::None => match mode {
+                    pencil.set_foreground(*&cell.color());
+                    pencil.draw_text(&format!("{}", match &cell {
+                        Cell::Atom(it) => { it.symbol() }
+                        Cell::Bond(it) => { it.symbol() }
+                        Cell::None(_) => match mode {
                             Mode::Insert => " • ",
                             Mode::Normal => "   ",
                             _ => "   "
                         }
-                    }), Vec2::xy(cell.pos.x * 3, cell.pos.y).inv(&graph));
+                    }), Vec2::xy(cell.pos().x * 3, cell.pos().y).inv(&graph));
                 }
             }
         }

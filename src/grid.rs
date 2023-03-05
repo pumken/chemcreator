@@ -1,7 +1,7 @@
-use std::fmt::Debug;
 use ruscii::spatial::Vec2;
-use crate::molecule::Atom::{C, H};
-use crate::molecule::Symbol;
+use crate::molecule::Element::{C, H};
+use crate::molecule::{Atom, Bond, BondOrder, Cell, Element};
+use crate::molecule::BondOrientation::{Horiz, Vert};
 
 /// Represents the state of a grid, including all its [Cell]s and the position of the cursor.
 #[derive(Clone)]
@@ -13,14 +13,14 @@ pub(crate) struct GridState {
 
 impl GridState {
     /// Creates a new [GridState] with the given `width` and `height` populated by [Cell]s that
-    /// all contain [Symbol::None] and with the cursor set to the center.
+    /// all contain [Cell::None] and with the cursor set to the center.
     pub(crate) fn new(width: usize, height: usize) -> GridState {
         let mut cells = vec![];
 
         for x in 0usize..width {
             let mut row = vec![];
             for y in 0usize..height {
-                let new_cell = Cell { sym: Symbol::None, pos: Vec2::xy(x, y) };
+                let new_cell = Cell::None(Vec2::xy(x, y));
                 row.push(new_cell);
             }
             cells.push(row);
@@ -33,9 +33,30 @@ impl GridState {
         }
     }
 
-    /// Sets the [Symbol] that the current cell contains to the given [Symbol].
-    pub(crate) fn insert(&mut self, symbol: Symbol) {
-        self.current_cell_mut().sym = symbol;
+    /// Sets the current [Cell] pointed to by the cursor to a [Cell::Atom] with the given [Element].
+    pub(crate) fn put_atom(&mut self, element: Element) {
+        let cursor_pos = (self.cursor.x as usize, self.cursor.y as usize);
+        let new_atom = Cell::Atom(Atom { element, pos: cursor_pos.to_vec2() });
+        self.cells[cursor_pos.0][cursor_pos.1] = new_atom;
+    }
+
+    /// Sets the current [Cell] pointed to by the cursor to an [Cell::Bond] with the given
+    /// [BondOrder].
+    pub(crate) fn put_bond(&mut self, order: BondOrder) {
+        let cursor_pos = (self.cursor.x as usize, self.cursor.y as usize);
+        let new_atom = Cell::Bond(Bond {
+            pos: cursor_pos.to_vec2(),
+            order,
+            orient: if self.atom_adjacent() { Horiz } else { Vert }
+        });
+        self.cells[cursor_pos.0][cursor_pos.1] = new_atom;
+    }
+
+    /// Sets the current [Cell] pointed to by the cursor to [Cell::None].
+    pub(crate) fn clear(&mut self) {
+        let cursor_pos = (self.cursor.x as usize, self.cursor.y as usize);
+        let new_none = Cell::None(cursor_pos.to_vec2());
+        self.cells[cursor_pos.0][cursor_pos.1] = new_none;
     }
 
     /// Returns a reference to the [Cell] to which the cursor is currently pointing.
@@ -88,12 +109,12 @@ impl GridState {
     }
 
     /// Determines if there are any [Atom]s that are horizontally adjacent to the current [Cell].
-    pub(crate) fn atom_adjacent(&self) -> bool {
+    fn atom_adjacent(&self) -> bool {
         let left = &self.cells[self.cursor.x as usize - 1][self.cursor.y as usize];
         let right = &self.cells[self.cursor.x as usize + 1][self.cursor.y as usize];
 
-        if let Symbol::Atom(_) = left.sym { return true }
-        if let Symbol::Atom(_) = right.sym { return true }
+        if let Cell::Atom(_) = left { return true }
+        if let Cell::Atom(_) = right { return true }
         false
     }
 
@@ -103,13 +124,13 @@ impl GridState {
     /// This should eventually be replaced because it ignores all bonds and `[O]` [Atom]s and
     /// assumes that the molecule must be an alkane, alkene, or alkyne.
     pub(crate) fn simple_counter(&self) -> Result<String, &str> {
-        let carbon = self.count(|element| if let Symbol::Atom(it) = element.sym {
-            it == C
+        let carbon = self.count(|element| if let Cell::Atom(it) = element {
+            it.element == C
         } else {
             false
         });
-        let hydrogen = self.count(|element| if let Symbol::Atom(it) = element.sym {
-            it == H
+        let hydrogen = self.count(|element| if let Cell::Atom(it) = element {
+            it.element == H
         } else {
             false
         });
@@ -140,6 +161,16 @@ impl GridState {
     }
 }
 
+trait ToVec2 {
+    fn to_vec2(self) -> Vec2;
+}
+
+impl ToVec2 for (usize, usize) {
+    fn to_vec2(self) -> Vec2 {
+        Vec2::xy(self.0, self.1)
+    }
+}
+
 /// A struct used to move around a [GridState] and borrow __immutable__ references to its cells.
 ///
 /// Not to be confused with the pointer in computer science used to store a memory address.
@@ -153,7 +184,7 @@ pub(crate) struct Pointer<'a> {
 
 impl Pointer<'_> {
     pub(crate) fn new<'a>(cell: &Cell, graph: &'a GridState) -> Pointer<'a> {
-        Pointer { graph, pos: cell.pos }
+        Pointer { graph, pos: cell.pos() }
     }
 
     pub(crate) fn borrow(&self) -> &Cell {
@@ -197,11 +228,8 @@ impl Pointer<'_> {
     }
 }
 
-/// Represents a cell in the [GridState].
-#[derive(Clone, Debug)]
-pub(crate) struct Cell {
-    pub(crate) sym: Symbol,
-    pub(crate) pos: Vec2,
+pub(crate) trait Cellular {
+    fn pos(&self) -> Vec2;
 }
 
 /// A trait made specifically for [Vec2] to invert the graph so that the origin is in the

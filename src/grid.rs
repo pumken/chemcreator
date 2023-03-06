@@ -1,4 +1,5 @@
 use ruscii::spatial::Vec2;
+use crate::algorithm::InvalidGraphError;
 use crate::molecule::Element::{C, H};
 use crate::molecule::{Atom, Bond, BondOrder, Cell, Element};
 use crate::molecule::BondOrientation::{Horiz, Vert};
@@ -108,6 +109,17 @@ impl GridState {
         count
     }
 
+    pub(crate) fn find_all(&self, predicate: fn(&Cell) -> bool) -> Vec<&Cell> {
+        let mut out = vec![];
+
+        for cell in self.cells.iter().flatten() {
+            if predicate(&cell) {
+                out.push(cell);
+            }
+        }
+        out
+    }
+
     /// Determines if there are any [Atom]s that are horizontally adjacent to the current [Cell].
     fn atom_adjacent(&self) -> bool {
         let left = &self.cells[self.cursor.x as usize - 1][self.cursor.y as usize];
@@ -171,6 +183,28 @@ impl ToVec2 for (usize, usize) {
     }
 }
 
+pub(crate) enum Direction {
+    Up,
+    Down,
+    Left,
+    Right
+}
+
+impl Direction {
+    pub(crate) const fn all() -> Vec<Direction> {
+        vec![Direction::Up, Direction::Down, Direction::Left, Direction::Right]
+    }
+
+    pub(crate) const fn unit_vector(&self) -> Vec2 {
+        match self {
+            Direction::Up => Vec2::y(1),
+            Direction::Down => Vec2::y(-1),
+            Direction::Left => Vec2::x(-1),
+            Direction::Right => Vec2::x(1)
+        }
+    }
+}
+
 /// A struct used to move around a [GridState] and borrow __immutable__ references to its cells.
 ///
 /// Not to be confused with the pointer in computer science used to store a memory address.
@@ -189,6 +223,30 @@ impl Pointer<'_> {
 
     pub(crate) fn borrow(&self) -> &Cell {
         &self.graph.cells[self.pos.x as usize][self.pos.y as usize]
+    }
+
+    /// Returns a [Vec] of the &[Cell]s bonded to the cell currently pointed to.
+    ///
+    /// # Panics
+    ///
+    /// When this function is called, the [Pointer] is expected to be pointing to a valid
+    /// [Cell::Atom]. If it is found that this is not the case, this function will panic!
+    ///
+    /// # Errors
+    ///
+    /// If one of the bonds to the current cell is found to be dangling, an
+    /// [InvalidGraphError::IncompleteBond] will be returned.
+    pub(crate) fn bonded(&self) -> Result<Vec<&Cell>, InvalidGraphError> {
+        let central = self.borrow();
+        let central_atom = match central {
+            Cell::Atom(it) => it,
+            Cell::Bond(_) => panic!("Pointer cannot access bonded atoms: atom was expected at ({}, {}) but bond
+            was found", self.pos.x, self.pos.y),
+            Cell::None(_) => panic!("Pointer cannot access bonded atoms: atom was expected at ({}, {}) but none
+            was found", self.pos.x, self.pos.y)
+        };
+
+
     }
 
     pub(crate) fn move_up(&mut self) -> bool {

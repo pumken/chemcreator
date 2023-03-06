@@ -3,6 +3,8 @@
 //! `chemcreator` is a binary crate that allows you to get information about an organic
 //! molecule by building it in a text-based user interface.
 
+#![warn(missing_docs)]
+
 use ruscii::app::{App, State};
 use ruscii::drawing::Pencil;
 use ruscii::keyboard::{Key, KeyEvent};

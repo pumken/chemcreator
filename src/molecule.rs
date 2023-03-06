@@ -7,12 +7,6 @@ use crate::molecule::Element::{C, H, O};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 
-/// Represents the current molecule.
-pub(crate) struct Molecule {
-    pub(crate) name: String,
-    pub(crate) groups: Vec<Group>,
-}
-
 /// Represents a functional group, containing the [Cell]s that comprise it.
 pub(crate) struct Group {
     pub(crate) cells: Vec<Cell>,
@@ -73,6 +67,14 @@ impl Cell {
             Cell::Atom(it) => it.pos,
             Cell::Bond(it) => it.pos,
             Cell::None(it) => *it
+        }
+    }
+
+    pub(crate) fn is_not_atom(&self) -> bool {
+        if let Cell::Atom(_) = self {
+            false
+        } else {
+            true
         }
     }
 }

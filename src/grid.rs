@@ -1,4 +1,4 @@
-use ruscii::spatial::Vec2;
+use ruscii::spatial::{Direction, Vec2};
 use crate::algorithm::InvalidGraphError;
 use crate::molecule::Element::{C, H};
 use crate::molecule::{Atom, Bond, BondOrder, Cell, Element};
@@ -32,6 +32,18 @@ impl GridState {
             size: Vec2::xy(width, height),
             cursor: Vec2::xy(width / 2, height / 2),
         }
+    }
+
+    /// Returns a reference to the cell at the given `pos`.
+    ///
+    /// ## Errors
+    ///
+    /// If a `pos` is not a valid point within the graph, this function returns [Err].
+    pub fn get(&self, pos: Vec2) -> Result<&Cell, String> {
+        if !self.contains(pos) {
+            return Err(format!("Invalid access of graph at ({}, {})", pos.x, pos.y));
+        }
+        Ok(&self.cells[pos.x as usize][pos.y as usize])
     }
 
     /// Sets the current [Cell] pointed to by the cursor to a [Cell::Atom] with the given [Element].
@@ -96,6 +108,11 @@ impl GridState {
         if self.cursor.x != self.size.x - 1 {
             self.cursor.x += 1;
         }
+    }
+
+    /// Returns whether the given position is a valid point on the grid or not.
+    pub(crate) fn contains(&self, pos: Vec2) -> bool {
+        pos.x >= 0 && pos.y >= 0 && pos.x < self.size.x && pos.y < self.size.y
     }
 
     /// Returns the number of [Cell]s that satisfy the given `predicate`.
@@ -183,28 +200,6 @@ impl ToVec2 for (usize, usize) {
     }
 }
 
-pub(crate) enum Direction {
-    Up,
-    Down,
-    Left,
-    Right
-}
-
-impl Direction {
-    pub(crate) const fn all() -> Vec<Direction> {
-        vec![Direction::Up, Direction::Down, Direction::Left, Direction::Right]
-    }
-
-    pub(crate) const fn unit_vector(&self) -> Vec2 {
-        match self {
-            Direction::Up => Vec2::y(1),
-            Direction::Down => Vec2::y(-1),
-            Direction::Left => Vec2::x(-1),
-            Direction::Right => Vec2::x(1)
-        }
-    }
-}
-
 /// A struct used to move around a [GridState] and borrow __immutable__ references to its cells.
 ///
 /// Not to be confused with the pointer in computer science used to store a memory address.
@@ -225,17 +220,18 @@ impl Pointer<'_> {
         &self.graph.cells[self.pos.x as usize][self.pos.y as usize]
     }
 
-    /// Returns a [Vec] of the &[Cell]s bonded to the cell currently pointed to.
+    /// Returns a [`Vec`] of references to the [`Cell`]s bonded to the atom currently pointed to.
+    /// Assumes that the current cell is a [`Cell::Atom`].
     ///
-    /// # Panics
+    /// ## Panics
     ///
-    /// When this function is called, the [Pointer] is expected to be pointing to a valid
-    /// [Cell::Atom]. If it is found that this is not the case, this function will panic!
+    /// When this function is called, the [`Pointer`] is expected to be pointing to a valid
+    /// [`Cell::Atom`]. If it is found that this is not the case, this function will panic!
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// If one of the bonds to the current cell is found to be dangling, an
-    /// [InvalidGraphError::IncompleteBond] will be returned.
+    /// [`InvalidGraphError::IncompleteBond`] will be returned.
     pub(crate) fn bonded(&self) -> Result<Vec<&Cell>, InvalidGraphError> {
         let central = self.borrow();
         let central_atom = match central {
@@ -245,6 +241,40 @@ impl Pointer<'_> {
             Cell::None(_) => panic!("Pointer cannot access bonded atoms: atom was expected at ({}, {}) but none
             was found", self.pos.x, self.pos.y)
         };
+
+        for direction in Direction::all() {
+
+        }
+        ;
+        Some()
+    }
+
+    /// Gets the [`Cell::Atom`] at the other side of the bond if the current cell has a
+    /// [`Cell::Bond`] in the given [`Direction`]. If it doesn't, [`None`] is returned.
+    ///
+    /// Creates a [`Pointer`] to the current cell and continues in the given [`Direction`] until
+    /// a [`Cell::Atom`] is found.
+    ///
+    /// ## Panics
+    ///
+    /// This function panics if [`Direction::None`] is passed as `direction`.
+    ///
+    /// ## Errors
+    ///
+    /// If the [`Pointer`] created encounters a [`Cell::Bond`] of the incorrect orientation or
+    /// a [`Cell::None`], an [`InvalidGraphError::IncompleteBond`] is returned.
+    fn traverse_bond(&self, direction: Direction) -> Result<Option<&Cell>, InvalidGraphError> {
+        if let Direction::None = direction {
+            panic!("Direction::None was passed to traverse_bond.");
+        }
+
+        let adjacent_pos = self.pos + direction.vec2();
+
+        if !&self.graph.contains(adjacent_pos) ||  {
+            return Ok(None);
+        }
+
+        let traversal_ptr = Pointer { graph: &self.graph, pos: self.pos };
 
 
     }
@@ -303,5 +333,16 @@ impl Invert for Vec2 {
     fn inv(mut self, graph: &GridState) -> Vec2 {
         self.y = graph.size.y - self.y - 1;
         self
+    }
+}
+
+pub(crate) trait EnumAll {
+    fn all() -> Vec<Self>;
+}
+
+impl EnumAll for Direction {
+    /// Returns all [Direction]s except for [Direction::None].
+    fn all() -> Vec<Self> {
+        vec![Direction::Up, Direction::Down, Direction::Left, Direction::Right]
     }
 }

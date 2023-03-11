@@ -8,7 +8,7 @@
 use ruscii::app::{App, State};
 use ruscii::drawing::Pencil;
 use ruscii::keyboard::{Key, KeyEvent};
-use ruscii::spatial::Vec2;
+use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color::{Cyan, Red, White};
 use ruscii::terminal::Window;
 use crate::algorithm::{endpoint_carbons, name_molecule};
@@ -70,19 +70,19 @@ fn main() {
                             menu_key = "Backspace";
                         }
                         KeyEvent::Pressed(Key::Right) => {
-                            graph.move_right();
+                            graph.move_cursor(Direction::Right);
                             menu_key = "→";
                         }
                         KeyEvent::Pressed(Key::Left) => {
-                            graph.move_left();
+                            graph.move_cursor(Direction::Left);
                             menu_key = "←";
                         }
                         KeyEvent::Pressed(Key::Up) => {
-                            graph.move_up();
+                            graph.move_cursor(Direction::Up);
                             menu_key = "↑";
                         }
                         KeyEvent::Pressed(Key::Down) => {
-                            graph.move_down();
+                            graph.move_cursor(Direction::Down);
                             menu_key = "↓";
                         }
                         KeyEvent::Pressed(Key::Esc) => mode = Mode::Normal,

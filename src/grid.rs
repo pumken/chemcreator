@@ -83,31 +83,15 @@ impl GridState {
         &mut self.cells[self.cursor.x as usize][self.cursor.y as usize]
     }
 
-    /// Moves the cursor upwards safely.
-    pub(crate) fn move_up(&mut self) {
-        if self.cursor.y != self.size.y - 1 {
-            self.cursor.y += 1;
-        }
-    }
-
-    /// Moves the cursor downwards safely.
-    pub(crate) fn move_down(&mut self) {
-        if self.cursor.y != 0 {
-            self.cursor.y -= 1;
-        }
-    }
-
-    /// Moves the cursor leftwards safely.
-    pub(crate) fn move_left(&mut self) {
-        if self.cursor.x != 0 {
-            self.cursor.x -= 1;
-        }
-    }
-
-    /// Moves the cursor rightwards safely.
-    pub(crate) fn move_right(&mut self) {
-        if self.cursor.x != self.size.x - 1 {
-            self.cursor.x += 1;
+    /// Moves the cursor safely in the given `direction`.
+    pub fn move_cursor(&mut self, direction: Direction) {
+        let adjusted_unit = match direction {
+            Direction::Up => Direction::Down,
+            Direction::Down => Direction::Up,
+            Direction::Right | Direction::Left | Direction::None => direction
+        }.vec2();
+        if self.contains(self.cursor + adjusted_unit) {
+            self.cursor += adjusted_unit;
         }
     }
 
@@ -343,52 +327,14 @@ impl<'a> Pointer<'a> {
             false
         }
     }
-
-    pub(crate) fn move_up(&mut self) -> bool {
-        if self.pos.y < self.graph.size.y - 1 {
-            self.pos.y += 1;
-            true
-        } else {
-            false
-        }
-    }
-
-    pub(crate) fn move_down(&mut self) -> bool {
-        if self.pos.y > 0 {
-            self.pos.y -= 1;
-            true
-        } else {
-            false
-        }
-    }
-
-    pub(crate) fn move_left(&mut self) -> bool {
-        if self.pos.x > 0 {
-            self.pos.y -= 1;
-            true
-        } else {
-            false
-        }
-    }
-
-    pub(crate) fn move_right(&mut self) -> bool {
-        if self.pos.x < self.graph.size.x - 1 {
-            self.pos.x += 1;
-            true
-        } else {
-            false
-        }
-    }
 }
 
 pub(crate) trait Cellular {
     fn pos(&self) -> Vec2;
 }
 
-/// A trait made specifically for [Vec2] to invert the graph so that the origin is in the
-/// bottom-left corner rather than the top left corner.
-///
-/// The sole function returns a [Vec2] because it is not expected that any other type will use it.
+/// A trait made specifically for [`Vec2`] and [`Direction`] to invert the graph so that the origin
+/// is in the bottom-left corner rather than the top left corner.
 pub(crate) trait Invert {
     fn inv(self, graph: &GridState) -> Vec2;
 }

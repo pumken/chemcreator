@@ -1,5 +1,5 @@
 use std::fmt::{Display, Formatter};
-use ruscii::spatial::Vec2;
+use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{LightGrey, Red, White};
 use crate::grid::Cellular;
@@ -44,7 +44,7 @@ pub(crate) enum GroupType {
 
 /// Represents a molecular component.
 #[derive(Clone, Debug)]
-pub(crate) enum Cell {
+pub enum Cell {
     Atom(Atom),
     Bond(Bond),
     None(Vec2),
@@ -80,7 +80,7 @@ impl Cell {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct Atom {
+pub struct Atom {
     pub(crate) element: Element,
     pub(crate) pos: Vec2
 }
@@ -123,7 +123,7 @@ impl Display for Element {
 }
 
 #[derive(Copy, Debug)]
-pub(crate) struct Bond {
+pub struct Bond {
     pub(crate) pos: Vec2,
     pub(crate) order: BondOrder,
     pub(crate) orient: BondOrientation,
@@ -155,10 +155,25 @@ pub(crate) enum BondOrder {
     Triple,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum BondOrientation {
     Vert,
     Horiz,
+}
+
+impl BondOrientation {
+    /// Returns the related [`BondOrientation`] to the given `direction`.
+    ///
+    /// ## Panics
+    ///
+    /// If [`Direction::None`] is passed to this function.
+    pub const fn from_direction(direction: Direction) -> BondOrientation {
+        match direction {
+            Direction::Up | Direction::Down => Vert,
+            Direction::Left | Direction::Right => Horiz,
+            Direction::None => panic!("Attempted to pass Direction::None to from_direction.")
+        }
+    }
 }
 
 impl Clone for Bond {

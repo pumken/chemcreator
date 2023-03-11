@@ -11,6 +11,7 @@ use ruscii::keyboard::{Key, KeyEvent};
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color::{Cyan, Red, White};
 use ruscii::terminal::Window;
+use crate::algorithm::{endpoint_carbons, name_molecule};
 
 use crate::grid::{GridState, Invert};
 use crate::molecule::BondOrder::{Double, Single, Triple};
@@ -29,39 +30,40 @@ fn main() {
     let mut graph = GridState::new(20, 10);
     let mut mode = Mode::Start;
     let mut menu_name = "                ChemCreator                ".to_string();
-    let mut menu_pos  = "      Written in Rust by Gavin Tran.       ".to_string();
-    let mut menu_sym  = "To start, enter insert mode by pressing F8.".to_string();
-    let mut menu_key   = "";  // Overridden in Start mode to retain &str type
-    let mut menu_err  = "".to_string();
+    let mut menu_pos = "      Written in Rust by Gavin Tran.       ".to_string();
+    let mut menu_sym = "To start, enter insert mode by pressing F8.".to_string();
+    let mut menu_key = "";  // Overridden in Start mode to retain &str type
+    let mut menu_err = "".to_string();
+    let mut menu_debug = "".to_string();
 
     app.run(|app_state: &mut State, window: &mut Window| {
         match mode {
             Mode::Insert => {
                 for key_event in app_state.keyboard().last_key_events() {
                     match key_event {
-                        KeyEvent::Pressed(Key::Tab) => {
+                        KeyEvent::Pressed(Key::C) => {
                             graph.put_atom(C);
-                            menu_key = "Tab";
+                            menu_key = "C";
                         }
-                        KeyEvent::Pressed(Key::Enter) => {
+                        KeyEvent::Pressed(Key::H) => {
                             graph.put_atom(H);
-                            menu_key = "Enter";
+                            menu_key = "H";
                         }
-                        KeyEvent::Pressed(Key::F4) => {
+                        KeyEvent::Pressed(Key::O) => {
                             graph.put_atom(O);
-                            menu_key = "F4";
+                            menu_key = "O";
                         }
-                        KeyEvent::Pressed(Key::F1) => {
+                        KeyEvent::Pressed(Key::Num1) => {
                             graph.put_bond(Single);
-                            menu_key = "F1";
+                            menu_key = "1";
                         }
-                        KeyEvent::Pressed(Key::F2) => {
+                        KeyEvent::Pressed(Key::Num2) => {
                             graph.put_bond(Double);
-                            menu_key = "F2";
+                            menu_key = "2";
                         }
-                        KeyEvent::Pressed(Key::F3) => {
+                        KeyEvent::Pressed(Key::Num3) => {
                             graph.put_bond(Triple);
-                            menu_key = "F3";
+                            menu_key = "3";
                         }
                         KeyEvent::Pressed(Key::Backspace) => {
                             graph.clear();
@@ -93,7 +95,7 @@ fn main() {
                     }
                 }
 
-                (menu_name, menu_err) = match graph.simple_counter() {
+                (menu_name, menu_err) = match name_molecule(&graph) {
                     Ok(it) => (it, "".to_string()),
                     Err(it) => ("unidentified".to_string(), it.to_string()),
                 };
@@ -108,7 +110,16 @@ fn main() {
                         }
                     }
                     Cell::None(_) => { format!("") }
-                }
+                };
+                menu_debug = match endpoint_carbons(&graph) {
+                    Ok(it) => {
+                        it.iter()
+                            .fold("".to_string(), |a, b| {
+                                format!("{a} ({}, {}),", b.pos().x, b.pos().y)
+                            })
+                    }
+                    Err(it) => it.to_string()
+                };
             }
             Mode::Normal => {
                 menu_pos = "".to_string();
@@ -188,6 +199,7 @@ fn main() {
         }), Vec2::xy(graph.size.x * 3 + 3, 5));
         pencil.set_foreground(Red);
         pencil.draw_text(&format!("{}", menu_err), Vec2::xy(graph.size.x * 3 + 3, 7));
+        pencil.draw_text(&format!("{}", menu_debug), Vec2::xy(graph.size.x * 3 + 3, 8));
     });
 }
 

@@ -1,16 +1,11 @@
 use std::fmt::{Display, Formatter};
+use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{LightGrey, Red, White};
-use crate::grid::{Cell, GridState};
-use crate::molecule::Atom::{C, H, O};
+use crate::grid::Cellular;
+use crate::molecule::Element::{C, H, O};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
-
-/// Represents the current molecule.
-pub(crate) struct Molecule {
-    pub(crate) name: String,
-    pub(crate) groups: Vec<Group>,
-}
 
 /// Represents a functional group, containing the [Cell]s that comprise it.
 pub(crate) struct Group {
@@ -49,16 +44,16 @@ pub(crate) enum GroupType {
 
 /// Represents a molecular component.
 #[derive(Clone, Debug)]
-pub(crate) enum Symbol {
+pub enum Cell {
     Atom(Atom),
     Bond(Bond),
-    None,
+    None(Vec2),
 }
 
-impl Symbol {
+impl Cell {
     pub(crate) fn color(&self) -> Color {
         match &self {
-            Symbol::Atom(it) => match it {
+            Cell::Atom(it) => match it.element {
                 C => LightGrey,
                 O => Red,
                 _ => White
@@ -66,25 +61,50 @@ impl Symbol {
             _ => White
         }
     }
+
+    pub(crate) fn pos(&self) -> Vec2 {
+        match self {
+            Cell::Atom(it) => it.pos,
+            Cell::Bond(it) => it.pos,
+            Cell::None(it) => *it
+        }
+    }
+
+    pub(crate) fn is_atom(&self) -> bool {
+        if let Cell::Atom(_) = self {
+            true
+        } else {
+            false
+        }
+    }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum Atom {
-    C,
-    H,
-    O,
+#[derive(Clone, Debug)]
+pub struct Atom {
+    pub(crate) element: Element,
+    pub(crate) pos: Vec2
 }
 
 impl Atom {
     pub(crate) const fn symbol(&self) -> &str {
-        match *self {
+        match self.element {
             C => "[C]",
             H => "[H]",
             O => "[O]"
         }
     }
+}
 
-    pub(crate) const fn bond_number(&self) -> i32 {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Element {
+    C,
+    H,
+    O,
+}
+
+impl Element {
+    /// Returns the number of bonds the current [`Element`] should have.
+    pub(crate) const fn bond_number(&self) -> u8 {
         match *self {
             C => 4,
             H => 1,
@@ -93,7 +113,7 @@ impl Atom {
     }
 }
 
-impl Display for Atom {
+impl Display for Element {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", match &self {
             C => "Carbon",
@@ -104,7 +124,8 @@ impl Display for Atom {
 }
 
 #[derive(Copy, Debug)]
-pub(crate) struct Bond {
+pub struct Bond {
+    pub(crate) pos: Vec2,
     pub(crate) order: BondOrder,
     pub(crate) orient: BondOrientation,
 }
@@ -120,16 +141,11 @@ impl Bond {
             (Triple, Vert) => " T ",
         }
     }
+}
 
-    pub(crate) fn adjusted(order: BondOrder, graph: &GridState) -> Bond {
-        Bond {
-            order,
-            orient: if graph.atom_adjacent() {
-                Horiz
-            } else {
-                Vert
-            },
-        }
+impl Cellular for Bond {
+    fn pos(&self) -> Vec2 {
+        self.pos
     }
 }
 
@@ -140,15 +156,40 @@ pub(crate) enum BondOrder {
     Triple,
 }
 
-#[derive(Clone, Copy, Debug)]
+impl BondOrder {
+    pub const fn order(&self) -> u8 {
+        match self {
+            Single => 1,
+            Double => 2,
+            Triple => 3,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum BondOrientation {
     Vert,
     Horiz,
 }
 
+impl BondOrientation {
+    /// Returns the related [`BondOrientation`] to the given `direction`.
+    ///
+    /// ## Panics
+    ///
+    /// If [`Direction::None`] is passed to this function.
+    pub const fn from_direction(direction: Direction) -> BondOrientation {
+        match direction {
+            Direction::Up | Direction::Down => Vert,
+            Direction::Left | Direction::Right => Horiz,
+            Direction::None => panic!("Attempted to pass Direction::None to from_direction.")
+        }
+    }
+}
+
 impl Clone for Bond {
-    fn clone(&self) -> Self {
-        Self { order: self.order.clone(), orient: self.orient.clone() }
+    fn clone(&self) -> Bond {
+        Bond { pos: self.pos.clone(), order: self.order.clone(), orient: self.orient.clone() }
     }
 }
 

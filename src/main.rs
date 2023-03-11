@@ -3,17 +3,20 @@
 //! `chemcreator` is a binary crate that allows you to get information about an organic
 //! molecule by building it in a text-based user interface.
 
+#![warn(missing_docs)]
+
 use ruscii::app::{App, State};
 use ruscii::drawing::Pencil;
 use ruscii::keyboard::{Key, KeyEvent};
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color::{Cyan, Red, White};
 use ruscii::terminal::Window;
+use crate::algorithm::{endpoint_carbons, name_molecule};
 
 use crate::grid::{GridState, Invert};
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::{Bond, Symbol};
-use crate::molecule::Atom::{C, H, O};
+use crate::molecule::Cell;
+use crate::molecule::Element::{C, H, O};
 
 mod grid;
 mod molecule;
@@ -27,42 +30,43 @@ fn main() {
     let mut graph = GridState::new(20, 10);
     let mut mode = Mode::Start;
     let mut menu_name = "                ChemCreator                ".to_string();
-    let mut menu_pos  = "      Written in Rust by Gavin Tran.       ".to_string();
-    let mut menu_sym  = "To start, enter insert mode by pressing F8.".to_string();
-    let mut menu_key   = "";  // Overridden in Start mode to retain &str type
-    let mut menu_err  = "".to_string();
+    let mut menu_pos = "      Written in Rust by Gavin Tran.       ".to_string();
+    let mut menu_sym = "To start, enter insert mode by pressing F8.".to_string();
+    let mut menu_key = "";  // Overridden in Start mode to retain &str type
+    let mut menu_err = "".to_string();
+    let mut menu_debug = "".to_string();
 
     app.run(|app_state: &mut State, window: &mut Window| {
         match mode {
             Mode::Insert => {
                 for key_event in app_state.keyboard().last_key_events() {
                     match key_event {
-                        KeyEvent::Pressed(Key::Tab) => {
-                            graph.insert(Symbol::Atom(C));
-                            menu_key = "Tab";
+                        KeyEvent::Pressed(Key::C) => {
+                            graph.put_atom(C);
+                            menu_key = "C";
                         }
-                        KeyEvent::Pressed(Key::Enter) => {
-                            graph.insert(Symbol::Atom(H));
-                            menu_key = "Enter";
+                        KeyEvent::Pressed(Key::H) => {
+                            graph.put_atom(H);
+                            menu_key = "H";
                         }
-                        KeyEvent::Pressed(Key::F4) => {
-                            graph.insert(Symbol::Atom(O));
-                            menu_key = "F4";
+                        KeyEvent::Pressed(Key::O) => {
+                            graph.put_atom(O);
+                            menu_key = "O";
                         }
-                        KeyEvent::Pressed(Key::F1) => {
-                            graph.insert(Symbol::Bond(Bond::adjusted(Single, &graph)));
-                            menu_key = "F1";
+                        KeyEvent::Pressed(Key::Num1) => {
+                            graph.put_bond(Single);
+                            menu_key = "1";
                         }
-                        KeyEvent::Pressed(Key::F2) => {
-                            graph.insert(Symbol::Bond(Bond::adjusted(Double, &graph)));
-                            menu_key = "F2";
+                        KeyEvent::Pressed(Key::Num2) => {
+                            graph.put_bond(Double);
+                            menu_key = "2";
                         }
-                        KeyEvent::Pressed(Key::F3) => {
-                            graph.insert(Symbol::Bond(Bond::adjusted(Triple, &graph)));
-                            menu_key = "F3";
+                        KeyEvent::Pressed(Key::Num3) => {
+                            graph.put_bond(Triple);
+                            menu_key = "3";
                         }
                         KeyEvent::Pressed(Key::Backspace) => {
-                            graph.insert(Symbol::None);
+                            graph.clear();
                             menu_key = "Backspace";
                         }
                         KeyEvent::Pressed(Key::Right) => {
@@ -91,22 +95,31 @@ fn main() {
                     }
                 }
 
-                (menu_name, menu_err) = match graph.simple_counter() {
+                (menu_name, menu_err) = match name_molecule(&graph) {
                     Ok(it) => (it, "".to_string()),
                     Err(it) => ("unidentified".to_string(), it.to_string()),
                 };
                 menu_pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
-                menu_sym = match graph.current_cell().sym {
-                    Symbol::Atom(it) => { format!("Atom {}", it.symbol()) }
-                    Symbol::Bond(it) => {
+                menu_sym = match graph.current_cell() {
+                    Cell::Atom(it) => { format!("Atom {}", it.symbol()) }
+                    Cell::Bond(it) => {
                         match it.order {
                             Single => format!("Bond 1x"),
                             Double => format!("Bond 2x"),
                             Triple => format!("Bond 3x"),
                         }
                     }
-                    Symbol::None => { format!("") }
-                }
+                    Cell::None(_) => { format!("") }
+                };
+                menu_debug = match endpoint_carbons(&graph) {
+                    Ok(it) => {
+                        it.iter()
+                            .fold("".to_string(), |a, b| {
+                                format!("{a} ({}, {}),", b.pos().x, b.pos().y)
+                            })
+                    }
+                    Err(it) => it.to_string()
+                };
             }
             Mode::Normal => {
                 menu_pos = "".to_string();
@@ -146,16 +159,16 @@ fn main() {
             }
             _ => {
                 for cell in graph.cells.iter().flatten() {
-                    pencil.set_foreground(*&cell.sym.color());
-                    pencil.draw_text(&format!("{}", match &cell.sym {
-                        Symbol::Atom(it) => { it.symbol() }
-                        Symbol::Bond(it) => { it.symbol() }
-                        Symbol::None => match mode {
+                    pencil.set_foreground(*&cell.color());
+                    pencil.draw_text(&format!("{}", match &cell {
+                        Cell::Atom(it) => { it.symbol() }
+                        Cell::Bond(it) => { it.symbol() }
+                        Cell::None(_) => match mode {
                             Mode::Insert => " • ",
                             Mode::Normal => "   ",
                             _ => "   "
                         }
-                    }), Vec2::xy(cell.pos.x * 3, cell.pos.y).inv(&graph));
+                    }), Vec2::xy(cell.pos().x * 3, cell.pos().y).inv(&graph));
                 }
             }
         }
@@ -186,6 +199,7 @@ fn main() {
         }), Vec2::xy(graph.size.x * 3 + 3, 5));
         pencil.set_foreground(Red);
         pencil.draw_text(&format!("{}", menu_err), Vec2::xy(graph.size.x * 3 + 3, 7));
+        pencil.draw_text(&format!("{}", menu_debug), Vec2::xy(graph.size.x * 3 + 3, 8));
     });
 }
 

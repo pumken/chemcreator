@@ -70,11 +70,11 @@ impl Cell {
         }
     }
 
-    pub(crate) fn is_not_atom(&self) -> bool {
+    pub(crate) fn is_atom(&self) -> bool {
         if let Cell::Atom(_) = self {
-            false
-        } else {
             true
+        } else {
+            false
         }
     }
 }
@@ -103,7 +103,8 @@ pub(crate) enum Element {
 }
 
 impl Element {
-    pub(crate) const fn bond_number(&self) -> i32 {
+    /// Returns the number of bonds the current [`Element`] should have.
+    pub(crate) const fn bond_number(&self) -> u8 {
         match *self {
             C => 4,
             H => 1,
@@ -153,6 +154,16 @@ pub(crate) enum BondOrder {
     Single,
     Double,
     Triple,
+}
+
+impl BondOrder {
+    pub const fn order(&self) -> u8 {
+        match self {
+            Single => 1,
+            Double => 2,
+            Triple => 3,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

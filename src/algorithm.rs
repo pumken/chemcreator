@@ -14,7 +14,8 @@ struct Branch {
 }
 
 pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
-    let chain = link_in_chain(graph);
+    check_valence(graph)?;
+    let chain = continue_chain(graph);
     // let group_indexed_chain = link_groups();
     // group_indexed_chain.check_chain_index()
     // group_indexed_chain.name();
@@ -24,8 +25,11 @@ pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
     }
 }
 
-fn link_in_chain(graph: &GridState) {
+/// A recursive function that traverses sequential carbon bonds and returns a [`Vec`] of carbon
+/// chains as [`Vec`]s of [`Cell::Atom`]s.
+pub(crate) fn continue_chain(graph: &GridState) {
     let endpoints = endpoint_carbons(graph);
+
 }
 
 pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidGraphError> {
@@ -47,6 +51,34 @@ pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidG
         }
     }
     Ok(out)
+}
+
+/// Retrieves all the atoms in the [`GridState`] and returns `Ok` if all of their valence shells
+/// are filled, i.e., that the sum of bond orders across all of their bonds is equivalent to their
+/// [`Element::bond_number`].
+///
+/// ## Errors
+///
+/// Returns an [`InvalidGraphError::OverfilledValence`] or [`InvalidGraphError::UnfilledValence`]
+/// for the first cell for which its valence shell is not correctly filled.
+fn check_valence(graph: &GridState) -> Result<(), InvalidGraphError> {
+    let cells = graph.find_all(|cell| cell.is_atom());
+
+    for cell in cells {
+        if let Cell::Atom(atom) = cell {
+            let ptr = Pointer::new(cell, graph);
+            let bond_count = match ptr.bond_count() {
+                Ok(it) => it,
+                Err(it) => panic!("{}", it)
+            };
+            if bond_count > atom.element.bond_number() {
+                return Err(InvalidGraphError::OverfilledValence(atom.pos));
+            } else if bond_count < atom.element.bond_number() {
+                return Err(InvalidGraphError::UnfilledValence(atom.pos));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(Error, Debug)]

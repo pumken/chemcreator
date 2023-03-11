@@ -303,6 +303,38 @@ impl<'a> Pointer<'a> {
         }
     }
 
+    /// Gets the amount of bonds that the current [`Cell::Atom`] has.
+    ///
+    /// Assumes that the current cell is a [`Cell::Atom`]. Counts attached atoms as single
+    /// bonds.
+    ///
+    /// ## Errors
+    ///
+    /// If the current cell is not a [`Cell::Atom`] a message describing the error and the position
+    /// at which it occurred is returned.
+    pub(crate) fn bond_count(&self) -> Result<u8, String> {
+        let mut out = 0;
+
+        match self.borrow() {
+            Cell::Atom(_) => {}
+            Cell::Bond(_) => return Err(format!("Pointer cannot access bond count: atom was
+            expected at ({}, {}) but bond was found", self.pos.x, self.pos.y)),
+            Cell::None(_) => return Err(format!("Pointer cannot access bond count: atom was
+            expected at ({}, {}) but none was found", self.pos.x, self.pos.y)),
+        };
+
+        for direction in Direction::all() {
+            if let Ok(cell) = self.graph.get(self.pos + direction.vec2()) {
+                match cell {
+                    Cell::Atom(_) => out += 1,
+                    Cell::Bond(it) => out += it.order.order(),
+                    Cell::None(_) => {}
+                }
+            }
+        }
+        Ok(out)
+    }
+
     pub fn move_ptr(&mut self, direction: Direction) -> bool {
         if self.graph.contains(self.pos + direction.vec2()) {
             self.pos += direction.vec2();

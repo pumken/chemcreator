@@ -12,7 +12,7 @@ env:
 
 jobs:
   build:
-    name: ${{ matrix.rust }} on ${{ matrix.os }}-${{ matrix.platform }}
+    name: ${{ matrix.os }}-${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -20,8 +20,6 @@ jobs:
         rust: [stable, nightly]
         include:
           - rust: stable
-            can-fail: false
-          - rust: nightly
             can-fail: false
 
     steps:

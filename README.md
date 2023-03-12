@@ -1,5 +1,7 @@
 # ChemCreator
 
+[![Rust](https://github.com/pumken/chemcreator/actions/workflows/rust.yml/badge.svg)](https://github.com/pumken/chemcreator/actions/workflows/rust.yml)
+
 A text-based tool for identifying organic molecules.
 
 Written in Rust with the [`ruscii`](https://github.com/lemunozm/ruscii) library.

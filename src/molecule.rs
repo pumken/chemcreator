@@ -1,3 +1,7 @@
+//! # Molecule
+//!
+//! The `molecule` module provides functionality for representing molecular components.
+
 use std::fmt::{Display, Formatter};
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;

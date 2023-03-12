@@ -1,3 +1,8 @@
+//! # Algorithm
+//!
+//! The `algorithm` module contains the functions needed to find the name of an arbitrary
+//! organic molecule.
+
 use ruscii::spatial::Vec2;
 use thiserror::Error;
 use crate::grid::{GridState, Pointer};

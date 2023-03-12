@@ -1,3 +1,8 @@
+//! # Grid
+//!
+//! The `grid` module provides functionality for the state and traversal of the grid with which
+//! the user interacts, including the [`GridState`] and [`Pointer`] structs.
+
 use ruscii::spatial::{Direction, Vec2};
 use crate::algorithm::InvalidGraphError;
 use crate::algorithm::InvalidGraphError::IncompleteBond;

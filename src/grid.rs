@@ -3,6 +3,7 @@
 //! The `grid` module provides functionality for the state and traversal of the grid with which
 //! the user interacts, including the [`GridState`] and [`Pointer`] structs.
 
+use std::cmp::Ordering;
 use ruscii::spatial::{Direction, Vec2};
 use crate::algorithm::InvalidGraphError;
 use crate::algorithm::InvalidGraphError::IncompleteBond;
@@ -78,6 +79,24 @@ impl GridState {
         self.cells[cursor_pos.0][cursor_pos.1] = new_none;
     }
 
+    pub fn is_empty(&self) -> bool {
+        for cell in self.cells.iter().flatten() {
+            match cell {
+                Cell::None(_) => {}
+                _ => return false
+            }
+        }
+        true
+    }
+
+    /// Returns a [`Vec`] of all non-empty (i.e., not-[`Cell::None`]) [`Cell`]s.
+    pub fn filled_cells(&self) -> Vec<&Cell> {
+        self.find_all(|cell| match cell {
+            Cell::Atom(_) | Cell::Bond(_) => true,
+            Cell::None(_) => false
+        })
+    }
+
     /// Returns a reference to the [Cell] to which the cursor is currently pointing.
     pub(crate) fn current_cell(&self) -> &Cell {
         &self.cells[self.cursor.x as usize][self.cursor.y as usize]
@@ -116,7 +135,19 @@ impl GridState {
         count
     }
 
-    pub(crate) fn find_all(&self, predicate: fn(&Cell) -> bool) -> Vec<&Cell> {
+    /// Returns a reference to the first occurrence of a [`Cell`] that satisfies the given
+    /// `predicate` or [`None`] if none are found that do.
+    pub fn find(&self, predicate: fn(&Cell) -> bool) -> Option<&Cell> {
+        for cell in self.cells.iter().flatten() {
+            if predicate(&cell) {
+                return Some(cell)
+            }
+        }
+        None
+    }
+
+    /// Returns a [`Vec`] of references to all [`Cells`] that satisfy the given `predicate`.
+    pub fn find_all(&self, predicate: fn(&Cell) -> bool) -> Vec<&Cell> {
         let mut out = vec![];
 
         for cell in self.cells.iter().flatten() {
@@ -208,6 +239,23 @@ impl<'a> Pointer<'a> {
 
     pub(crate) fn borrow(&self) -> &Cell {
         &self.graph.cells[self.pos.x as usize][self.pos.y as usize]
+    }
+
+    /// Returns a [`Vec`] of references to the non-empty [`Cell`]s adjacent to the [`Cell`]
+    /// currently pointed to.
+    pub fn connected(&self) -> Vec<&Cell> {
+        let mut out = vec![];
+
+        for direction in Direction::all() {
+            if let Ok(result) = self.graph.get(self.pos + direction.vec2()) {
+                match result {
+                    Cell::Atom(_) | Cell::Bond(_) => out.push(result),
+                    Cell::None(_) => {}
+                }
+            }
+        }
+
+        out
     }
 
     /// Returns a [`Vec`] of references to the [`Cell`]s bonded to the atom currently pointed to.

@@ -1,0 +1,43 @@
+# Based on ruscii and crossterm repositories
+name: Rust
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.rust }} on ${{ matrix.os }}-${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        rust: [stable, nightly]
+        include:
+          - rust: stable
+            can-fail: false
+          - rust: nightly
+            can-fail: false
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install Rust
+      uses: hecrj/setup-rust-action@master
+      with:
+        rust-version: ${{ matrix.rust }}
+        components: rustfmt,clippy
+    - name: Toolchain Information
+      run: |
+        rustc --version
+        rustfmt --version
+        rustup --version
+        cargo --version
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose

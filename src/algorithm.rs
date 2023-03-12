@@ -5,8 +5,10 @@
 
 use ruscii::spatial::Vec2;
 use thiserror::Error;
+use crate::algorithm::InvalidGraphError::{Cycle, Discontinuity};
 use crate::grid::{GridState, Pointer};
 use crate::molecule::{Atom, Cell, Element, Group};
+use crate::nested_vec;
 
 enum Substituent {
     Branch(Branch),
@@ -18,6 +20,12 @@ struct Branch {
     chain: Vec<Substituent>,
 }
 
+/// Determines the name of the molecule on the given `graph`.
+///
+/// ## Errors
+///
+/// If the molecule on the given `graph` is discontinuous, cyclic, or contains invalid bonding,
+/// an [`InvalidGraphError`] will be returned.
 pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
     let cells = graph.find_all(|cell| cell.is_atom())
         .iter()
@@ -74,7 +82,7 @@ pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidG
 ///
 /// ## Errors
 ///
-/// If [`GridState`] contains an invalid molecule, [`InvalidGraphError::Discontinuity`] is returned.
+/// If [`GridState`] contains an invalid molecule, [`Discontinuity`] or [`Cycle`] is returned.
 /// An empty [`GridState`] does not return an error.
 fn check_structure(graph: &GridState) -> Result<(), InvalidGraphError> {
     let starting_cell = match graph.find(|cell| match cell {
@@ -84,30 +92,21 @@ fn check_structure(graph: &GridState) -> Result<(), InvalidGraphError> {
         Some(it) => it,
         None => return Ok(()),
     };
-    let all_cells = graph.filled_cells()
+    let filled_pos_directions = graph.filled_cells()
         .iter()
         .map(|&cell| cell.pos())
-        .collect::<Vec<Vec2>>()
-        .sort_unstable_by(|a, b| {
-            let dist_a = ((a.x as i64).pow(2) + (a.y as i64).pow(2)) as u64 * 2_u64.pow(32)
-                + ((a.x >> 31) ^ (a.y >> 31)) as u64;
-            let dist_b = ((b.x as i64).pow(2) + (b.y as i64).pow(2)) as u64 * 2_u64.pow(32)
-                + ((b.x >> 31) ^ (b.y >> 31)) as u64;
-            dist_a.cmp(&dist_b)
-        });
-    let connectivity = get_connected_cells(starting_cell.pos(), graph)
-        .expect("starting_cell should be valid")
-        .sort_unstable_by(|a, b| {
-        let dist_a = ((a.x as i64).pow(2) + (a.y as i64).pow(2)) as u64 * 2_u64.pow(32)
-            + ((a.x >> 31) ^ (a.y >> 31)) as u64;
-        let dist_b = ((b.x as i64).pow(2) + (b.y as i64).pow(2)) as u64 * 2_u64.pow(32)
-            + ((b.x >> 31) ^ (b.y >> 31)) as u64;
-        dist_a.cmp(&dist_b)
-    });
+        .collect::<Vec<Vec2>>();
+    let connectivity = get_connected_cells(starting_cell.pos(), graph)?;
 
-    if all_cells != connectivity {
-        return Err(InvalidGraphError::Discontinuity);
+    for pos in filled_pos_directions {
+        if match graph.get(pos).unwrap() {
+            Cell::Atom(_) | Cell::Bond(_) => true,
+            Cell::None(_) => false,
+        } != connectivity[pos.x as usize][pos.y as usize] {
+            return Err(Discontinuity)
+        }
     }
+
     Ok(())
 }
 
@@ -117,29 +116,48 @@ fn check_structure(graph: &GridState) -> Result<(), InvalidGraphError> {
 ///
 /// This function panics if the given `pos` is not a valid point on the given `graph` or if the
 /// given `pos` on the `graph` is a [`Cell::None`].
-fn get_connected_cells(pos: Vec2, graph: &GridState) -> Option<Vec<Vec2>> {
+///
+/// ## Errors
+///
+/// If this function traverses the molecule and finds that it is not simply connected, [`Cycle`]
+/// will be returned.
+fn get_connected_cells(pos: Vec2, graph: &GridState) -> Result<Vec<Vec<bool>>, InvalidGraphError> {
     match graph.get(pos).expect("pos should be a valid point on the graph.") {
         Cell::None(_) => panic!("Passed empty cell ({}, {}) to get_connected_cells", pos.x, pos.y),
         _ => {}
     }
 
-    let mut searched_points = vec![];
+    let mut searched_points = nested_vec![graph.size.x; graph.size.y; false];
 
-    fn accumulate_components(pos: Vec2, accumulator: &mut Vec<Vec2>, graph: &GridState) {
-        accumulator.push(pos);
+    fn accumulate_components(
+        pos: Vec2,
+        previous_pos: Option<Vec2>,
+        accumulator: &mut Vec<Vec<bool>>,
+        graph: &GridState
+    ) -> Result<(), InvalidGraphError> {
+        accumulator[pos.x as usize][pos.y as usize] = true;
         let ptr = Pointer { graph, pos };
         for cell in ptr.connected() {
+            match previous_pos {
+                Some(it) => if cell.pos() == it {
+                    continue
+                },
+                None => {}
+            }
             match cell {
                 Cell::None(_) => {}
-                _ => if !accumulator.contains(&cell.pos()) {
-                    accumulate_components(cell.pos(), accumulator, graph)
+                _ => if !accumulator[cell.pos().x as usize][cell.pos().y as usize] {
+                    accumulate_components(cell.pos(), Some(pos), accumulator, graph)?
+                } else {
+                    return Err(Cycle)
                 }
             }
         }
+        Ok(())
     }
 
-    accumulate_components(pos, &mut searched_points, graph);
-    Some(searched_points)
+    accumulate_components(pos, None, &mut searched_points, graph)?;
+    Ok(searched_points)
 }
 
 /// Returns `Ok` if all of the valence shells of the given [`Cell::Atom`]s

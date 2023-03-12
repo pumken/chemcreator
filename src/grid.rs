@@ -400,6 +400,17 @@ impl Invert for Vec2 {
     }
 }
 
+#[macro_export]
+macro_rules! nested_vec {
+    ($x:expr; $y:expr; $val:expr) => {{
+        let mut nested_vec = Vec::with_capacity($x as usize);
+        for _ in 0usize..($x as usize) {
+            nested_vec.push(vec![$val; $y as usize]);
+        }
+        nested_vec
+    }};
+}
+
 pub(crate) trait EnumAll {
     fn all() -> Vec<Self> where Self: Sized;
 }

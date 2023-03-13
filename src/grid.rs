@@ -3,7 +3,6 @@
 //! The `grid` module provides functionality for the state and traversal of the grid with which
 //! the user interacts, including the [`GridState`] and [`Pointer`] structs.
 
-use std::cmp::Ordering;
 use ruscii::spatial::{Direction, Vec2};
 use crate::algorithm::InvalidGraphError;
 use crate::algorithm::InvalidGraphError::IncompleteBond;
@@ -100,11 +99,6 @@ impl GridState {
     /// Returns a reference to the [Cell] to which the cursor is currently pointing.
     pub(crate) fn current_cell(&self) -> &Cell {
         &self.cells[self.cursor.x as usize][self.cursor.y as usize]
-    }
-
-    /// Returns a mutable reference to the [Cell] to which the cursor is currently pointing.
-    pub(crate) fn current_cell_mut(&mut self) -> &mut Cell {
-        &mut self.cells[self.cursor.x as usize][self.cursor.y as usize]
     }
 
     /// Moves the cursor safely in the given `direction`.
@@ -400,6 +394,21 @@ impl Invert for Vec2 {
     }
 }
 
+/// Creates a two-dimensional [`Vec`] (i.e., a `Vec<Vec<T>>`) with the given `x` and `y` with
+/// every element set to `val`.
+///
+/// ## Examples
+///
+/// ```rust
+/// let a = nested_vec![2; 4; true];
+/// let mut b = vec![];
+///
+/// for x in 0usize..2usize {
+///     b.push(vec![4; true]);
+/// }
+///
+/// assert_eq!(a, b);
+/// ```
 #[macro_export]
 macro_rules! nested_vec {
     ($x:expr; $y:expr; $val:expr) => {{

@@ -36,25 +36,89 @@ pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
         })
         .collect();
 
-    if graph.is_empty() {
-        return Ok("".to_string());
-    }
+    // Initial checks
+    if graph.is_empty() { return Ok("".to_string()); }
     check_structure(graph)?;
     check_valence(cells, graph)?;
-    let chain = continue_chain(graph);
+
+    // Preliminary chain
+    let chain = longest_chain(graph)?;
     // let group_indexed_chain = link_groups();
     // group_indexed_chain.check_chain_index()
     // group_indexed_chain.name();
-    return match graph.simple_counter() {
+    match graph.simple_counter() {
         Ok(it) => Ok(it),
         Err(_) => Err(InvalidGraphError::UnsupportedGroups)
-    };
+    }
 }
 
 /// A recursive function that traverses sequential carbon bonds and returns a [`Vec`] of carbon
 /// chains as [`Vec`]s of [`Cell::Atom`]s.
-pub(crate) fn continue_chain(graph: &GridState) {
-    let endpoints = endpoint_carbons(graph);
+///
+/// Possibly the worst function I've ever written.
+pub(crate) fn longest_chain(graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError> {
+    let endpoints = endpoint_carbons(graph)?;
+    // Nested Vec hell
+    let mut all_results = vec![vec![vec![]]; endpoints.iter().count()];
+
+    fn accumulate_carbons(
+        pos: Vec2,
+        previous_pos: Option<Vec2>,
+        branch_index: usize,
+        accumulator: &mut Vec<Vec<Atom>>,
+        graph: &GridState,
+    ) -> Result<(), InvalidGraphError> {
+        let ptr = Pointer { graph, pos };
+        let next_carbons = ptr.bonded()?
+            .iter()
+            .filter(|&&cell| if let Cell::Atom(atom) = cell {
+                (atom.element == Element::C)
+                    && (match previous_pos {
+                    None => true,
+                    Some(it) => it != atom.pos
+                })
+            } else {
+                panic!("bonded found non-atom cell")
+            })
+            .map(|&cell| if let Cell::Atom(it) = cell {
+                it.to_owned()
+            } else {
+                panic!("How did we get here?")
+            })
+            .collect::<Vec<Atom>>();
+
+        accumulator[branch_index].push(match ptr.borrow() {
+            Cell::Atom(it) => it.to_owned(),
+            _ => panic!("Non-atom cell passed to accumulate_carbons")
+        });
+        let new_branches = next_carbons.len() - 1;
+        for _ in 0usize..new_branches {
+            accumulator.push(accumulator[branch_index].clone());
+        }
+        for (i, carbon) in next_carbons.iter().enumerate() {
+            let j = if i == 0 {
+                branch_index
+            } else {
+                (accumulator.len() - 1usize) - new_branches + (i - 1usize)
+            };
+            accumulate_carbons(carbon.pos, Some(pos), j, accumulator, graph)?
+        }
+
+        Ok(())
+    }
+
+    for (i, endpoint) in endpoints.iter().enumerate() {
+        accumulate_carbons(endpoint.pos(), None, 0usize, &mut all_results[i], graph)?;
+    }
+    let out = all_results.iter()
+        .cloned()
+        .flatten()
+        .collect::<Vec<Vec<Atom>>>();
+    let longest_chain = out.iter()
+        .max_by(|&a, &b| a.len().cmp(&b.len()))
+        .expect("There should be a longest chain")
+        .to_owned();
+    Ok(longest_chain)
 }
 
 pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidGraphError> {
@@ -103,7 +167,7 @@ fn check_structure(graph: &GridState) -> Result<(), InvalidGraphError> {
             Cell::Atom(_) | Cell::Bond(_) => true,
             Cell::None(_) => false,
         } != connectivity[pos.x as usize][pos.y as usize] {
-            return Err(Discontinuity)
+            return Err(Discontinuity);
         }
     }
 
@@ -133,14 +197,14 @@ fn get_connected_cells(pos: Vec2, graph: &GridState) -> Result<Vec<Vec<bool>>, I
         pos: Vec2,
         previous_pos: Option<Vec2>,
         accumulator: &mut Vec<Vec<bool>>,
-        graph: &GridState
+        graph: &GridState,
     ) -> Result<(), InvalidGraphError> {
         accumulator[pos.x as usize][pos.y as usize] = true;
         let ptr = Pointer { graph, pos };
         for cell in ptr.connected() {
             match previous_pos {
                 Some(it) => if cell.pos() == it {
-                    continue
+                    continue;
                 },
                 None => {}
             }
@@ -149,7 +213,7 @@ fn get_connected_cells(pos: Vec2, graph: &GridState) -> Result<Vec<Vec<bool>>, I
                 _ => if !accumulator[cell.pos().x as usize][cell.pos().y as usize] {
                     accumulate_components(cell.pos(), Some(pos), accumulator, graph)?
                 } else {
-                    return Err(Cycle)
+                    return Err(Cycle);
                 }
             }
         }

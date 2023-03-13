@@ -11,7 +11,7 @@ use ruscii::keyboard::{Key, KeyEvent};
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color::{Cyan, Red, White};
 use ruscii::terminal::Window;
-use crate::algorithm::{longest_chain, name_molecule};
+use crate::algorithm::{debug_chain, longest_chain, name_molecule};
 
 use crate::grid::{GridState, Invert};
 use crate::molecule::BondOrder::{Double, Single, Triple};
@@ -54,7 +54,7 @@ fn main() {
                             menu_key = "O";
                         }
                         KeyEvent::Pressed(Key::F5) => {
-                            menu_debug = match longest_chain(&graph) {
+                            menu_debug = match debug_chain(&graph) {
                                 Ok(it) => {
                                     it.iter()
                                         .fold("".to_string(), |a, b| {

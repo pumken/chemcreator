@@ -287,7 +287,42 @@ impl<'a> Pointer<'a> {
         Ok(out)
     }
 
-    pub(crate) fn bonded_carbons(&self) -> Result<usize, InvalidGraphError> {
+    /// Returns a [`Vec`] of the carbon atoms bonded to the current cell.
+    ///
+    /// ## Panics
+    ///
+    /// This function will panic if the current cell is not a [`Cell::Atom`].
+    ///
+    /// ## Errors
+    ///
+    /// If one of the bonds to the current cell is found to be dangling, an
+    /// [`IncompleteBond`] will be returned.
+    pub fn bonded_carbons(&self) -> Result<Vec<Atom>, InvalidGraphError> {
+        let bonded = self.bonded()?;
+        Ok(bonded.iter()
+            .filter(|&&cell| if let Cell::Atom(it) = cell {
+                it.element == C
+            } else {
+                false
+            })
+            .map(|&it| match it {
+                Cell::Atom(it) => it.to_owned(),
+                _ => panic!("bonded returned non-atom cell to bonded_carbons")
+            })
+            .collect::<Vec<Atom>>())
+    }
+
+    /// Returns the number of carbon atoms bonded to the current cell.
+    ///
+    /// ## Panics
+    ///
+    /// This function will panic if the current cell is not a [`Cell::Atom`].
+    ///
+    /// ## Errors
+    ///
+    /// If one of the bonds to the current cell is found to be dangling, an
+    /// [`IncompleteBond`] will be returned.
+    pub fn bonded_carbon_count(&self) -> Result<usize, InvalidGraphError> {
         let bonded = self.bonded()?;
         Ok(bonded.iter()
             .filter(|atom| if let Cell::Atom(it) = atom {

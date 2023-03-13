@@ -42,7 +42,8 @@ pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
     check_valence(cells, graph)?;
 
     // Preliminary chain
-    let chain = longest_chain(graph)?;
+    let all_chains = get_all_chains(graph)?;
+    let chain = longest_chain(all_chains);
     // let group_indexed_chain = link_groups();
     // group_indexed_chain.check_chain_index()
     // group_indexed_chain.name();
@@ -52,75 +53,110 @@ pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
     }
 }
 
-/// A recursive function that traverses sequential carbon bonds and returns a [`Vec`] of carbon
-/// chains as [`Vec`]s of [`Cell::Atom`]s.
-///
-/// Possibly the worst function I've ever written.
-pub(crate) fn longest_chain(graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError> {
-    let endpoints = endpoint_carbons(graph)?;
-    // Nested Vec hell
-    let mut all_results = vec![vec![vec![]]; endpoints.iter().count()];
-
-    fn accumulate_carbons(
-        pos: Vec2,
-        previous_pos: Option<Vec2>,
-        branch_index: usize,
-        accumulator: &mut Vec<Vec<Atom>>,
-        graph: &GridState,
-    ) -> Result<(), InvalidGraphError> {
-        let ptr = Pointer { graph, pos };
-        let next_carbons = ptr.bonded()?
-            .iter()
-            .filter(|&&cell| if let Cell::Atom(atom) = cell {
-                (atom.element == Element::C)
-                    && (match previous_pos {
-                    None => true,
-                    Some(it) => it != atom.pos
-                })
-            } else {
-                panic!("bonded found non-atom cell")
-            })
-            .map(|&cell| if let Cell::Atom(it) = cell {
-                it.to_owned()
-            } else {
-                panic!("How did we get here?")
-            })
-            .collect::<Vec<Atom>>();
-
-        accumulator[branch_index].push(match ptr.borrow() {
-            Cell::Atom(it) => it.to_owned(),
-            _ => panic!("Non-atom cell passed to accumulate_carbons")
-        });
-        let new_branches = next_carbons.len() - 1;
-        for _ in 0usize..new_branches {
-            accumulator.push(accumulator[branch_index].clone());
-        }
-        for (i, carbon) in next_carbons.iter().enumerate() {
-            let j = if i == 0 {
-                branch_index
-            } else {
-                (accumulator.len() - 1usize) - new_branches + (i - 1usize)
-            };
-            accumulate_carbons(carbon.pos, Some(pos), j, accumulator, graph)?
-        }
-
-        Ok(())
-    }
-
-    for (i, endpoint) in endpoints.iter().enumerate() {
-        accumulate_carbons(endpoint.pos(), None, 0usize, &mut all_results[i], graph)?;
-    }
-    let out = all_results.iter()
-        .cloned()
-        .flatten()
-        .collect::<Vec<Vec<Atom>>>();
-    let longest_chain = out.iter()
-        .max_by(|&a, &b| a.len().cmp(&b.len()))
-        .expect("There should be a longest chain")
-        .to_owned();
-    Ok(longest_chain)
+pub(crate) fn debug_chain(graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError>{
+    let all_chains = get_all_chains(graph)?;
+    Ok(longest_chain(all_chains))
 }
 
+/// Gets the longest of the given [`Vec`] of chains, assuming that it is non-empty.
+///
+/// ## Panics
+///
+/// This function will panic if there are no `chains`.
+pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Vec<Atom> {
+    chains.iter()
+        .max_by(|&a, &b| a.len().cmp(&b.len()))
+        .expect("There should be a longest chain")
+        .to_owned()
+}
+
+pub(crate) fn get_all_chains(graph: &GridState) -> Result<Vec<Vec<Atom>>, InvalidGraphError> {
+    let endpoints = endpoint_carbons(graph)?.iter()
+        .map(|&cell| match cell {
+            Cell::Atom(it) => it.to_owned(),
+            _ => panic!("endpoint_carbons returned non-atom cell")
+        })
+        .collect::<Vec<Atom>>();
+    // Nested Vec hell
+    let mut out: Vec<Vec<Atom>> = vec![];
+
+    for endpoint in endpoints {
+        out.extend(endpoint_head_chains(endpoint.to_owned(), graph)?);
+    }
+    Ok(out)
+}
+
+/// Takes a given `endpoint` and returns all continuous carbon chains starting at it.
+///
+/// ## Errors
+///
+/// Returns [`InvalidGraphError`] if any invalid structures are found while traversing the graph.
+fn endpoint_head_chains(endpoint: Atom, graph: &GridState) -> Result<Vec<Vec<Atom>>, InvalidGraphError> {
+    let mut accumulator = vec![vec![]];
+
+    accumulate_carbons(
+        endpoint.pos,
+        None,
+        0usize,
+        &mut accumulator,
+        graph
+    )?;
+
+    Ok(accumulator)
+}
+
+/// Adds the given `pos` to the branch in the `accumulator` with the given `branch_index`. After,
+/// this function is called on the unvisited carbon neighbors of the atom at the given `pos`.
+///
+/// ## Panics
+///
+/// This function panics if the given `pos` is not a [`Cell::Atom`].
+///
+/// ## Errors
+///
+/// If the given `graph` contains an invalid molecule, [`Discontinuity`] or [`Cycle`] is returned.
+fn accumulate_carbons(
+    pos: Vec2,
+    previous_pos: Option<Vec2>,
+    branch_index: usize,
+    accumulator: &mut Vec<Vec<Atom>>,
+    graph: &GridState,
+) -> Result<(), InvalidGraphError> {
+    let ptr = Pointer { graph, pos };
+    let mut next_carbons = ptr.bonded_carbons()?;
+    next_carbons.retain(|atom| previous_pos.is_none() || atom.pos != previous_pos.unwrap());
+
+    accumulator[branch_index].push(match ptr.borrow() {
+        Cell::Atom(it) => it.to_owned(),
+        _ => panic!("Non-atom cell passed to accumulate_carbons")
+    });
+    let new_branches = if next_carbons.len() > 0usize {
+        next_carbons.len() - 1usize
+    } else {
+        0usize
+    };
+    for _ in 0usize..new_branches {
+        accumulator.push(accumulator[branch_index].clone());
+    }
+    for (i, carbon) in next_carbons.iter().enumerate() {
+        let j = if i == 0 {
+            branch_index
+        } else {
+            (accumulator.len() - 1usize) - new_branches + (i - 1usize)
+        };
+        accumulate_carbons(carbon.pos, Some(pos), j, accumulator, graph)?
+    }
+
+    Ok(())
+}
+
+/// Returns references to all cells containing endpoint carbon atoms, i.e. those that have exactly
+/// one or no carbon neighbors.
+///
+/// ## Errors
+///
+/// If one of the bonds to the current cell is found to be dangling, an
+/// [`IncompleteBond`] will be returned.
 pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidGraphError> {
     let all_carbons = graph.find_all(|cell| {
         match cell {
@@ -135,7 +171,7 @@ pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidG
 
     for carbon in all_carbons {
         let ptr = Pointer::new(carbon, graph);
-        if ptr.bonded_carbons()? <= 1 {
+        if ptr.bonded_carbon_count()? <= 1 {
             out.push(carbon);
         }
     }

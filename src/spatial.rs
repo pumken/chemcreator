@@ -318,7 +318,6 @@ mod tests {
     use crate::molecule::Atom;
     use crate::molecule::Element::O;
     use super::*;
-    use super::GW::{A, B};
 
     #[test]
     fn gs_new_creates_sized_grid() {

@@ -1,18 +1,16 @@
-//! # Grid
+//! # Spatial
 //!
-//! The `grid` module provides functionality for the state and traversal of the grid with which
-//! the user interacts, including the [`GridState`] and [`Pointer`] structs.
+//! The `spatial` module provides functionality for the state and traversal of the grid with which
+//! the user interacts, including the [`GridState`] struct.
 
-use std::cmp::Ordering;
 use ruscii::spatial::{Direction, Vec2};
-use crate::algorithm::InvalidGraphError;
-use crate::algorithm::InvalidGraphError::IncompleteBond;
 use crate::molecule::Element::{C, H};
-use crate::molecule::{Atom, Bond, BondOrder, BondOrientation, Cell, Element};
+use crate::molecule::{Atom, Bond, BondOrder, Cell, Element};
 use crate::molecule::BondOrientation::{Horiz, Vert};
+use crate::pointer::Pointer;
 
 /// Represents the state of a grid, including all its [Cell]s and the position of the cursor.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GridState {
     pub(crate) cells: Vec<Vec<Cell>>,
     pub(crate) size: Vec2,
@@ -102,11 +100,6 @@ impl GridState {
         &self.cells[self.cursor.x as usize][self.cursor.y as usize]
     }
 
-    /// Returns a mutable reference to the [Cell] to which the cursor is currently pointing.
-    pub(crate) fn current_cell_mut(&mut self) -> &mut Cell {
-        &mut self.cells[self.cursor.x as usize][self.cursor.y as usize]
-    }
-
     /// Moves the cursor safely in the given `direction`.
     pub fn move_cursor(&mut self, direction: Direction) {
         let adjusted_unit = match direction {
@@ -128,7 +121,7 @@ impl GridState {
     pub(crate) fn count(&self, predicate: fn(&Cell) -> bool) -> i32 {
         let mut count = 0;
         for cell in self.cells.iter().flatten() {
-            if predicate(&cell) {
+            if predicate(cell) {
                 count += 1;
             }
         }
@@ -138,12 +131,7 @@ impl GridState {
     /// Returns a reference to the first occurrence of a [`Cell`] that satisfies the given
     /// `predicate` or [`None`] if none are found that do.
     pub fn find(&self, predicate: fn(&Cell) -> bool) -> Option<&Cell> {
-        for cell in self.cells.iter().flatten() {
-            if predicate(&cell) {
-                return Some(cell)
-            }
-        }
-        None
+        self.cells.iter().flatten().find(|&cell| predicate(cell))
     }
 
     /// Returns a [`Vec`] of references to all [`Cells`] that satisfy the given `predicate`.
@@ -160,11 +148,19 @@ impl GridState {
 
     /// Determines if there are any [Atom]s that are horizontally adjacent to the current [Cell].
     fn atom_adjacent(&self) -> bool {
-        let left = &self.cells[self.cursor.x as usize - 1][self.cursor.y as usize];
-        let right = &self.cells[self.cursor.x as usize + 1][self.cursor.y as usize];
+        let mut lptr = Pointer::new(self.current_cell(), self);
+        let left = {
+            lptr.move_ptr(Direction::Left);
+            lptr.borrow()
+        };
+        let mut rptr = Pointer::new(self.current_cell(), self);
+        let right = {
+            rptr.move_ptr(Direction::Right);
+            rptr.borrow()
+        };
 
-        if let Cell::Atom(_) = left { return true; }
-        if let Cell::Atom(_) = right { return true; }
+        if let Ok(Cell::Atom(_)) = left { return true; }
+        if let Ok(Cell::Atom(_)) = right { return true; }
         false
     }
 
@@ -211,174 +207,53 @@ impl GridState {
     }
 }
 
+impl PartialEq for GridState {
+    fn eq(&self, other: &Self) -> bool {
+        if self.size != other.size {
+            return false
+        }
+        let a = self.cells.iter().flatten();
+        let b = other.cells.iter().flatten().collect::<Vec<&Cell>>();
+
+        for (i, cell) in a.enumerate() {
+            if cell != b[i] {
+                return false
+            }
+        }
+        true
+    }
+}
+
+/// An enum used to make it easier to construct [`GridState`]s with the `graph_with` macro.
+pub(crate) enum GW {
+    A(Element),
+    B(BondOrder)
+}
+
+/// Creates a [`GridState`] with the given `vals` at (`x`, `y`). Used with the [`GW`] enum.
+#[macro_export]
+macro_rules! graph_with {
+    ($rows:expr, $cols:expr, $([$x:expr, $y:expr; $val:expr]),*) => {{
+        let mut graph = GridState::new($rows, $cols);
+        $(
+        graph.cursor = Vec2::xy($x, $y);
+        match $val {
+            GW::A(it) => graph.put_atom(it),
+            GW::B(it) => graph.put_bond(it),
+        }
+        )*
+        graph
+    }};
+}
+
 trait ToVec2 {
     fn to_vec2(self) -> Vec2;
 }
 
 impl ToVec2 for (usize, usize) {
+    /// Converts the tuple to a [`Vec2`].
     fn to_vec2(self) -> Vec2 {
         Vec2::xy(self.0, self.1)
-    }
-}
-
-/// A struct used to move around a [GridState] and borrow __immutable__ references to its cells.
-///
-/// Not to be confused with the pointer in computer science used to store a memory address.
-///
-/// > There are only two hard things in Computer Science: cache invalidation and naming things.
-/// > — Phil Karlton
-pub(crate) struct Pointer<'a> {
-    pub(crate) graph: &'a GridState,
-    pub(crate) pos: Vec2,
-}
-
-impl<'a> Pointer<'a> {
-    pub(crate) fn new(cell: &Cell, graph: &'a GridState) -> Pointer<'a> {
-        Pointer { graph, pos: cell.pos() }
-    }
-
-    pub(crate) fn borrow(&self) -> &Cell {
-        &self.graph.cells[self.pos.x as usize][self.pos.y as usize]
-    }
-
-    /// Returns a [`Vec`] of references to the non-empty [`Cell`]s adjacent to the [`Cell`]
-    /// currently pointed to.
-    pub fn connected(&self) -> Vec<&Cell> {
-        let mut out = vec![];
-
-        for direction in Direction::all() {
-            if let Ok(result) = self.graph.get(self.pos + direction.vec2()) {
-                match result {
-                    Cell::Atom(_) | Cell::Bond(_) => out.push(result),
-                    Cell::None(_) => {}
-                }
-            }
-        }
-
-        out
-    }
-
-    /// Returns a [`Vec`] of references to the [`Cell`]s bonded to the atom currently pointed to.
-    /// Assumes that the current cell is a [`Cell::Atom`].
-    ///
-    /// ## Panics
-    ///
-    /// When this function is called, the [`Pointer`] is expected to be pointing to a valid
-    /// [`Cell::Atom`]. If it is found that this is not the case, this function will panic!
-    ///
-    /// ## Errors
-    ///
-    /// If one of the bonds to the current cell is found to be dangling, an
-    /// [`IncompleteBond`] will be returned.
-    pub(crate) fn bonded(&self) -> Result<Vec<&Cell>, InvalidGraphError> {
-        match self.borrow() {
-            Cell::Atom(_) => {}
-            Cell::Bond(_) => panic!("Pointer cannot access bonded atoms: atom was expected at ({}, {}) but bond
-            was found", self.pos.x, self.pos.y),
-            Cell::None(_) => panic!("Pointer cannot access bonded atoms: atom was expected at ({}, {}) but none
-            was found", self.pos.x, self.pos.y)
-        };
-
-        let mut out = vec![];
-
-        for direction in Direction::all() {
-            if let Ok(result) = self.graph.get(self.pos + direction.vec2()) {
-                if let Cell::Bond(it) = result {
-                    if it.orient == BondOrientation::from_direction(direction) {
-                        out.push(self.traverse_bond(direction)?);
-                    }
-                }
-            }
-        }
-        Ok(out)
-    }
-
-    pub(crate) fn bonded_carbons(&self) -> Result<usize, InvalidGraphError> {
-        let bonded = self.bonded()?;
-        Ok(bonded.iter()
-            .filter(|atom| if let Cell::Atom(it) = atom {
-                it.element == C
-            } else {
-                false
-            })
-            .map(|it| it)
-            .count())
-    }
-
-    /// Gets the [`Cell::Atom`] at the other side of the bond in the given `direction`.
-    ///
-    /// Assumes that there indeed _is_ a bond in the given `direction`.
-    ///
-    /// ## Panics
-    ///
-    /// This function panics if [`Direction::None`] is passed as `direction`.
-    ///
-    /// ## Errors
-    ///
-    /// If the [`Pointer`] created to traverse the bond encounters a [`Cell::Bond`] of the incorrect
-    /// orientation or a [`Cell::None`], an [`IncompleteBond`] is returned.
-    fn traverse_bond(&self, direction: Direction) -> Result<&Cell, InvalidGraphError> {
-        if let Direction::None = direction {
-            panic!("Cannot pass Direction::None to traverse_bond.");
-        }
-
-        let mut traversal_ptr = Pointer { graph: self.graph, pos: self.pos };
-
-        loop {
-            traversal_ptr.move_ptr(direction);
-            match traversal_ptr.borrow() {
-                Cell::Atom(_) => break Ok(  // this doesn't work when using Pointer::borrow
-                    &traversal_ptr.graph.cells[traversal_ptr.pos.x as usize][traversal_ptr.pos.y as usize]
-                ),
-                Cell::Bond(it) => if it.orient == BondOrientation::from_direction(direction) {
-                    continue
-                } else {
-                    break Err(IncompleteBond(traversal_ptr.pos))
-                }
-                Cell::None(_) => break Err(IncompleteBond(traversal_ptr.pos))
-            }
-        }
-    }
-
-    /// Gets the amount of bonds that the current [`Cell::Atom`] has.
-    ///
-    /// Assumes that the current cell is a [`Cell::Atom`]. Counts attached atoms as single
-    /// bonds.
-    ///
-    /// ## Errors
-    ///
-    /// If the current cell is not a [`Cell::Atom`] a message describing the error and the position
-    /// at which it occurred is returned.
-    pub(crate) fn bond_count(&self) -> Result<u8, String> {
-        let mut out = 0;
-
-        match self.borrow() {
-            Cell::Atom(_) => {}
-            Cell::Bond(_) => return Err(format!("Pointer cannot access bond count: atom was
-            expected at ({}, {}) but bond was found", self.pos.x, self.pos.y)),
-            Cell::None(_) => return Err(format!("Pointer cannot access bond count: atom was
-            expected at ({}, {}) but none was found", self.pos.x, self.pos.y)),
-        };
-
-        for direction in Direction::all() {
-            if let Ok(cell) = self.graph.get(self.pos + direction.vec2()) {
-                match cell {
-                    Cell::Atom(_) => out += 1,
-                    Cell::Bond(it) => out += it.order.order(),
-                    Cell::None(_) => {}
-                }
-            }
-        }
-        Ok(out)
-    }
-
-    pub fn move_ptr(&mut self, direction: Direction) -> bool {
-        if self.graph.contains(self.pos + direction.vec2()) {
-            self.pos += direction.vec2();
-            true
-        } else {
-            false
-        }
     }
 }
 
@@ -400,6 +275,21 @@ impl Invert for Vec2 {
     }
 }
 
+/// Creates a two-dimensional [`Vec`] (i.e., a `Vec<Vec<T>>`) with the given `x` and `y` with
+/// every element set to `val`.
+///
+/// ## Examples
+///
+/// ```rust
+/// let a = nested_vec![2; 4; true];
+/// let mut b = vec![];
+///
+/// for x in 0usize..2usize {
+///     b.push(vec![4; true]);
+/// }
+///
+/// assert_eq!(a, b);
+/// ```
 #[macro_export]
 macro_rules! nested_vec {
     ($x:expr; $y:expr; $val:expr) => {{
@@ -419,5 +309,71 @@ impl EnumAll for Direction {
     /// Returns all [Direction]s except for [Direction::None].
     fn all() -> Vec<Self> {
         vec![Direction::Up, Direction::Down, Direction::Left, Direction::Right]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::molecule::BondOrder::Single;
+    use crate::molecule::Atom;
+    use crate::molecule::Element::O;
+    use super::*;
+    use super::GW::{A, B};
+
+    #[test]
+    fn gs_new_creates_sized_grid() {
+        let graph = GridState::new(20, 10);
+
+        assert!(graph.contains(Vec2::xy(0, 0)));
+        assert!(graph.contains(Vec2::xy(19, 9)));
+        assert!(!graph.contains(Vec2::xy(20, 10)));
+    }
+
+    #[test]
+    fn gs_get_returns_correct_cell() {
+        let graph = graph_with!(2, 2,
+            [0, 1; A(C)],
+            [1, 0; A(O)],
+            [1, 1; B(Single)]
+        );
+
+        assert_eq!(*graph.get(Vec2::xy(0, 0)).unwrap(), Cell::None(Vec2::xy(0, 0)));
+        assert_eq!(*graph.get(Vec2::xy(1, 0)).unwrap(), Cell::Atom(Atom { element: O, pos: Vec2::xy(1, 0) }))
+    }
+
+    #[test]
+    fn graph_with_generates_gridstate() {
+        let a = {
+            let mut graph = GridState::new(3, 3);
+            graph.cursor = Vec2::xy(0, 1);
+            graph.put_atom(C);
+            graph.cursor = Vec2::xy(1, 1);
+            graph.put_bond(Single);
+            graph.cursor = Vec2::xy(2, 1);
+            graph.put_atom(O);
+            graph.cursor = Vec2::xy(2, 0);
+            graph.put_atom(H);
+            graph
+        };
+        let b = graph_with!(3, 3,
+            [0, 1; A(C)],
+            [1, 1; B(Single)],
+            [2, 1; A(O)],
+            [2, 0; A(H)]
+        );
+
+        assert_eq!(a, b)
+    }
+
+    #[test]
+    fn to_vec2_converts_correctly() {
+        let x = (8usize, 2usize).to_vec2();
+        assert_eq!(x, Vec2::xy(8, 2));
+    }
+
+    #[test]
+    fn all_returns_every_direction() {
+        let x = Direction::all();
+        assert_eq!(x, vec![Direction::Up, Direction::Down, Direction::Left, Direction::Right])
     }
 }

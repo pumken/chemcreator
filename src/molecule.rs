@@ -6,7 +6,7 @@ use std::fmt::{Display, Formatter};
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{LightGrey, Red, White};
-use crate::grid::Cellular;
+use crate::spatial::Cellular;
 use crate::molecule::Element::{C, H, O};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
@@ -47,7 +47,7 @@ pub(crate) enum GroupType {
 }
 
 /// Represents a molecular component.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Cell {
     Atom(Atom),
     Bond(Bond),
@@ -75,15 +75,11 @@ impl Cell {
     }
 
     pub(crate) fn is_atom(&self) -> bool {
-        if let Cell::Atom(_) = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Cell::Atom(_))
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Atom {
     pub(crate) element: Element,
     pub(crate) pos: Vec2
@@ -127,7 +123,7 @@ impl Display for Element {
     }
 }
 
-#[derive(Copy, Debug)]
+#[derive(Copy, Debug, PartialEq)]
 pub struct Bond {
     pub(crate) pos: Vec2,
     pub(crate) order: BondOrder,
@@ -153,7 +149,7 @@ impl Cellular for Bond {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum BondOrder {
     Single,
     Double,
@@ -193,7 +189,7 @@ impl BondOrientation {
 
 impl Clone for Bond {
     fn clone(&self) -> Bond {
-        Bond { pos: self.pos.clone(), order: self.order.clone(), orient: self.orient.clone() }
+        Bond { pos: self.pos, order: self.order, orient: self.orient }
     }
 }
 

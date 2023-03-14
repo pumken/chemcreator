@@ -16,18 +16,18 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
         match key_event {
             KeyEvent::Pressed(Key::C) => {
                 graph.put_atom(C);
-                state.menu_key = "C";
+                state.key = "C";
             }
             KeyEvent::Pressed(Key::H) => {
                 graph.put_atom(H);
-                state.menu_key = "H";
+                state.key = "H";
             }
             KeyEvent::Pressed(Key::O) => {
                 graph.put_atom(O);
-                state.menu_key = "O";
+                state.key = "O";
             }
             KeyEvent::Pressed(Key::F5) => {
-                state.menu_debug = match debug_chain(&graph) {
+                state.debug = match debug_chain(&graph) {
                     Ok(it) => {
                         it.iter()
                             .fold("".to_string(), |a, b| {
@@ -39,39 +39,39 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
             }
             KeyEvent::Pressed(Key::Num1) => {
                 graph.put_bond(Single);
-                state.menu_key = "1";
+                state.key = "1";
             }
             KeyEvent::Pressed(Key::Num2) => {
                 graph.put_bond(Double);
-                state.menu_key = "2";
+                state.key = "2";
             }
             KeyEvent::Pressed(Key::Num3) => {
                 graph.put_bond(Triple);
-                state.menu_key = "3";
+                state.key = "3";
             }
             KeyEvent::Pressed(Key::Backspace) => {
                 graph.clear();
-                state.menu_key = "Backspace";
+                state.key = "Backspace";
             }
             KeyEvent::Pressed(Key::Right) => {
                 graph.move_cursor(Direction::Right);
-                state.menu_key = "→";
+                state.key = "→";
             }
             KeyEvent::Pressed(Key::Left) => {
                 graph.move_cursor(Direction::Left);
-                state.menu_key = "←";
+                state.key = "←";
             }
             KeyEvent::Pressed(Key::Up) => {
                 graph.move_cursor(Direction::Up);
-                state.menu_key = "↑";
+                state.key = "↑";
             }
             KeyEvent::Pressed(Key::Down) => {
                 graph.move_cursor(Direction::Down);
-                state.menu_key = "↓";
+                state.key = "↓";
             }
             KeyEvent::Pressed(Key::Esc) => state.mode = Mode::Normal,
             _ => {
-                state.menu_key = match key_event {
+                state.key = match key_event {
                     KeyEvent::Pressed(_) => { "Pressed" }
                     KeyEvent::Released(_) => { "" }
                 }

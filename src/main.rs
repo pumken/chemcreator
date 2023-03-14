@@ -37,12 +37,12 @@ fn main() {
             Mode::Insert => {
                 input_insert_mode(app_state, &mut state, &mut graph);
 
-                (state.menu_name, state.menu_err) = match name_molecule(&graph) {
+                (state.name, state.err) = match name_molecule(&graph) {
                     Ok(it) => (it, "".to_string()),
                     Err(it) => ("unidentified".to_string(), it.to_string()),
                 };
-                state.menu_pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
-                state.menu_sym = match graph.current_cell() {
+                state.pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
+                state.sym = match graph.current_cell() {
                     Cell::Atom(it) => { format!("Atom {}", it.symbol()) }
                     Cell::Bond(it) => {
                         match it.order {
@@ -55,10 +55,10 @@ fn main() {
                 };
             }
             Mode::Normal => {
-                state.menu_pos = "".to_string();
-                state.menu_sym = "".to_string();
-                state.menu_key = "";
-                state.menu_err = "".to_string();
+                state.pos = "".to_string();
+                state.sym = "".to_string();
+                state.key = "";
+                state.err = "".to_string();
                 input_view_mode(app_state, &mut state)
             }
             Mode::Start => input_view_mode(app_state, &mut state),
@@ -106,16 +106,16 @@ fn main() {
             Mode::Start => "",
             _ => "ChemCreator"
         }, Vec2::xy(graph.size.x * 3 + 3, 0));
-        pencil.draw_text(&format!("name | {}", state.menu_name), Vec2::xy(graph.size.x * 3 + 3, 2));
-        pencil.draw_text(&format!(" pos | {}", state.menu_pos), Vec2::xy(graph.size.x * 3 + 3, 3));
-        pencil.draw_text(&format!(" sym | {}", state.menu_sym), Vec2::xy(graph.size.x * 3 + 3, 4));
+        pencil.draw_text(&format!("name | {}", state.name), Vec2::xy(graph.size.x * 3 + 3, 2));
+        pencil.draw_text(&format!(" pos | {}", state.pos), Vec2::xy(graph.size.x * 3 + 3, 3));
+        pencil.draw_text(&format!(" sym | {}", state.sym), Vec2::xy(graph.size.x * 3 + 3, 4));
         pencil.draw_text(&format!(" key | {}", match state.mode {
             Mode::Start => format!("        You're using version {version}.          "),
-            _ => state.menu_key.to_string()
+            _ => state.key.to_string()
         }), Vec2::xy(graph.size.x * 3 + 3, 5));
         pencil.set_foreground(Red);
-        pencil.draw_text(&state.menu_err.to_string(), Vec2::xy(graph.size.x * 3 + 3, 7));
-        pencil.draw_text(&state.menu_debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8));
+        pencil.draw_text(&state.err.to_string(), Vec2::xy(graph.size.x * 3 + 3, 7));
+        pencil.draw_text(&state.debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8));
     });
 }
 
@@ -126,26 +126,27 @@ enum Mode {
     Start,
 }
 
+/// Contains the running state of the app not including the grid.
 struct AppState {
     mode: Mode,
-    menu_name: String,
-    menu_pos: String,
-    menu_sym: String,
-    menu_key: &'static str,
-    menu_err: String,
-    menu_debug: String,
+    name: String,
+    pos: String,
+    sym: String,
+    key: &'static str,
+    err: String,
+    debug: String,
 }
 
 impl Default for AppState {
     fn default() -> Self {
         AppState {
             mode: Mode::Start,
-            menu_name: "                ChemCreator                ".to_string(),
-            menu_pos:  "      Written in Rust by Gavin Tran.       ".to_string(),
-            menu_sym:  "To start, enter insert mode by pressing F8.".to_string(),
-            menu_key: "",  // Overridden in Start mode to retain &str type
-            menu_err: "".to_string(),
-            menu_debug: "".to_string(),
+            name: "                ChemCreator                ".to_string(),
+            pos:  "      Written in Rust by Gavin Tran.       ".to_string(),
+            sym:  "To start, enter insert mode by pressing F8.".to_string(),
+            key: "",  // Overridden in Start mode to retain &str type
+            err: "".to_string(),
+            debug: "".to_string(),
         }
     }
 }

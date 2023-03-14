@@ -21,8 +21,13 @@ impl<'a> Pointer<'a> {
         Pointer { graph, pos: cell.pos() }
     }
 
-    pub(crate) fn borrow(&self) -> &Cell {
-        &self.graph.cells[self.pos.x as usize][self.pos.y as usize]
+    /// Returns a reference to the cell currently pointed to.
+    ///
+    /// ## Error
+    ///
+    /// If this [`Pointer`] does not point to a valid cell, an [`Err`] is returned.
+    pub(crate) fn borrow(&self) -> Result<&Cell, String> {
+        self.graph.get(self.pos)
     }
 
     /// Returns a [`Vec`] of references to the non-empty [`Cell`]s adjacent to the [`Cell`]
@@ -55,7 +60,7 @@ impl<'a> Pointer<'a> {
     /// If one of the bonds to the current cell is found to be dangling, an
     /// [`IncompleteBond`] will be returned.
     pub(crate) fn bonded(&self) -> Result<Vec<&Cell>, InvalidGraphError> {
-        match self.borrow() {
+        match self.borrow().unwrap() {
             Cell::Atom(_) => {}
             Cell::Bond(_) => panic!("Pointer cannot access bonded atoms: atom was expected at ({}, {}) but bond
             was found", self.pos.x, self.pos.y),
@@ -143,15 +148,16 @@ impl<'a> Pointer<'a> {
         loop {
             traversal_ptr.move_ptr(direction);
             match traversal_ptr.borrow() {
-                Cell::Atom(_) => break Ok(  // this doesn't work when using Pointer::borrow
+                Ok(Cell::Atom(_)) => break Ok(  // this doesn't work when using Pointer::borrow
                                             &traversal_ptr.graph.cells[traversal_ptr.pos.x as usize][traversal_ptr.pos.y as usize]
                 ),
-                Cell::Bond(it) => if it.orient == BondOrientation::from_direction(direction) {
+                Ok(Cell::Bond(it)) => if it.orient == BondOrientation::from_direction(direction) {
                     continue;
                 } else {
                     break Err(IncompleteBond(traversal_ptr.pos));
                 }
-                Cell::None(_) => break Err(IncompleteBond(traversal_ptr.pos))
+                Ok(Cell::None(_)) => break Err(IncompleteBond(traversal_ptr.pos)),
+                Err(_) => break Err(IncompleteBond(traversal_ptr.pos))
             }
         }
     }
@@ -161,6 +167,10 @@ impl<'a> Pointer<'a> {
     /// Assumes that the current cell is a [`Cell::Atom`]. Counts attached atoms as single
     /// bonds.
     ///
+    /// ## Panics
+    ///
+    /// If the current cell is not valid, this function will panic.
+    ///
     /// ## Errors
     ///
     /// If the current cell is not a [`Cell::Atom`] a message describing the error and the position
@@ -168,7 +178,7 @@ impl<'a> Pointer<'a> {
     pub(crate) fn bond_count(&self) -> Result<u8, String> {
         let mut out = 0;
 
-        match self.borrow() {
+        match self.borrow().unwrap() {
             Cell::Atom(_) => {}
             Cell::Bond(_) => return Err(format!("Pointer cannot access bond count: atom was
             expected at ({}, {}) but bond was found", self.pos.x, self.pos.y)),

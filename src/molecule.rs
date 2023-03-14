@@ -47,7 +47,7 @@ pub(crate) enum GroupType {
 }
 
 /// Represents a molecular component.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Cell {
     Atom(Atom),
     Bond(Bond),
@@ -79,7 +79,7 @@ impl Cell {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Atom {
     pub(crate) element: Element,
     pub(crate) pos: Vec2
@@ -123,7 +123,7 @@ impl Display for Element {
     }
 }
 
-#[derive(Copy, Debug)]
+#[derive(Copy, Debug, PartialEq)]
 pub struct Bond {
     pub(crate) pos: Vec2,
     pub(crate) order: BondOrder,
@@ -149,7 +149,7 @@ impl Cellular for Bond {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) enum BondOrder {
     Single,
     Double,

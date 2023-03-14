@@ -6,7 +6,7 @@
 use std::cmp::Ordering;
 use ruscii::spatial::Vec2;
 use thiserror::Error;
-use crate::algorithm::InvalidGraphError::{Cycle, Discontinuity};
+use crate::algorithm::InvalidGraphError::{Cycle, Discontinuity, Other};
 use crate::spatial::GridState;
 use crate::molecule::{Atom, Cell, Element, Group};
 use crate::nested_vec;
@@ -57,19 +57,20 @@ pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
 
 pub(crate) fn debug_chain(graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError> {
     let all_chains = get_all_chains(graph)?;
-    Ok(longest_chain(all_chains))
+    Ok(longest_chain(all_chains)?)
 }
 
 /// Gets the longest of the given [`Vec`] of chains, assuming that it is non-empty.
 ///
-/// ## Panics
+/// ## Errors
 ///
-/// This function will panic if there are no `chains`.
-pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Vec<Atom> {
-    chains.iter()
-        .max_by(|&a, &b| a.len().cmp(&b.len()))
-        .expect("There should be a longest chain")
-        .to_owned()
+/// If there are no `chains`, this function will return an `Err`.
+pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Result<Vec<Atom>, InvalidGraphError> {
+    Ok(match chains.iter()
+        .max_by(|&a, &b| a.len().cmp(&b.len())) {
+        None => return Err(Other("No carbon chain found.".to_string())),  // FIXME this is returned when a bond is placed at the edge
+        Some(it) => it
+    }.to_owned())
 }
 
 pub(crate) fn get_all_chains(graph: &GridState) -> Result<Vec<Vec<Atom>>, InvalidGraphError> {
@@ -129,8 +130,8 @@ fn accumulate_carbons(
     next_carbons.retain(|atom| previous_pos.is_none() || atom.pos != previous_pos.unwrap());
 
     accumulator[branch_index].push(match ptr.borrow() {
-        Cell::Atom(it) => it.to_owned(),
-        _ => panic!("Non-atom cell passed to accumulate_carbons")
+        Ok(Cell::Atom(it)) => it.to_owned(),
+        _ => panic!("Non-atom or invalid cell passed to accumulate_carbons")
     });
     let new_branches = if next_carbons.len() > 0usize {
         next_carbons.len() - 1usize
@@ -292,4 +293,6 @@ pub enum InvalidGraphError {
     IncompleteBond(Vec2),
     #[error("This combination of groups is not supported.")]
     UnsupportedGroups,
+    #[error("{}", .0)]
+    Other(String)
 }

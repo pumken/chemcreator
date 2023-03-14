@@ -7,9 +7,10 @@ use ruscii::spatial::{Direction, Vec2};
 use crate::molecule::Element::{C, H};
 use crate::molecule::{Atom, Bond, BondOrder, Cell, Element};
 use crate::molecule::BondOrientation::{Horiz, Vert};
+use crate::pointer::Pointer;
 
 /// Represents the state of a grid, including all its [Cell]s and the position of the cursor.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GridState {
     pub(crate) cells: Vec<Vec<Cell>>,
     pub(crate) size: Vec2,
@@ -147,11 +148,19 @@ impl GridState {
 
     /// Determines if there are any [Atom]s that are horizontally adjacent to the current [Cell].
     fn atom_adjacent(&self) -> bool {
-        let left = &self.cells[self.cursor.x as usize - 1][self.cursor.y as usize];
-        let right = &self.cells[self.cursor.x as usize + 1][self.cursor.y as usize];
+        let mut lptr = Pointer::new(self.current_cell(), self);
+        let left = {
+            lptr.move_ptr(Direction::Left);
+            lptr.borrow()
+        };
+        let mut rptr = Pointer::new(self.current_cell(), self);
+        let right = {
+            rptr.move_ptr(Direction::Right);
+            rptr.borrow()
+        };
 
-        if let Cell::Atom(_) = left { return true; }
-        if let Cell::Atom(_) = right { return true; }
+        if let Ok(Cell::Atom(_)) = left { return true; }
+        if let Ok(Cell::Atom(_)) = right { return true; }
         false
     }
 
@@ -198,21 +207,40 @@ impl GridState {
     }
 }
 
-/// Creates a [`GridState`] with the given `vals` at (`x`, `y`).
-///
-/// ## Examples
-///
-/// This macro is equivalent to declaring and manually inserting into a [`GridState`] as such:
-///
-/// ```
-/// let
-/// ```
+impl PartialEq for GridState {
+    fn eq(&self, other: &Self) -> bool {
+        if self.size != other.size {
+            return false
+        }
+        let a = self.cells.iter().flatten();
+        let b = other.cells.iter().flatten().collect::<Vec<&Cell>>();
+
+        for (i, cell) in a.enumerate() {
+            if cell != b[i] {
+                return false
+            }
+        }
+        true
+    }
+}
+
+/// An enum used to make it easier to construct [`GridState`]s with the `graph_with` macro.
+pub(crate) enum GW {
+    A(Element),
+    B(BondOrder)
+}
+
+/// Creates a [`GridState`] with the given `vals` at (`x`, `y`). Used with the [`GW`] enum.
 #[macro_export]
 macro_rules! graph_with {
-    ($rows:expr, $cols:expr, $(($x:expr, $y:expr, $val:expr)),*) => {{
+    ($rows:expr, $cols:expr, $([$x:expr, $y:expr; $val:expr]),*) => {{
         let mut graph = GridState::new($rows, $cols);
         $(
-        graph.cells[$x][$y] = Some($val);
+        graph.cursor = Vec2::xy($x, $y);
+        match $val {
+            GW::A(it) => graph.put_atom(it),
+            GW::B(it) => graph.put_bond(it),
+        }
         )*
         graph
     }};
@@ -286,7 +314,56 @@ impl EnumAll for Direction {
 
 #[cfg(test)]
 mod tests {
+    use crate::molecule::BondOrder::Single;
+    use crate::molecule::Atom;
+    use crate::molecule::Element::O;
     use super::*;
+    use super::GW::{A, B};
+
+    #[test]
+    fn gs_new_creates_sized_grid() {
+        let graph = GridState::new(20, 10);
+
+        assert!(graph.contains(Vec2::xy(0, 0)));
+        assert!(graph.contains(Vec2::xy(19, 9)));
+        assert!(!graph.contains(Vec2::xy(20, 10)));
+    }
+
+    #[test]
+    fn gs_get_returns_correct_cell() {
+        let graph = graph_with!(2, 2,
+            [0, 1; A(C)],
+            [1, 0; A(O)],
+            [1, 1; B(Single)]
+        );
+
+        assert_eq!(*graph.get(Vec2::xy(0, 0)).unwrap(), Cell::None(Vec2::xy(0, 0)));
+        assert_eq!(*graph.get(Vec2::xy(1, 0)).unwrap(), Cell::Atom(Atom { element: O, pos: Vec2::xy(1, 0) }))
+    }
+
+    #[test]
+    fn graph_with_generates_gridstate() {
+        let a = {
+            let mut graph = GridState::new(3, 3);
+            graph.cursor = Vec2::xy(0, 1);
+            graph.put_atom(C);
+            graph.cursor = Vec2::xy(1, 1);
+            graph.put_bond(Single);
+            graph.cursor = Vec2::xy(2, 1);
+            graph.put_atom(O);
+            graph.cursor = Vec2::xy(2, 0);
+            graph.put_atom(H);
+            graph
+        };
+        let b = graph_with!(3, 3,
+            [0, 1; A(C)],
+            [1, 1; B(Single)],
+            [2, 1; A(O)],
+            [2, 0; A(H)]
+        );
+
+        assert_eq!(a, b)
+    }
 
     #[test]
     fn to_vec2_converts_correctly() {

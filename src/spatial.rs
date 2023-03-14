@@ -317,6 +317,7 @@ mod tests {
     use crate::molecule::BondOrder::Single;
     use crate::molecule::Atom;
     use crate::molecule::Element::O;
+    use super::GW::{A, B};
     use super::*;
 
     #[test]

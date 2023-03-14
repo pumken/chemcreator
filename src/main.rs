@@ -11,18 +11,19 @@ use ruscii::keyboard::{Key, KeyEvent};
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color::{Cyan, Red, White};
 use ruscii::terminal::Window;
-use crate::algorithm::{debug_chain, longest_chain, name_molecule};
+use crate::algorithm::{debug_chain, name_molecule};
 
-use crate::grid::{GridState, Invert};
+use crate::spatial::{GridState, Invert};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Cell;
 use crate::molecule::Element::{C, H, O};
 
-mod grid;
+mod spatial;
 mod molecule;
 mod macros;
 mod input;
 mod algorithm;
+mod pointer;
 
 fn main() {
     let mut app = App::new();
@@ -115,12 +116,12 @@ fn main() {
                     Cell::Atom(it) => { format!("Atom {}", it.symbol()) }
                     Cell::Bond(it) => {
                         match it.order {
-                            Single => format!("Bond 1x"),
-                            Double => format!("Bond 2x"),
-                            Triple => format!("Bond 3x"),
+                            Single => "Bond 1x".to_string(),
+                            Double => "Bond 2x".to_string(),
+                            Triple => "Bond 3x".to_string(),
                         }
                     }
-                    Cell::None(_) => { format!("") }
+                    Cell::None(_) => { String::new() }
                 };
             }
             Mode::Normal => {
@@ -154,7 +155,7 @@ fn main() {
             Mode::Start => {
                 pencil.draw_text("┌────┐          ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 2).inv(&graph));
                 pencil.draw_text("│  C │hem       ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 1).inv(&graph));
-                pencil.draw_text("└────┼────┐     ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 0).inv(&graph));
+                pencil.draw_text("└────┼────┐     ", Vec2::xy(graph.size.x + 2, graph.size.y / 2).inv(&graph));
                 pencil.draw_text("     │ Cr │eator", Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 1).inv(&graph));
                 pencil.draw_text("     └────┘     ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 2).inv(&graph));
                 pencil.draw_text("    Release 1   ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 3).inv(&graph));
@@ -162,7 +163,7 @@ fn main() {
             _ => {
                 for cell in graph.cells.iter().flatten() {
                     pencil.set_foreground(*&cell.color());
-                    pencil.draw_text(&format!("{}", match &cell {
+                    pencil.draw_text(match &cell {
                         Cell::Atom(it) => { it.symbol() }
                         Cell::Bond(it) => { it.symbol() }
                         Cell::None(_) => match mode {
@@ -170,21 +171,18 @@ fn main() {
                             Mode::Normal => "   ",
                             _ => "   "
                         }
-                    }), Vec2::xy(cell.pos().x * 3, cell.pos().y).inv(&graph));
+                    }, Vec2::xy(cell.pos().x * 3, cell.pos().y).inv(&graph));
                 }
             }
         }
 
         // Insert mode and cursor
-        match mode {
-            Mode::Insert => {
-                pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 1));
-                pencil.set_foreground(Cyan);
-                pencil.draw_text("<", Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y).inv(&graph));
-                pencil.draw_text(">", Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(&graph));
-                pencil.set_foreground(White);
-            }
-            _ => ()
+        if let Mode::Insert = mode {
+            pencil.draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 1));
+            pencil.set_foreground(Cyan);
+            pencil.draw_text("<", Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y).inv(&graph));
+            pencil.draw_text(">", Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(&graph));
+            pencil.set_foreground(White);
         }
 
         // Menu
@@ -196,12 +194,12 @@ fn main() {
         pencil.draw_text(&format!(" pos | {}", menu_pos), Vec2::xy(graph.size.x * 3 + 3, 3));
         pencil.draw_text(&format!(" sym | {}", menu_sym), Vec2::xy(graph.size.x * 3 + 3, 4));
         pencil.draw_text(&format!(" key | {}", match mode {
-            Mode::Start => format!("        You're using version {version}.          ").to_string(),
+            Mode::Start => format!("        You're using version {version}.          "),
             _ => menu_key.to_string()
         }), Vec2::xy(graph.size.x * 3 + 3, 5));
         pencil.set_foreground(Red);
-        pencil.draw_text(&format!("{}", menu_err), Vec2::xy(graph.size.x * 3 + 3, 7));
-        pencil.draw_text(&format!("{}", menu_debug), Vec2::xy(graph.size.x * 3 + 3, 8));
+        pencil.draw_text(&menu_err.to_string(), Vec2::xy(graph.size.x * 3 + 3, 7));
+        pencil.draw_text(&menu_debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8));
     });
 }
 

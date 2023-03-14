@@ -3,12 +3,14 @@
 //! The `algorithm` module contains the functions needed to find the name of an arbitrary
 //! organic molecule.
 
+use std::cmp::Ordering;
 use ruscii::spatial::Vec2;
 use thiserror::Error;
 use crate::algorithm::InvalidGraphError::{Cycle, Discontinuity};
-use crate::grid::{GridState, Pointer};
+use crate::spatial::GridState;
 use crate::molecule::{Atom, Cell, Element, Group};
 use crate::nested_vec;
+use crate::pointer::Pointer;
 
 enum Substituent {
     Branch(Branch),
@@ -53,7 +55,7 @@ pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
     }
 }
 
-pub(crate) fn debug_chain(graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError>{
+pub(crate) fn debug_chain(graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError> {
     let all_chains = get_all_chains(graph)?;
     Ok(longest_chain(all_chains))
 }
@@ -99,7 +101,7 @@ fn endpoint_head_chains(endpoint: Atom, graph: &GridState) -> Result<Vec<Vec<Ato
         None,
         0usize,
         &mut accumulator,
-        graph
+        graph,
     )?;
 
     Ok(accumulator)
@@ -160,10 +162,7 @@ fn accumulate_carbons(
 pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidGraphError> {
     let all_carbons = graph.find_all(|cell| {
         match cell {
-            Cell::Atom(atom) => match atom.element {
-                Element::C => true,
-                _ => false
-            }
+            Cell::Atom(atom) => matches!(atom.element, Element::C),
             _ => false
         }
     });
@@ -185,10 +184,7 @@ pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidG
 /// If [`GridState`] contains an invalid molecule, [`Discontinuity`] or [`Cycle`] is returned.
 /// An empty [`GridState`] does not return an error.
 fn check_structure(graph: &GridState) -> Result<(), InvalidGraphError> {
-    let starting_cell = match graph.find(|cell| match cell {
-        Cell::None(_) => false,
-        _ => true,
-    }) {
+    let starting_cell = match graph.find(|cell| !matches!(cell, Cell::None(_))) {
         Some(it) => it,
         None => return Ok(()),
     };
@@ -222,9 +218,8 @@ fn check_structure(graph: &GridState) -> Result<(), InvalidGraphError> {
 /// If this function traverses the molecule and finds that it is not simply connected, [`Cycle`]
 /// will be returned.
 fn get_connected_cells(pos: Vec2, graph: &GridState) -> Result<Vec<Vec<bool>>, InvalidGraphError> {
-    match graph.get(pos).expect("pos should be a valid point on the graph.") {
-        Cell::None(_) => panic!("Passed empty cell ({}, {}) to get_connected_cells", pos.x, pos.y),
-        _ => {}
+    if let Cell::None(_) = graph.get(pos).expect("pos should be a valid point on the graph.") {
+        panic!("Passed empty cell ({}, {}) to get_connected_cells", pos.x, pos.y)
     }
 
     let mut searched_points = nested_vec![graph.size.x; graph.size.y; false];
@@ -238,11 +233,10 @@ fn get_connected_cells(pos: Vec2, graph: &GridState) -> Result<Vec<Vec<bool>>, I
         accumulator[pos.x as usize][pos.y as usize] = true;
         let ptr = Pointer { graph, pos };
         for cell in ptr.connected() {
-            match previous_pos {
-                Some(it) => if cell.pos() == it {
+            if let Some(it) = previous_pos {
+                if cell.pos() == it {
                     continue;
-                },
-                None => {}
+                }
             }
             match cell {
                 Cell::None(_) => {}
@@ -275,10 +269,10 @@ fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Result<(), InvalidGrap
             Ok(it) => it,
             Err(it) => panic!("{}", it)
         };
-        if bond_count > atom.element.bond_number() {
-            return Err(InvalidGraphError::OverfilledValence(atom.pos));
-        } else if bond_count < atom.element.bond_number() {
-            return Err(InvalidGraphError::UnfilledValence(atom.pos));
+        match bond_count.cmp(&atom.element.bond_number()) {
+            Ordering::Less => return Err(InvalidGraphError::UnfilledValence(atom.pos)),
+            Ordering::Greater => return Err(InvalidGraphError::OverfilledValence(atom.pos)),
+            _ => {}
         }
     }
     Ok(())

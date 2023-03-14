@@ -125,32 +125,61 @@ fn accumulate_carbons(
     accumulator: &mut Vec<Vec<Atom>>,
     graph: &GridState,
 ) -> Result<(), InvalidGraphError> {
-    let ptr = Pointer { graph, pos };
-    let mut next_carbons = ptr.bonded_carbons()?;
-    next_carbons.retain(|atom| previous_pos.is_none() || atom.pos != previous_pos.unwrap());
+    let next_carbons = next_carbons(pos, previous_pos, graph)?;
 
-    accumulator[branch_index].push(match ptr.borrow() {
+    accumulator[branch_index].push(match graph.get(pos) {
         Ok(Cell::Atom(it)) => it.to_owned(),
         _ => panic!("Non-atom or invalid cell passed to accumulate_carbons")
     });
-    let new_branches = if next_carbons.len() > 0usize {
-        next_carbons.len() - 1usize
-    } else {
-        0usize
-    };
-    for _ in 0usize..new_branches {
-        accumulator.push(accumulator[branch_index].clone());
-    }
+
+    let new_branches = create_branches(
+        accumulator,
+        branch_index,
+        match next_carbons.len() {
+            0 => return Ok(()),
+            it => it - 1
+        }
+    );
     for (i, carbon) in next_carbons.iter().enumerate() {
-        let j = if i == 0 {
-            branch_index
-        } else {
-            (accumulator.len() - 1usize) - new_branches + (i - 1usize)
-        };
-        accumulate_carbons(carbon.pos, Some(pos), j, accumulator, graph)?
+        accumulate_carbons(
+            carbon.pos,
+            Some(pos),
+            new_branches[i],
+            accumulator,
+            graph
+        )?
     }
 
     Ok(())
+}
+
+/// Creates `count` clones of the branch at the given `branch_index` in the `accumulator`. The
+/// returned [`Vec`] contains the indexes of the branch and its copies.
+fn create_branches(accumulator: &mut Vec<Vec<Atom>>, branch_index: usize, count: usize) -> Vec<usize> {
+    let mut out = vec![branch_index];
+
+    for _ in 0usize..count {
+        accumulator.push(accumulator[branch_index].clone());
+        out.push(accumulator.len() - 1)
+    };
+
+    out
+}
+
+/// Gets the next bonded carbons. Does not include the cell at the `previous_pos` if there is one.
+///
+/// ## Errors
+///
+/// If one of the bonds to the current cell is found to be dangling, an
+/// [`IncompleteBond`] will be returned.
+fn next_carbons(pos: Vec2, previous_pos: Option<Vec2>, graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError> {
+    let ptr = Pointer { graph, pos };
+    let mut out = ptr.bonded_carbons()?;
+
+    if let Some(it) = previous_pos {
+        out.retain(|atom| atom.pos != it);
+    }
+    Ok(out)
 }
 
 /// Returns references to all cells containing endpoint carbon atoms, i.e. those that have exactly

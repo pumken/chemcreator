@@ -22,6 +22,8 @@ mod macros;
 mod input;
 mod algorithm;
 mod pointer;
+mod validation;
+mod chain;
 
 fn main() {
     let mut app = App::new();
@@ -143,11 +145,81 @@ impl Default for AppState {
         AppState {
             mode: Mode::Start,
             name: "                ChemCreator                ".to_string(),
-            pos:  "      Written in Rust by Gavin Tran.       ".to_string(),
-            sym:  "To start, enter insert mode by pressing F8.".to_string(),
+            pos: "      Written in Rust by Gavin Tran.       ".to_string(),
+            sym: "To start, enter insert mode by pressing F8.".to_string(),
             key: "",  // Overridden in Start mode to retain &str type
             err: "".to_string(),
             debug: "".to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test_utils {
+    use crate::molecule::{Atom, BondOrder, Cell, Element};
+    use crate::molecule::BondOrder::Single;
+    use crate::molecule::Element::{C, H, O};
+    use crate::spatial::GridState;
+    use crate::test_utils::GW::{A, B};
+    use ruscii::spatial::Vec2;
+
+    /// An enum used to make it easier to construct [`GridState`]s with the `graph_with` macro.
+    pub(crate) enum GW {
+        A(Element),
+        B(BondOrder),
+    }
+
+    /// Creates a [`GridState`] with the given `vals` at (`x`, `y`). Used with the [`GW`] enum.
+    #[macro_export]
+    macro_rules! graph_with {
+        ($width:expr, $height:expr) => {
+            GridState::new($width, $height)
+        };
+        ($width:expr, $height:expr, $([$x:expr, $y:expr; $val:expr]),*) => {{
+            let mut graph = GridState::new($width, $height);
+            $(
+            graph.cursor = Vec2::xy($x, $y);
+            match $val {
+                A(it) => graph.put_atom(it),
+                B(it) => graph.put_bond(it),
+            }
+            )*
+            graph
+        }};
+    }
+
+    #[test]
+    fn graph_with_empty() {
+        let graph = graph_with!(5, 5);
+
+        let any_filled_cells = graph.cells.iter()
+            .flatten()
+            .any(|cell| !matches!(cell, Cell::None(_)));
+
+        assert!(!any_filled_cells);
+    }
+
+    #[test]
+    fn graph_with_generates_gridstate() {
+        let a = {
+            let mut graph = GridState::new(3, 3);
+            graph.cursor = Vec2::xy(0, 1);
+            graph.put_atom(C);
+            graph.cursor = Vec2::xy(1, 1);
+            graph.put_bond(Single);
+            graph.cursor = Vec2::xy(2, 1);
+            graph.put_atom(O);
+            graph.cursor = Vec2::xy(2, 0);
+            graph.put_atom(H);
+            graph
+        };
+        let b = graph_with!(3, 3,
+            [0, 1; A(C)],
+            [1, 1; B(Single)],
+            [2, 1; A(O)],
+            [2, 0; A(H)]
+        );
+
+        assert_eq!(a, b)
     }
 }

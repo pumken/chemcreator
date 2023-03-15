@@ -3,24 +3,14 @@
 //! The `algorithm` module contains the functions needed to find the name of an arbitrary
 //! organic molecule.
 
-use std::cmp::Ordering;
-use ruscii::spatial::Vec2;
+use ruscii::spatial::{Direction, Vec2};
 use thiserror::Error;
-use crate::algorithm::InvalidGraphError::{Cycle, Discontinuity, Other};
-use crate::spatial::GridState;
-use crate::molecule::{Atom, Cell, Element, Group};
-use crate::nested_vec;
+use crate::algorithm::InvalidGraphError::{UnrecognizedGroup};
+use crate::spatial::{FromVec2, GridState, ToVec2};
+use crate::molecule::{Atom, BondOrder, Branch, Cell, Element, Group, GroupNode, Substituent};
+use crate::molecule::Group::{Carbonyl, Carboxyl, Hydroxyl};
+use crate::{chain, validation};
 use crate::pointer::Pointer;
-
-enum Substituent {
-    Branch(Branch),
-    Group(Group),
-}
-
-struct Branch {
-    cells: Vec<Cell>,
-    chain: Vec<Substituent>,
-}
 
 /// Determines the name of the molecule on the given `graph`.
 ///
@@ -28,7 +18,7 @@ struct Branch {
 ///
 /// If the molecule on the given `graph` is discontinuous, cyclic, or contains invalid bonding,
 /// an [`InvalidGraphError`] will be returned.
-pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
+pub fn name_molecule(graph: &GridState) -> Fallible<String> {
     let cells = graph.find_all(|cell| cell.is_atom())
         .iter()
         .map(|&cell| if let Cell::Atom(it) = cell {
@@ -40,13 +30,13 @@ pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
 
     // Initial checks
     if graph.is_empty() { return Ok("".to_string()); }
-    check_structure(graph)?;
-    check_valence(cells, graph)?;
+    validation::check_structure(graph)?;
+    validation::check_valence(cells, graph)?;
 
     // Preliminary chain
-    let all_chains = get_all_chains(graph)?;
-    let chain = longest_chain(all_chains);
-    // let group_indexed_chain = link_groups();
+    let all_chains = chain::get_all_chains(graph)?;
+    let chain = chain::longest_chain(all_chains)?;
+    let branch = link_groups(graph, chain)?;
     // group_indexed_chain.check_chain_index()
     // group_indexed_chain.name();
     match graph.simple_counter() {
@@ -55,260 +45,152 @@ pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
     }
 }
 
-pub(crate) fn debug_chain(graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError> {
-    let all_chains = get_all_chains(graph)?;
-    Ok(longest_chain(all_chains)?)
+pub(crate) fn link_groups(graph: &GridState, chain: Vec<Atom>) -> Fallible<Branch> {
+    let mut branch = Branch::new(chain);
+
+    accumulate_groups(graph, &mut branch, 0usize)?;
+    Ok(branch)
 }
 
-/// Gets the longest of the given [`Vec`] of chains, assuming that it is non-empty.
-///
-/// ## Errors
-///
-/// If there are no `chains`, this function will return an `Err`.
-pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Result<Vec<Atom>, InvalidGraphError> {
-    Ok(match chains.iter()
-        .max_by(|&a, &b| a.len().cmp(&b.len())) {
-        None => return Err(Other("No carbon chain found.".to_string())),  // FIXME this is returned when a bond is placed at the edge
-        Some(it) => it
-    }.to_owned())
+pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
+    let all_chains = chain::get_all_chains(graph)?;
+    let chain = chain::longest_chain(all_chains)?;
+    link_groups(graph, chain)
 }
 
-pub(crate) fn get_all_chains(graph: &GridState) -> Result<Vec<Vec<Atom>>, InvalidGraphError> {
-    let endpoints = endpoint_carbons(graph)?.iter()
-        .map(|&cell| match cell {
-            Cell::Atom(it) => it.to_owned(),
-            _ => panic!("endpoint_carbons returned non-atom cell")
-        })
-        .collect::<Vec<Atom>>();
-    // Nested Vec hell
-    let mut out: Vec<Vec<Atom>> = vec![];
-
-    for endpoint in endpoints {
-        out.extend(endpoint_head_chains(endpoint.to_owned(), graph)?);
-    }
-    Ok(out)
-}
-
-/// Takes a given `endpoint` and returns all continuous carbon chains starting at it.
-///
-/// ## Errors
-///
-/// Returns [`InvalidGraphError`] if any invalid structures are found while traversing the graph.
-fn endpoint_head_chains(endpoint: Atom, graph: &GridState) -> Result<Vec<Vec<Atom>>, InvalidGraphError> {
-    let mut accumulator = vec![vec![]];
-
-    accumulate_carbons(
-        endpoint.pos,
-        None,
-        0usize,
-        &mut accumulator,
-        graph,
-    )?;
-
-    Ok(accumulator)
-}
-
-/// Adds the given `pos` to the branch in the `accumulator` with the given `branch_index`. After,
-/// this function is called on the unvisited carbon neighbors of the atom at the given `pos`.
-///
-/// ## Panics
-///
-/// This function panics if the given `pos` is not a [`Cell::Atom`].
-///
-/// ## Errors
-///
-/// If the given `graph` contains an invalid molecule, [`Discontinuity`] or [`Cycle`] is returned.
-fn accumulate_carbons(
-    pos: Vec2,
-    previous_pos: Option<Vec2>,
-    branch_index: usize,
-    accumulator: &mut Vec<Vec<Atom>>,
+fn accumulate_groups(
     graph: &GridState,
-) -> Result<(), InvalidGraphError> {
-    let next_carbons = next_carbons(pos, previous_pos, graph)?;
-
-    accumulator[branch_index].push(match graph.get(pos) {
-        Ok(Cell::Atom(it)) => it.to_owned(),
-        _ => panic!("Non-atom or invalid cell passed to accumulate_carbons")
-    });
-
-    let new_branches = create_branches(
-        accumulator,
-        branch_index,
-        match next_carbons.len() {
-            0 => return Ok(()),
-            it => it - 1
-        }
-    );
-    for (i, carbon) in next_carbons.iter().enumerate() {
-        accumulate_carbons(
-            carbon.pos,
-            Some(pos),
-            new_branches[i],
-            accumulator,
-            graph
-        )?
-    }
+    accumulator: &mut Branch,
+    index: usize,
+) -> Fallible<()> {
+    let group_nodes = group_directions(graph, accumulator, index)?
+        .iter()
+        .map(|&dir| group_node_tree(graph, accumulator.chain[index].pos, dir))
+        .collect::<Vec<GroupNode>>();
 
     Ok(())
 }
 
-/// Creates `count` clones of the branch at the given `branch_index` in the `accumulator`. The
-/// returned [`Vec`] contains the indexes of the branch and its copies.
-fn create_branches(accumulator: &mut Vec<Vec<Atom>>, branch_index: usize, count: usize) -> Vec<usize> {
-    let mut out = vec![branch_index];
+fn convert_nodes(group_nodes: Vec<GroupNode>) -> Fallible<Vec<Substituent>> {
+    let mut out = vec![];
+    let mut groups = vec![];
 
-    for _ in 0usize..count {
-        accumulator.push(accumulator[branch_index].clone());
-        out.push(accumulator.len() - 1)
+    for node in group_nodes {
+        groups.push(identify_single_bond_group(node)?)
+    }
+
+    let new_groups = group_patterns(groups);
+
+    Ok(out)
+}
+
+/// Returns the [`Group`] corresponding to the structure of the given `node`.
+///
+/// ## Errors
+///
+/// Returns [`UnrecognizedGroup`] if the structure is not valid.
+fn identify_single_bond_group(node: GroupNode) -> Fallible<Group> {
+    let string = node.to_string();
+    let id = string.as_str();
+
+    let out = match id {
+        "1O(1H)" => Hydroxyl,
+        "2O" => Carbonyl,
+        _ => return Err(UnrecognizedGroup)
     };
+    Ok(out)
+}
+
+fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
+    let mut out = vec![];
+
+    while !groups.is_empty() {
+        if groups.contains(&Carbonyl) && groups.contains(&Hydroxyl) {
+            groups.retain(|it| it != &Carbonyl || it != &Hydroxyl);
+            out.push(Substituent::Group(Carboxyl));
+            continue
+        }
+        out.push(Substituent::Group(groups[0].clone()));
+        groups.remove(0);
+    }
+    out
+}
+
+pub(crate) fn group_node_tree(graph: &GridState, pos: Vec2, direction: Direction) -> GroupNode {
+    let ptr = Pointer { graph, pos };
+    let bond = ptr.bond_order(direction).unwrap();
+    let atom = ptr.traverse_bond(direction).unwrap();
+    let mut next = vec![];
+
+    for direction in next_directions(graph, atom.pos, pos) {
+        next.push(group_node_tree(graph, atom.pos, direction))
+    }
+
+    GroupNode { bond, atom: atom.element, next }
+}
+
+fn next_directions(
+    graph: &GridState,
+    pos: Vec2,
+    previous_pos: Vec2,
+) -> Vec<Direction> {
+    let ptr = Pointer { graph, pos };
+    let bonded = ptr.bonded().unwrap();
+    let mut out = vec![];
+
+    for atom in bonded {
+        out.push(Direction::from_points(pos, atom.pos).unwrap())
+    }
+    out.retain(|&dir| dir != Direction::from_points(pos, previous_pos).unwrap());
 
     out
 }
 
-/// Gets the next bonded carbons. Does not include the cell at the `previous_pos` if there is one.
+/// Returns a [`Vec`] of [`Direction`]s from the [`Atom`] at the given `index` to functional
+/// groups.
 ///
 /// ## Errors
 ///
 /// If one of the bonds to the current cell is found to be dangling, an
 /// [`IncompleteBond`] will be returned.
-fn next_carbons(pos: Vec2, previous_pos: Option<Vec2>, graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError> {
-    let ptr = Pointer { graph, pos };
-    let mut out = ptr.bonded_carbons()?;
-
-    if let Some(it) = previous_pos {
-        out.retain(|atom| atom.pos != it);
-    }
-    Ok(out)
-}
-
-/// Returns references to all cells containing endpoint carbon atoms, i.e. those that have exactly
-/// one or no carbon neighbors.
-///
-/// ## Errors
-///
-/// If one of the bonds to the current cell is found to be dangling, an
-/// [`IncompleteBond`] will be returned.
-pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidGraphError> {
-    let all_carbons = graph.find_all(|cell| {
-        match cell {
-            Cell::Atom(atom) => matches!(atom.element, Element::C),
-            _ => false
-        }
-    });
+fn group_directions(
+    graph: &GridState,
+    accumulator: &mut Branch,
+    index: usize,
+) -> Fallible<Vec<Direction>> {
+    let ptr = Pointer { graph, pos: accumulator.chain[index].pos };
+    let cells = ptr.connected();
     let mut out = vec![];
 
-    for carbon in all_carbons {
-        let ptr = Pointer::new(carbon, graph);
-        if ptr.bonded_carbon_count()? <= 1 {
-            out.push(carbon);
+    for cell in cells {
+        let traversal_ptr = Pointer { graph, pos: cell.pos() };
+        let direction = Direction::from_points(ptr.pos, traversal_ptr.pos)
+            .expect("Connected cells should be orthogonal");
+
+        if !matches!(graph.get(ptr.pos + direction.to_vec2()), Ok(Cell::Bond(_))) {
+            continue
+        }
+
+        match traversal_ptr.bond_order(direction) {
+            Some(BondOrder::Double) | Some(BondOrder::Triple) => {
+                out.push(direction);
+                continue
+            }
+            _ => {}
+        }
+
+        match traversal_ptr.traverse_bond(direction)?.element {
+            Element::C | Element::H => {}
+            _ => out.push(direction),
         }
     }
+
     Ok(out)
 }
 
-/// Checks if the molecule on the [`GridState`] is contiguous.
-///
-/// ## Errors
-///
-/// If [`GridState`] contains an invalid molecule, [`Discontinuity`] or [`Cycle`] is returned.
-/// An empty [`GridState`] does not return an error.
-fn check_structure(graph: &GridState) -> Result<(), InvalidGraphError> {
-    let starting_cell = match graph.find(|cell| !matches!(cell, Cell::None(_))) {
-        Some(it) => it,
-        None => return Ok(()),
-    };
-    let filled_pos_directions = graph.filled_cells()
-        .iter()
-        .map(|&cell| cell.pos())
-        .collect::<Vec<Vec2>>();
-    let connectivity = get_connected_cells(starting_cell.pos(), graph)?;
+pub(crate) type Fallible<T> = Result<T, InvalidGraphError>;
 
-    for pos in filled_pos_directions {
-        if match graph.get(pos).unwrap() {
-            Cell::Atom(_) | Cell::Bond(_) => true,
-            Cell::None(_) => false,
-        } != connectivity[pos.x as usize][pos.y as usize] {
-            return Err(Discontinuity);
-        }
-    }
-
-    Ok(())
-}
-
-/// Returns all [`Vec2`]s that are connected to the given `pos`.
-///
-/// ## Panics
-///
-/// This function panics if the given `pos` is not a valid point on the given `graph` or if the
-/// given `pos` on the `graph` is a [`Cell::None`].
-///
-/// ## Errors
-///
-/// If this function traverses the molecule and finds that it is not simply connected, [`Cycle`]
-/// will be returned.
-fn get_connected_cells(pos: Vec2, graph: &GridState) -> Result<Vec<Vec<bool>>, InvalidGraphError> {
-    if let Cell::None(_) = graph.get(pos).expect("pos should be a valid point on the graph.") {
-        panic!("Passed empty cell ({}, {}) to get_connected_cells", pos.x, pos.y)
-    }
-
-    let mut searched_points = nested_vec![graph.size.x; graph.size.y; false];
-
-    fn accumulate_components(
-        pos: Vec2,
-        previous_pos: Option<Vec2>,
-        accumulator: &mut Vec<Vec<bool>>,
-        graph: &GridState,
-    ) -> Result<(), InvalidGraphError> {
-        accumulator[pos.x as usize][pos.y as usize] = true;
-        let ptr = Pointer { graph, pos };
-        for cell in ptr.connected() {
-            if let Some(it) = previous_pos {
-                if cell.pos() == it {
-                    continue;
-                }
-            }
-            match cell {
-                Cell::None(_) => {}
-                _ => if !accumulator[cell.pos().x as usize][cell.pos().y as usize] {
-                    accumulate_components(cell.pos(), Some(pos), accumulator, graph)?
-                } else {
-                    return Err(Cycle);
-                }
-            }
-        }
-        Ok(())
-    }
-
-    accumulate_components(pos, None, &mut searched_points, graph)?;
-    Ok(searched_points)
-}
-
-/// Returns `Ok` if all of the valence shells of the given [`Cell::Atom`]s
-/// are filled, i.e., that the sum of bond orders across all of their bonds is equivalent to their
-/// [`Element::bond_number`].
-///
-/// ## Errors
-///
-/// Returns an [`InvalidGraphError::OverfilledValence`] or [`InvalidGraphError::UnfilledValence`]
-/// for the first cell for which its valence shell is not correctly filled.
-fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Result<(), InvalidGraphError> {
-    for atom in atoms {
-        let ptr = Pointer { graph, pos: atom.pos };
-        let bond_count = match ptr.bond_count() {
-            Ok(it) => it,
-            Err(it) => panic!("{}", it)
-        };
-        match bond_count.cmp(&atom.element.bond_number()) {
-            Ordering::Less => return Err(InvalidGraphError::UnfilledValence(atom.pos)),
-            Ordering::Greater => return Err(InvalidGraphError::OverfilledValence(atom.pos)),
-            _ => {}
-        }
-    }
-    Ok(())
-}
-
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum InvalidGraphError {
     #[error("Molecule is not continuous.")]
     Discontinuity,
@@ -322,6 +204,61 @@ pub enum InvalidGraphError {
     IncompleteBond(Vec2),
     #[error("This combination of groups is not supported.")]
     UnsupportedGroups,
+    #[error("Unrecognized group.")]
+    UnrecognizedGroup,
     #[error("{}", .0)]
-    Other(String)
+    Other(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::molecule::Element::{C, H, O};
+    use crate::molecule::BondOrder::Single;
+    use crate::graph_with;
+    use crate::test_utils::GW::{A, B};
+    use super::*;
+
+    #[test]
+    fn graph_node_tree() {
+        let graph = graph_with!(1, 5,
+            [0, 0; A(C)],
+            [0, 1; B(Single)],
+            [0, 2; A(O)],
+            [0, 3; B(Single)],
+            [0, 4; A(H)]
+        );
+        let a = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up);
+        let b = GroupNode {
+            bond: Single,
+            atom: O,
+            next: vec![GroupNode {
+                bond: Single,
+                atom: H,
+                next: vec![],
+            }],
+        };
+
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn graph_node_tree_recognizes_implicit_bond() {
+        let graph = graph_with!(1, 3,
+            [0, 0; A(C)],
+            [0, 1; A(O)],
+            [0, 2; A(H)]
+        );
+        let a = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up);
+        let b = GroupNode {
+            bond: BondOrder::Single,
+            atom: O,
+            next: vec![GroupNode {
+                bond: BondOrder::Single,
+                atom: H,
+                next: vec![],
+            }],
+        };
+
+        assert_eq!(a, b);
+    }
 }

@@ -169,6 +169,14 @@ mod test_utils {
         B(BondOrder),
     }
 
+    pub(crate) fn unwrap_atom(cell: &Cell) -> Atom {
+        if let Cell::Atom(atom) = cell {
+            atom.to_owned()
+        } else {
+            panic!("Called unwrap_atom on non-atom value")
+        }
+    }
+
     /// Creates a [`GridState`] with the given `vals` at (`x`, `y`). Used with the [`GW`] enum.
     #[macro_export]
     macro_rules! graph_with {

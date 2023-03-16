@@ -232,15 +232,8 @@ mod tests {
     use crate::molecule::Element::{C, H, O};
     use crate::molecule::BondOrder::{Double, Single, Triple};
     use crate::graph_with;
+    use crate::test_utils::unwrap_atom;
     use super::*;
-
-    fn unwrap_atom(cell: &Cell) -> Atom {
-        if let Cell::Atom(atom) = cell {
-            atom.to_owned()
-        } else {
-            panic!("Called unwrap_atom on non-atom value")
-        }
-    }
 
     #[test]
     fn borrow_returns_correct_cell() {

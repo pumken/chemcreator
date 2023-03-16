@@ -114,13 +114,9 @@ impl GridState {
 
     /// Moves the cursor safely in the given `direction`.
     pub fn move_cursor(&mut self, direction: Direction) {
-        let adjusted_unit = match direction {
-            Direction::Up => Direction::Down,
-            Direction::Down => Direction::Up,
-            Direction::Right | Direction::Left | Direction::None => direction
-        }.to_vec2();
-        if self.contains(self.cursor + adjusted_unit) {
-            self.cursor += adjusted_unit;
+        let displacement = direction.to_vec2();
+        if self.contains(self.cursor + displacement) {
+            self.cursor += displacement;
         }
     }
 
@@ -325,7 +321,11 @@ impl FromVec2 for Direction {
     ///
     /// If the two given points do not lie on an orthogonal line, an [`Err`] is returned.
     fn from_points(first: Vec2, second: Vec2) -> Result<Direction, String> {
-        let displacement = first - second;
+        let displacement = second - first;
+
+        if displacement == Vec2::zero() {
+            return Err(format!("Passed equal points ({}, {}) to from_points.", first.x, first.y))
+        }
 
         match (displacement.x.cmp(&0), displacement.y.cmp(&0)) {
             (Ordering::Less, Ordering::Equal) => Ok(Direction::Left),
@@ -346,6 +346,14 @@ mod tests {
     use crate::graph_with;
     use crate::test_utils::GW::{A, B};
     use super::*;
+
+    #[test]
+    fn gs_get_returns_err_out_of_bounds() {
+        let graph = graph_with!(1, 1);
+        let err = graph.get(Vec2::xy(-1, -1));
+
+        assert!(matches!(err, Err(_)));
+    }
 
     #[test]
     fn gs_new_creates_sized_grid() {
@@ -378,5 +386,18 @@ mod tests {
     fn all_returns_every_direction() {
         let x = Direction::all();
         assert_eq!(x, vec![Direction::Up, Direction::Down, Direction::Left, Direction::Right])
+    }
+
+    #[test]
+    fn from_points_returns_correct_direction() {
+        let center = Vec2::zero();
+        let up = Vec2::y(1);
+        let right = Vec2::x(1);
+
+        let a = Direction::from_points(center, up).unwrap();
+        let b = Direction::from_points(center, right).unwrap();
+
+        assert_eq!(a, Direction::Up);
+        assert_eq!(b, Direction::Right)
     }
 }

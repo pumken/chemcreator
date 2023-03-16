@@ -359,7 +359,8 @@ mod tests {
             [0, 1; A(O)],
             [0, 2; A(H)]
         );
-        let group_node = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up);
+        let group_node = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up)
+            .unwrap();
 
         assert_eq!(group_node.to_string(), "1O(1H)");
     }

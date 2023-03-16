@@ -4,7 +4,7 @@
 
 use ruscii::spatial::{Direction, Vec2};
 use thiserror::Error;
-use crate::groups::InvalidGraphError::{UnrecognizedGroup};
+use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::spatial::{FromVec2, GridState, ToVec2};
 use crate::molecule::{Atom, BondOrder, Branch, Cell, Element, Group, GroupNode, Substituent};
 use crate::molecule::Group::{Carbonyl, Carboxyl, Hydroxyl};
@@ -65,7 +65,7 @@ fn accumulate_groups(
     let group_nodes = group_directions(graph, accumulator, index)?
         .iter()
         .map(|&dir| group_node_tree(graph, accumulator.chain[index].pos, dir))
-        .collect::<Vec<GroupNode>>();
+        .collect::<Fallible<Vec<GroupNode>>>()?;
 
     Ok(())
 }
@@ -115,34 +115,46 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     out
 }
 
-pub(crate) fn group_node_tree(graph: &GridState, pos: Vec2, direction: Direction) -> GroupNode {
+pub(crate) fn group_node_tree(graph: &GridState, pos: Vec2, direction: Direction) -> Fallible<GroupNode> {
     let ptr = Pointer { graph, pos };
     let bond = ptr.bond_order(direction).unwrap();
     let atom = ptr.traverse_bond(direction).unwrap();
     let mut next = vec![];
 
-    for direction in next_directions(graph, atom.pos, pos) {
-        next.push(group_node_tree(graph, atom.pos, direction))
+    for direction in next_directions(graph, atom.pos, pos)? {
+        next.push(group_node_tree(graph, atom.pos, direction)?)
     }
 
-    GroupNode { bond, atom: atom.element, next }
+    Ok(GroupNode { bond, atom: atom.element, next })
 }
 
+/// Returns a [`Vec`] of [`Direction`] from the [`Atom`] at the given `pos` to bonded atoms
+/// not including the one at the `previous_pos`.
+///
+/// ## Panics
+///
+/// This function assumes that the `previous_pos` is orthogonal to the given `pos`, that `pos`
+/// points to a valid [`Cell::Atom`], and that there are no dangling bonds. If any of these
+/// contracts are broken, this function will panic.
 fn next_directions(
     graph: &GridState,
     pos: Vec2,
     previous_pos: Vec2,
-) -> Vec<Direction> {
+) -> Fallible<Vec<Direction>> {
     let ptr = Pointer { graph, pos };
-    let bonded = ptr.bonded().unwrap();
+    let bonded = ptr.bonded()?;
     let mut out = vec![];
 
     for atom in bonded {
-        out.push(Direction::from_points(pos, atom.pos).unwrap())
+        let result = match Direction::from_points(pos, atom.pos) {
+            Ok(it) => it,
+            Err(_) => return Err(Other("An unexpected error occurred (G151)."))
+        };
+        out.push(result)
     }
     out.retain(|&dir| dir != Direction::from_points(pos, previous_pos).unwrap());
 
-    out
+    Ok(out)
 }
 
 /// Returns a [`Vec`] of [`Direction`]s from the [`Atom`] at the given `index` to functional
@@ -206,7 +218,7 @@ pub enum InvalidGraphError {
     #[error("Unrecognized group.")]
     UnrecognizedGroup,
     #[error("{}", .0)]
-    Other(String),
+    Other(&'static str),
 }
 
 #[cfg(test)]
@@ -226,7 +238,8 @@ mod tests {
             [0, 3; B(Single)],
             [0, 4; A(H)]
         );
-        let a = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up);
+        let a = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up)
+            .unwrap();
         let b = GroupNode {
             bond: Single,
             atom: O,
@@ -247,17 +260,47 @@ mod tests {
             [0, 1; A(O)],
             [0, 2; A(H)]
         );
-        let a = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up);
+        let a = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up)
+            .unwrap();
         let b = GroupNode {
-            bond: BondOrder::Single,
+            bond: Single,
             atom: O,
             next: vec![GroupNode {
-                bond: BondOrder::Single,
+                bond: Single,
                 atom: H,
                 next: vec![],
             }],
         };
 
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn next_directions_omits_previous() {
+        let graph = graph_with!(3, 3,
+            [0, 1; A(C)],
+            [1, 0; A(H)], [1, 1; A(C)],
+            [2, 1; A(C)]
+        );
+        let directions = next_directions(&graph, Vec2::xy(1, 1), Vec2::xy(0, 1))
+            .unwrap();
+        let expected = vec![Direction::Down, Direction::Right];
+
+        assert_eq!(directions, expected);
+    }
+
+    #[test]
+    fn next_directions_behaves_at_boundaries() {
+        let graph = graph_with!(3, 2,
+            [0, 1; A(C)],
+            [1, 0; A(H)],
+            [1, 1; A(C)],
+            [2, 1; A(C)]
+        );
+        let directions = next_directions(&graph, Vec2::xy(1, 1), Vec2::xy(0, 1))
+            .unwrap();
+        let expected = vec![Direction::Down, Direction::Right];
+
+        assert_eq!(directions, expected);
     }
 }

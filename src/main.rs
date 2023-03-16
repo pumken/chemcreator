@@ -197,6 +197,17 @@ mod test_utils {
     }
 
     #[test]
+    fn unwrap_atom_returns_atom() {
+        let graph = graph_with!(1, 1,
+            [0, 0; A(C)]
+        );
+        let cell = graph.get(Vec2::zero()).unwrap();
+        let atom = unwrap_atom(cell);
+
+        assert_eq!(atom, Atom { element: C, pos: Vec2::zero() });
+    }
+
+    #[test]
     fn graph_with_empty() {
         let graph = graph_with!(5, 5);
 

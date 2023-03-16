@@ -76,14 +76,17 @@ impl<'a> Pointer<'a> {
         let mut out = vec![];
 
         for direction in Direction::all() {
-            if let Ok(Cell::Bond(it)) = self.graph.get(self.pos + direction.to_vec2()) {
-                if it.orient != BondOrientation::from_direction(direction) {
-                    continue
+            let adjacent_cell = self.graph.get(self.pos + direction.to_vec2());
+
+            match adjacent_cell {
+                Ok(Cell::Atom(_)) => out.push(self.traverse_bond(direction)?),
+                Ok(Cell::Bond(it)) => {
+                    if it.orient == BondOrientation::from_direction(direction) {
+                        out.push(self.traverse_bond(direction)?)
+                    }
                 }
-            } else if let Ok(Cell::None(_)) = self.graph.get(self.pos + direction.to_vec2()) {
-                continue
+                _ => {}
             }
-            out.push(self.traverse_bond(direction)?);
         }
         Ok(out)
     }
@@ -284,7 +287,7 @@ mod tests {
             [1, 0; A(H)],
             [0, 1; B(Triple)]
         );
-        let ptr = Pointer { graph: &graph, pos: Vec2::xy(0, 0) };
+        let ptr = Pointer { graph: &graph, pos: Vec2::zero() };
         let a = ptr.connected();
         let b = vec![
             graph.get(Vec2::xy(0, 1)).unwrap(),
@@ -339,6 +342,26 @@ mod tests {
 
         assert_eq!(a, b);
     }
+    
+    #[test]
+    fn bonded_behaves_at_boundaries() {
+        let graph = graph_with!(3, 3,
+            [0, 0; A(C)],
+            [0, 1; A(H)],
+            [1, 0; B(Single)],
+            [2, 0; A(H)]
+        );
+        let ptr = Pointer { graph: &graph, pos: Vec2::zero() };
+        let bonded = ptr.bonded().unwrap();
+        let expected = vec![
+            graph.get(Vec2::xy(0, 1)).unwrap(),
+            graph.get(Vec2::xy(2, 0)).unwrap(),
+        ].iter()
+            .map(|&cell| unwrap_atom(cell))
+            .collect::<Vec<Atom>>();
+
+        assert_eq!(bonded, expected);
+    }
 
     #[test]
     fn bonded_carbons() {
@@ -383,10 +406,10 @@ mod tests {
             [0, 1; B(Single)],
             [0, 2; A(H)]
         );
-        let ptr = Pointer { graph: &graph, pos: Vec2::xy(0, 0) };
+        let ptr = Pointer { graph: &graph, pos: Vec2::zero() };
         let atom = ptr.traverse_bond(Direction::Up).unwrap();
 
-        assert_eq!(atom, Atom { element: H, pos: Vec2::xy(0, 2) });
+        assert_eq!(atom, Atom { element: H, pos: Vec2::y(2) });
     }
 
     #[test]
@@ -403,7 +426,7 @@ mod tests {
             [0, 8; B(Single)],
             [0, 9; A(H)]
         );
-        let ptr = Pointer { graph: &graph, pos: Vec2::xy(0, 0) };
+        let ptr = Pointer { graph: &graph, pos: Vec2::zero() };
         let atom = ptr.traverse_bond(Direction::Up).unwrap();
 
         assert_eq!(atom, Atom { element: H, pos: Vec2::xy(0, 9) });
@@ -415,10 +438,10 @@ mod tests {
             [0, 0; A(C)],
             [0, 1; A(H)]
         );
-        let ptr = Pointer { graph: &graph, pos: Vec2::xy(0, 0) };
+        let ptr = Pointer { graph: &graph, pos: Vec2::zero() };
         let atom = ptr.traverse_bond(Direction::Up).unwrap();
 
-        assert_eq!(atom, Atom { element: H, pos: Vec2::xy(0, 1) });
+        assert_eq!(atom, Atom { element: H, pos: Vec2::y(1) });
     }
 
     #[test]
@@ -428,10 +451,10 @@ mod tests {
             [1, 0; B(Single)],
             [2, 0; B(Single)]
         );
-        let ptr = Pointer { graph: &graph, pos: Vec2::xy(0, 0) };
+        let ptr = Pointer { graph: &graph, pos: Vec2::zero() };
         let err = ptr.traverse_bond(Direction::Right);
 
-        assert_eq!(err, Err(IncompleteBond(Vec2::xy(2, 0))));
+        assert_eq!(err, Err(IncompleteBond(Vec2::x(2))));
     }
 
     #[test]
@@ -441,7 +464,7 @@ mod tests {
             [0, 1; B(Triple)],
             [1, 0; B(Double)]
         );
-        let ptr = Pointer { graph: &graph, pos: Vec2::xy(0, 0) };
+        let ptr = Pointer { graph: &graph, pos: Vec2::zero() };
         let a = ptr.bond_order(Direction::Up).unwrap();
         let b = ptr.bond_order(Direction::Right).unwrap();
 
@@ -456,7 +479,7 @@ mod tests {
             [0, 1; A(O)],
             [1, 0; A(H)]
         );
-        let ptr = Pointer { graph: &graph, pos: Vec2::xy(0, 0) };
+        let ptr = Pointer { graph: &graph, pos: Vec2::zero() };
         let a = ptr.bond_order(Direction::Up).unwrap();
         let b = ptr.bond_order(Direction::Right).unwrap();
         let c = ptr.bond_order(Direction::Left);
@@ -470,7 +493,7 @@ mod tests {
         let graph = graph_with!(1, 1,
             [0, 0; A(C)]
         );
-        let ptr = Pointer { graph: &graph, pos: Vec2::xy(0, 0) };
+        let ptr = Pointer { graph: &graph, pos: Vec2::zero() };
         let option = ptr.bond_order(Direction::Right);
 
         assert_eq!(option, None)

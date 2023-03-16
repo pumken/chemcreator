@@ -1,11 +1,10 @@
-//! # Algorithm
+//! # Groups
 //!
-//! The `algorithm` module contains the functions needed to find the name of an arbitrary
-//! organic molecule.
+//! The `groups` module provides functionality for identifying functional groups on a branch.
 
 use ruscii::spatial::{Direction, Vec2};
 use thiserror::Error;
-use crate::algorithm::InvalidGraphError::{UnrecognizedGroup};
+use crate::groups::InvalidGraphError::{UnrecognizedGroup};
 use crate::spatial::{FromVec2, GridState, ToVec2};
 use crate::molecule::{Atom, BondOrder, Branch, Cell, Element, Group, GroupNode, Substituent};
 use crate::molecule::Group::{Carbonyl, Carboxyl, Hydroxyl};

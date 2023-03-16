@@ -1,6 +1,11 @@
+//! # Pointer
+//!
+//! The `pointer` module contains the [`Pointer`] struct that allows for traversal over a
+//! [`GridState`] and molecular structures on it.
+
 use ruscii::spatial::{Direction, Vec2};
-use crate::algorithm::InvalidGraphError;
-use crate::algorithm::InvalidGraphError::IncompleteBond;
+use crate::groups::InvalidGraphError;
+use crate::groups::InvalidGraphError::IncompleteBond;
 use crate::molecule::{Atom, BondOrder, BondOrientation, Cell};
 use crate::molecule::Element::C;
 use crate::spatial::{EnumAll, GridState, ToVec2};

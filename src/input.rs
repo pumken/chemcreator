@@ -5,7 +5,7 @@
 use ruscii::app::State;
 use ruscii::keyboard::{Key, KeyEvent};
 use ruscii::spatial::Direction;
-use crate::algorithm::debug_branches;
+use crate::groups::debug_branches;
 use crate::{AppState, Mode};
 use crate::chain::debug_chain;
 use crate::molecule::BondOrder::{Double, Single, Triple};

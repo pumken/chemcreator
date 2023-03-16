@@ -1,6 +1,11 @@
+//! # Chain
+//!
+//! The `chain` module contains functions that allow for identifying the parent chain of an
+//! organic molecule.
+
 use ruscii::spatial::Vec2;
-use crate::algorithm::Fallible;
-use crate::algorithm::InvalidGraphError::{Cycle, Other};
+use crate::groups::Fallible;
+use crate::groups::InvalidGraphError::{Cycle, Other};
 use crate::molecule::{Atom, Cell, Element};
 use crate::nested_vec;
 use crate::pointer::Pointer;

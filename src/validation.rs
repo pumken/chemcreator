@@ -1,8 +1,13 @@
+//! # Validation
+//!
+//! The `validation` module provides two functions that checks the [`GridState`] for three invalid
+//! structures: discontinuities, cycles, and atoms with unfilled or overfilled valence shells.
+
 use ruscii::spatial::Vec2;
 use std::cmp::Ordering;
 use crate::chain;
-use crate::algorithm::{Fallible, InvalidGraphError};
-use crate::algorithm::InvalidGraphError::Discontinuity;
+use crate::groups::{Fallible, InvalidGraphError};
+use crate::groups::InvalidGraphError::Discontinuity;
 use crate::molecule::{Atom, Cell};
 use crate::pointer::Pointer;
 use crate::spatial::GridState;

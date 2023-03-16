@@ -290,7 +290,7 @@ impl ToString for GroupNode {
 
 #[cfg(test)]
 mod tests {
-    use crate::algorithm::group_node_tree;
+    use crate::groups::group_node_tree;
     use crate::graph_with;
     use crate::molecule::Group::{Bromo, Carbonyl, Hydroxyl};
     use crate::spatial::GridState;

@@ -94,7 +94,7 @@ fn accumulate_carbons(
         match next_carbons.len() {
             0 => return Ok(()),
             it => it - 1
-        }
+        },
     );
     for (i, carbon) in next_carbons.iter().enumerate() {
         accumulate_carbons(
@@ -102,7 +102,7 @@ fn accumulate_carbons(
             Some(pos),
             new_branches[i],
             accumulator,
-            graph
+            graph,
         )?
     }
 
@@ -209,4 +209,104 @@ pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<
 
     accumulate_components(pos, None, &mut searched_points, graph)?;
     Ok(searched_points)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::graph_with;
+    use crate::molecule::BondOrder::Single;
+    use crate::molecule::Element::{C, H};
+    use crate::test_utils::GW::{A, B};
+    use crate::test_utils::unwrap_atom;
+    use super::*;
+
+    #[test]
+    fn next_carbons_omits_non_carbons() {
+        let graph = graph_with!(3, 3,
+            [0, 1; A(H)],
+            [1, 0; A(H)],
+            [1, 1; A(C)],
+            [1, 2; A(C)],
+            [2, 1; A(C)]
+        );
+        let atoms = next_carbons(Vec2::xy(1, 1), None, &graph).unwrap();
+        let expected = vec![
+            graph.get(Vec2::xy(1, 2)).unwrap(),
+            graph.get(Vec2::xy(2, 1)).unwrap(),
+        ].iter()
+            .map(|&cell| unwrap_atom(cell))
+            .collect::<Vec<Atom>>();
+
+        assert_eq!(atoms, expected);
+    }
+
+    #[test]
+    fn next_carbons_omits_previous() {
+        let graph = graph_with!(3, 3,
+            [0, 1; A(H)],
+            [1, 0; A(H)],
+            [1, 1; A(C)],
+            [1, 2; A(C)],
+            [2, 1; A(C)]
+        );
+        let atom = next_carbons(Vec2::xy(1, 1), Some(Vec2::xy(1, 2)), &graph).unwrap();
+        let expected = vec![
+            unwrap_atom(graph.get(Vec2::xy(2, 1)).unwrap()),
+        ];
+
+        assert_eq!(atom, expected);
+    }
+
+    #[test]
+    fn endpoint_carbons_returns_one_carbon_neighbor() {
+        let graph = graph_with!(7, 3,
+            [0, 1; A(H)],
+            [1, 0; A(H)], [1, 1; A(C)], [1, 2; A(H)],
+            [2, 1; B(Single)],
+            [3, 0; A(H)], [3, 1; A(C)], [3, 2; A(H)],
+            [4, 1; B(Single)],
+            [5, 0; A(H)], [5, 1; A(C)], [5, 2; A(H)],
+            [6, 1; A(H)]
+        );
+        let cells = endpoint_carbons(&graph).unwrap();
+        let expected = vec![
+            graph.get(Vec2::xy(1, 1)).unwrap(),
+            graph.get(Vec2::xy(5, 1)).unwrap(),
+        ];
+
+        assert_eq!(cells, expected);
+    }
+
+    #[test]
+    fn endpoint_carbons_returns_zero_carbon_neighbor() {
+        let graph = graph_with!(3, 3,
+            [0, 1; A(H)],
+            [1, 0; A(H)], [1, 1; A(C)], [1, 2; A(H)],
+            [2, 1; A(H)]
+        );
+        let cell = endpoint_carbons(&graph).unwrap();
+        let expected = vec![
+            graph.get(Vec2::xy(1, 1)).unwrap()
+        ];
+
+        assert_eq!(cell, expected);
+    }
+
+    #[test]
+    fn get_connected_cells_only_returns_connected() {
+        let graph = graph_with!(3, 3,
+            [0, 0; A(C)],
+            [1, 0; A(C)],
+            [2, 0; A(C)],
+            [0, 2; A(C)]
+        );
+        let network = get_connected_cells(Vec2::xy(0, 0), &graph).unwrap();
+        let expected = vec![
+            vec![true, false, false],
+            vec![true, false, false],
+            vec![true, false, false],
+        ];
+
+        assert_eq!(network, expected);
+    }
 }

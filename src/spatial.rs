@@ -3,6 +3,7 @@
 //! The `spatial` module provides functionality for the state and traversal of the grid with which
 //! the user interacts, including the [`GridState`] struct.
 
+use std::cmp::Ordering;
 use ruscii::spatial::{Direction, Vec2};
 use crate::molecule::Element::{C, H};
 use crate::molecule::{Atom, Bond, BondOrder, Cell, Element};
@@ -52,7 +53,7 @@ impl GridState {
     }
 
     /// Sets the current [Cell] pointed to by the cursor to a [Cell::Atom] with the given [Element].
-    pub(crate) fn put_atom(&mut self, element: Element) {
+    pub fn put_atom(&mut self, element: Element) {
         let cursor_pos = (self.cursor.x as usize, self.cursor.y as usize);
         let new_atom = Cell::Atom(Atom { element, pos: cursor_pos.to_vec2() });
         self.cells[cursor_pos.0][cursor_pos.1] = new_atom;
@@ -60,7 +61,7 @@ impl GridState {
 
     /// Sets the current [Cell] pointed to by the cursor to an [Cell::Bond] with the given
     /// [BondOrder].
-    pub(crate) fn put_bond(&mut self, order: BondOrder) {
+    pub fn put_bond(&mut self, order: BondOrder) {
         let cursor_pos = (self.cursor.x as usize, self.cursor.y as usize);
         let new_atom = Cell::Bond(Bond {
             pos: cursor_pos.to_vec2(),
@@ -68,6 +69,17 @@ impl GridState {
             orient: if self.atom_adjacent() { Horiz } else { Vert },
         });
         self.cells[cursor_pos.0][cursor_pos.1] = new_atom;
+    }
+
+
+    pub fn upgrade_atom(&self, atom: Atom) -> Result<&Cell, String> {
+        let cell = self.get(atom.pos)?;
+
+        if !matches!(cell, Cell::Atom(_)) {
+            return Err(format!("Attempted to upgrade non-atom cell at ({}, {})", atom.pos.x, atom.pos.y))
+        }
+
+        Ok(cell)
     }
 
     /// Sets the current [Cell] pointed to by the cursor to [Cell::None].
@@ -102,13 +114,9 @@ impl GridState {
 
     /// Moves the cursor safely in the given `direction`.
     pub fn move_cursor(&mut self, direction: Direction) {
-        let adjusted_unit = match direction {
-            Direction::Up => Direction::Down,
-            Direction::Down => Direction::Up,
-            Direction::Right | Direction::Left | Direction::None => direction
-        }.vec2();
-        if self.contains(self.cursor + adjusted_unit) {
-            self.cursor += adjusted_unit;
+        let displacement = direction.to_vec2();
+        if self.contains(self.cursor + displacement) {
+            self.cursor += displacement;
         }
     }
 
@@ -210,43 +218,21 @@ impl GridState {
 impl PartialEq for GridState {
     fn eq(&self, other: &Self) -> bool {
         if self.size != other.size {
-            return false
+            return false;
         }
         let a = self.cells.iter().flatten();
         let b = other.cells.iter().flatten().collect::<Vec<&Cell>>();
 
         for (i, cell) in a.enumerate() {
             if cell != b[i] {
-                return false
+                return false;
             }
         }
         true
     }
 }
 
-/// An enum used to make it easier to construct [`GridState`]s with the `graph_with` macro.
-pub(crate) enum GW {
-    A(Element),
-    B(BondOrder)
-}
-
-/// Creates a [`GridState`] with the given `vals` at (`x`, `y`). Used with the [`GW`] enum.
-#[macro_export]
-macro_rules! graph_with {
-    ($rows:expr, $cols:expr, $([$x:expr, $y:expr; $val:expr]),*) => {{
-        let mut graph = GridState::new($rows, $cols);
-        $(
-        graph.cursor = Vec2::xy($x, $y);
-        match $val {
-            GW::A(it) => graph.put_atom(it),
-            GW::B(it) => graph.put_bond(it),
-        }
-        )*
-        graph
-    }};
-}
-
-trait ToVec2 {
+pub(crate) trait ToVec2 {
     fn to_vec2(self) -> Vec2;
 }
 
@@ -254,6 +240,18 @@ impl ToVec2 for (usize, usize) {
     /// Converts the tuple to a [`Vec2`].
     fn to_vec2(self) -> Vec2 {
         Vec2::xy(self.0, self.1)
+    }
+}
+
+impl ToVec2 for Direction {
+    fn to_vec2(self) -> Vec2 {
+        match self {
+            Direction::Up => Vec2::y(1),
+            Direction::Down => Vec2::y(-1),
+            Direction::Right => Vec2::x(1),
+            Direction::Left => Vec2::x(-1),
+            Direction::None => Vec2::zero(),
+        }
     }
 }
 
@@ -312,13 +310,50 @@ impl EnumAll for Direction {
     }
 }
 
+pub(crate) trait FromVec2 {
+    fn from_points(first: Vec2, second: Vec2) -> Result<Self, String> where Self: Sized;
+}
+
+impl FromVec2 for Direction {
+    /// Returns the [`Direction`] from the `first` [`Vec2`] to the `second`.
+    ///
+    /// ## Errors
+    ///
+    /// If the two given points do not lie on an orthogonal line, an [`Err`] is returned.
+    fn from_points(first: Vec2, second: Vec2) -> Result<Direction, String> {
+        let displacement = second - first;
+
+        if displacement == Vec2::zero() {
+            return Err(format!("Passed equal points ({}, {}) to from_points.", first.x, first.y))
+        }
+
+        match (displacement.x.cmp(&0), displacement.y.cmp(&0)) {
+            (Ordering::Less, Ordering::Equal) => Ok(Direction::Left),
+            (Ordering::Greater, Ordering::Equal) => Ok(Direction::Right),
+            (Ordering::Equal, Ordering::Less) => Ok(Direction::Down),
+            (Ordering::Equal, Ordering::Greater) => Ok(Direction::Up),
+            _ => Err(format!("Direction from ({}, {}) to ({}, {}) is not orthogonal.",
+                             first.x, first.y, second.x, second.y)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::molecule::BondOrder::Single;
     use crate::molecule::Atom;
     use crate::molecule::Element::O;
-    use super::GW::{A, B};
+    use crate::graph_with;
+    use crate::test_utils::GW::{A, B};
     use super::*;
+
+    #[test]
+    fn gs_get_returns_err_out_of_bounds() {
+        let graph = graph_with!(1, 1);
+        let err = graph.get(Vec2::xy(-1, -1));
+
+        assert!(matches!(err, Err(_)));
+    }
 
     #[test]
     fn gs_new_creates_sized_grid() {
@@ -342,30 +377,6 @@ mod tests {
     }
 
     #[test]
-    fn graph_with_generates_gridstate() {
-        let a = {
-            let mut graph = GridState::new(3, 3);
-            graph.cursor = Vec2::xy(0, 1);
-            graph.put_atom(C);
-            graph.cursor = Vec2::xy(1, 1);
-            graph.put_bond(Single);
-            graph.cursor = Vec2::xy(2, 1);
-            graph.put_atom(O);
-            graph.cursor = Vec2::xy(2, 0);
-            graph.put_atom(H);
-            graph
-        };
-        let b = graph_with!(3, 3,
-            [0, 1; A(C)],
-            [1, 1; B(Single)],
-            [2, 1; A(O)],
-            [2, 0; A(H)]
-        );
-
-        assert_eq!(a, b)
-    }
-
-    #[test]
     fn to_vec2_converts_correctly() {
         let x = (8usize, 2usize).to_vec2();
         assert_eq!(x, Vec2::xy(8, 2));
@@ -375,5 +386,18 @@ mod tests {
     fn all_returns_every_direction() {
         let x = Direction::all();
         assert_eq!(x, vec![Direction::Up, Direction::Down, Direction::Left, Direction::Right])
+    }
+
+    #[test]
+    fn from_points_returns_correct_direction() {
+        let center = Vec2::zero();
+        let up = Vec2::y(1);
+        let right = Vec2::x(1);
+
+        let a = Direction::from_points(center, up).unwrap();
+        let b = Direction::from_points(center, right).unwrap();
+
+        assert_eq!(a, Direction::Up);
+        assert_eq!(b, Direction::Right)
     }
 }

@@ -1,63 +1,19 @@
-//! # Algorithm
+//! # Chain
 //!
-//! The `algorithm` module contains the functions needed to find the name of an arbitrary
+//! The `chain` module contains functions that allow for identifying the parent chain of an
 //! organic molecule.
 
-use std::cmp::Ordering;
 use ruscii::spatial::Vec2;
-use thiserror::Error;
-use crate::algorithm::InvalidGraphError::{Cycle, Discontinuity, Other};
-use crate::spatial::GridState;
-use crate::molecule::{Atom, Cell, Element, Group};
+use crate::groups::Fallible;
+use crate::groups::InvalidGraphError::{Cycle, Other};
+use crate::molecule::{Atom, Cell, Element};
 use crate::nested_vec;
 use crate::pointer::Pointer;
+use crate::spatial::GridState;
 
-enum Substituent {
-    Branch(Branch),
-    Group(Group),
-}
-
-struct Branch {
-    cells: Vec<Cell>,
-    chain: Vec<Substituent>,
-}
-
-/// Determines the name of the molecule on the given `graph`.
-///
-/// ## Errors
-///
-/// If the molecule on the given `graph` is discontinuous, cyclic, or contains invalid bonding,
-/// an [`InvalidGraphError`] will be returned.
-pub fn name_molecule(graph: &GridState) -> Result<String, InvalidGraphError> {
-    let cells = graph.find_all(|cell| cell.is_atom())
-        .iter()
-        .map(|&cell| if let Cell::Atom(it) = cell {
-            it
-        } else {
-            panic!("is_atom check failed in name_molecule")
-        })
-        .collect();
-
-    // Initial checks
-    if graph.is_empty() { return Ok("".to_string()); }
-    check_structure(graph)?;
-    check_valence(cells, graph)?;
-
-    // Preliminary chain
+pub(crate) fn debug_chain(graph: &GridState) -> Fallible<Vec<Atom>> {
     let all_chains = get_all_chains(graph)?;
-    let chain = longest_chain(all_chains);
-    // let group_indexed_chain = link_groups();
-    // group_indexed_chain.check_chain_index()
-    // group_indexed_chain.name();
-    match graph.simple_counter() {
-        Ok(it) => Ok(it),
-        Err(_) => Err(InvalidGraphError::UnsupportedGroups)
-    }
-}
-
-pub(crate) fn debug_chain(graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError> {
-    let all_chains = get_all_chains(graph)?;
-    Ok(longest_chain(all_chains)?)
+    longest_chain(all_chains)
 }
 
 /// Gets the longest of the given [`Vec`] of chains, assuming that it is non-empty.
@@ -65,15 +21,15 @@ pub(crate) fn debug_chain(graph: &GridState) -> Result<Vec<Atom>, InvalidGraphEr
 /// ## Errors
 ///
 /// If there are no `chains`, this function will return an `Err`.
-pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Result<Vec<Atom>, InvalidGraphError> {
+pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Fallible<Vec<Atom>> {
     Ok(match chains.iter()
         .max_by(|&a, &b| a.len().cmp(&b.len())) {
-        None => return Err(Other("No carbon chain found.".to_string())),  // FIXME this is returned when a bond is placed at the edge
+        None => return Err(Other("No carbon chain found.")),  // FIXME this is returned when a bond is placed at the edge
         Some(it) => it
     }.to_owned())
 }
 
-pub(crate) fn get_all_chains(graph: &GridState) -> Result<Vec<Vec<Atom>>, InvalidGraphError> {
+pub(crate) fn get_all_chains(graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {
     let endpoints = endpoint_carbons(graph)?.iter()
         .map(|&cell| match cell {
             Cell::Atom(it) => it.to_owned(),
@@ -94,7 +50,7 @@ pub(crate) fn get_all_chains(graph: &GridState) -> Result<Vec<Vec<Atom>>, Invali
 /// ## Errors
 ///
 /// Returns [`InvalidGraphError`] if any invalid structures are found while traversing the graph.
-fn endpoint_head_chains(endpoint: Atom, graph: &GridState) -> Result<Vec<Vec<Atom>>, InvalidGraphError> {
+fn endpoint_head_chains(endpoint: Atom, graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {
     let mut accumulator = vec![vec![]];
 
     accumulate_carbons(
@@ -124,7 +80,7 @@ fn accumulate_carbons(
     branch_index: usize,
     accumulator: &mut Vec<Vec<Atom>>,
     graph: &GridState,
-) -> Result<(), InvalidGraphError> {
+) -> Fallible<()> {
     let next_carbons = next_carbons(pos, previous_pos, graph)?;
 
     accumulator[branch_index].push(match graph.get(pos) {
@@ -138,7 +94,7 @@ fn accumulate_carbons(
         match next_carbons.len() {
             0 => return Ok(()),
             it => it - 1
-        }
+        },
     );
     for (i, carbon) in next_carbons.iter().enumerate() {
         accumulate_carbons(
@@ -146,7 +102,7 @@ fn accumulate_carbons(
             Some(pos),
             new_branches[i],
             accumulator,
-            graph
+            graph,
         )?
     }
 
@@ -172,7 +128,7 @@ fn create_branches(accumulator: &mut Vec<Vec<Atom>>, branch_index: usize, count:
 ///
 /// If one of the bonds to the current cell is found to be dangling, an
 /// [`IncompleteBond`] will be returned.
-fn next_carbons(pos: Vec2, previous_pos: Option<Vec2>, graph: &GridState) -> Result<Vec<Atom>, InvalidGraphError> {
+fn next_carbons(pos: Vec2, previous_pos: Option<Vec2>, graph: &GridState) -> Fallible<Vec<Atom>> {
     let ptr = Pointer { graph, pos };
     let mut out = ptr.bonded_carbons()?;
 
@@ -189,7 +145,7 @@ fn next_carbons(pos: Vec2, previous_pos: Option<Vec2>, graph: &GridState) -> Res
 ///
 /// If one of the bonds to the current cell is found to be dangling, an
 /// [`IncompleteBond`] will be returned.
-pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidGraphError> {
+pub(crate) fn endpoint_carbons(graph: &GridState) -> Fallible<Vec<&Cell>> {
     let all_carbons = graph.find_all(|cell| {
         match cell {
             Cell::Atom(atom) => matches!(atom.element, Element::C),
@@ -207,35 +163,6 @@ pub(crate) fn endpoint_carbons(graph: &GridState) -> Result<Vec<&Cell>, InvalidG
     Ok(out)
 }
 
-/// Checks if the molecule on the [`GridState`] is contiguous.
-///
-/// ## Errors
-///
-/// If [`GridState`] contains an invalid molecule, [`Discontinuity`] or [`Cycle`] is returned.
-/// An empty [`GridState`] does not return an error.
-fn check_structure(graph: &GridState) -> Result<(), InvalidGraphError> {
-    let starting_cell = match graph.find(|cell| !matches!(cell, Cell::None(_))) {
-        Some(it) => it,
-        None => return Ok(()),
-    };
-    let filled_pos_directions = graph.filled_cells()
-        .iter()
-        .map(|&cell| cell.pos())
-        .collect::<Vec<Vec2>>();
-    let connectivity = get_connected_cells(starting_cell.pos(), graph)?;
-
-    for pos in filled_pos_directions {
-        if match graph.get(pos).unwrap() {
-            Cell::Atom(_) | Cell::Bond(_) => true,
-            Cell::None(_) => false,
-        } != connectivity[pos.x as usize][pos.y as usize] {
-            return Err(Discontinuity);
-        }
-    }
-
-    Ok(())
-}
-
 /// Returns all [`Vec2`]s that are connected to the given `pos`.
 ///
 /// ## Panics
@@ -247,7 +174,7 @@ fn check_structure(graph: &GridState) -> Result<(), InvalidGraphError> {
 ///
 /// If this function traverses the molecule and finds that it is not simply connected, [`Cycle`]
 /// will be returned.
-fn get_connected_cells(pos: Vec2, graph: &GridState) -> Result<Vec<Vec<bool>>, InvalidGraphError> {
+pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<Vec<bool>>> {
     if let Cell::None(_) = graph.get(pos).expect("pos should be a valid point on the graph.") {
         panic!("Passed empty cell ({}, {}) to get_connected_cells", pos.x, pos.y)
     }
@@ -259,7 +186,7 @@ fn get_connected_cells(pos: Vec2, graph: &GridState) -> Result<Vec<Vec<bool>>, I
         previous_pos: Option<Vec2>,
         accumulator: &mut Vec<Vec<bool>>,
         graph: &GridState,
-    ) -> Result<(), InvalidGraphError> {
+    ) -> Fallible<()> {
         accumulator[pos.x as usize][pos.y as usize] = true;
         let ptr = Pointer { graph, pos };
         for cell in ptr.connected() {
@@ -284,44 +211,102 @@ fn get_connected_cells(pos: Vec2, graph: &GridState) -> Result<Vec<Vec<bool>>, I
     Ok(searched_points)
 }
 
-/// Returns `Ok` if all of the valence shells of the given [`Cell::Atom`]s
-/// are filled, i.e., that the sum of bond orders across all of their bonds is equivalent to their
-/// [`Element::bond_number`].
-///
-/// ## Errors
-///
-/// Returns an [`InvalidGraphError::OverfilledValence`] or [`InvalidGraphError::UnfilledValence`]
-/// for the first cell for which its valence shell is not correctly filled.
-fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Result<(), InvalidGraphError> {
-    for atom in atoms {
-        let ptr = Pointer { graph, pos: atom.pos };
-        let bond_count = match ptr.bond_count() {
-            Ok(it) => it,
-            Err(it) => panic!("{}", it)
-        };
-        match bond_count.cmp(&atom.element.bond_number()) {
-            Ordering::Less => return Err(InvalidGraphError::UnfilledValence(atom.pos)),
-            Ordering::Greater => return Err(InvalidGraphError::OverfilledValence(atom.pos)),
-            _ => {}
-        }
-    }
-    Ok(())
-}
+#[cfg(test)]
+mod tests {
+    use crate::graph_with;
+    use crate::molecule::BondOrder::Single;
+    use crate::molecule::Element::{C, H};
+    use crate::test_utils::GW::{A, B};
+    use crate::test_utils::unwrap_atom;
+    use super::*;
 
-#[derive(Error, Debug)]
-pub enum InvalidGraphError {
-    #[error("Molecule is not continuous.")]
-    Discontinuity,
-    #[error("Molecule is cyclic.")]
-    Cycle,
-    #[error("Cell at ({}, {}) is missing bonds.", .0.x, .0.y)]
-    UnfilledValence(Vec2),
-    #[error("Cell at ({}, {}) has too many bonds.", .0.x, .0.y)]
-    OverfilledValence(Vec2),
-    #[error("Bond at ({}, {}) is incomplete.", .0.x, .0.y)]
-    IncompleteBond(Vec2),
-    #[error("This combination of groups is not supported.")]
-    UnsupportedGroups,
-    #[error("{}", .0)]
-    Other(String)
+    #[test]
+    fn next_carbons_omits_non_carbons() {
+        let graph = graph_with!(3, 3,
+            [0, 1; A(H)],
+            [1, 0; A(H)],
+            [1, 1; A(C)],
+            [1, 2; A(C)],
+            [2, 1; A(C)]
+        );
+        let atoms = next_carbons(Vec2::xy(1, 1), None, &graph).unwrap();
+        let expected = vec![
+            graph.get(Vec2::xy(1, 2)).unwrap(),
+            graph.get(Vec2::xy(2, 1)).unwrap(),
+        ].iter()
+            .map(|&cell| unwrap_atom(cell))
+            .collect::<Vec<Atom>>();
+
+        assert_eq!(atoms, expected);
+    }
+
+    #[test]
+    fn next_carbons_omits_previous() {
+        let graph = graph_with!(3, 3,
+            [0, 1; A(H)],
+            [1, 0; A(H)],
+            [1, 1; A(C)],
+            [1, 2; A(C)],
+            [2, 1; A(C)]
+        );
+        let atom = next_carbons(Vec2::xy(1, 1), Some(Vec2::xy(1, 2)), &graph).unwrap();
+        let expected = vec![
+            unwrap_atom(graph.get(Vec2::xy(2, 1)).unwrap()),
+        ];
+
+        assert_eq!(atom, expected);
+    }
+
+    #[test]
+    fn endpoint_carbons_returns_one_carbon_neighbor() {
+        let graph = graph_with!(7, 3,
+            [0, 1; A(H)],
+            [1, 0; A(H)], [1, 1; A(C)], [1, 2; A(H)],
+            [2, 1; B(Single)],
+            [3, 0; A(H)], [3, 1; A(C)], [3, 2; A(H)],
+            [4, 1; B(Single)],
+            [5, 0; A(H)], [5, 1; A(C)], [5, 2; A(H)],
+            [6, 1; A(H)]
+        );
+        let cells = endpoint_carbons(&graph).unwrap();
+        let expected = vec![
+            graph.get(Vec2::xy(1, 1)).unwrap(),
+            graph.get(Vec2::xy(5, 1)).unwrap(),
+        ];
+
+        assert_eq!(cells, expected);
+    }
+
+    #[test]
+    fn endpoint_carbons_returns_zero_carbon_neighbor() {
+        let graph = graph_with!(3, 3,
+            [0, 1; A(H)],
+            [1, 0; A(H)], [1, 1; A(C)], [1, 2; A(H)],
+            [2, 1; A(H)]
+        );
+        let cell = endpoint_carbons(&graph).unwrap();
+        let expected = vec![
+            graph.get(Vec2::xy(1, 1)).unwrap()
+        ];
+
+        assert_eq!(cell, expected);
+    }
+
+    #[test]
+    fn get_connected_cells_only_returns_connected() {
+        let graph = graph_with!(3, 3,
+            [0, 0; A(C)],
+            [1, 0; A(C)],
+            [2, 0; A(C)],
+            [0, 2; A(C)]
+        );
+        let network = get_connected_cells(Vec2::xy(0, 0), &graph).unwrap();
+        let expected = vec![
+            vec![true, false, false],
+            vec![true, false, false],
+            vec![true, false, false],
+        ];
+
+        assert_eq!(network, expected);
+    }
 }

@@ -11,14 +11,9 @@ use crate::molecule::Element::{C, H, O};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 
-/// Represents a functional group, containing the [Cell]s that comprise it.
-pub(crate) struct Group {
-    pub(crate) cells: Vec<Cell>,
-    pub(crate) class: GroupType,
-}
-
 /// Represents a type of functional group on a molecule.
-pub(crate) enum GroupType {
+#[derive(Clone, PartialEq)]
+pub enum Group {
     /* Alkyl groups */
     Methyl,
     Ethyl,
@@ -46,6 +41,33 @@ pub(crate) enum GroupType {
     Ether,
 }
 
+impl ToString for Group {
+    fn to_string(&self) -> String {
+        match *self {
+            Group::Methyl => "methyl",
+            Group::Ethyl => "ethyl",
+            Group::Propyl => "propyl",
+            Group::Isopropyl => "isopropyl",
+            Group::Butyl => "butyl",
+            Group::Pentyl => "pentyl",
+            Group::Hexyl => "hexyl",
+            Group::Heptyl => "heptyl",
+            Group::Octyl => "octyl",
+            Group::Nonyl => "nonyl",
+            Group::Decyl => "decyl",
+            Group::Bromo => "bromo",
+            Group::Chloro => "chloro",
+            Group::Fluoro => "fluoro",
+            Group::Iodo => "iodo",
+            Group::Hydroxyl => "hydroxyl",
+            Group::Carbonyl => "carbonyl",
+            Group::Carboxyl => "carboxyl",
+            Group::Ester => "ester",
+            Group::Ether => "ether",
+        }.to_string()
+    }
+}
+
 /// Represents a molecular component.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Cell {
@@ -55,7 +77,7 @@ pub enum Cell {
 }
 
 impl Cell {
-    pub(crate) fn color(&self) -> Color {
+    pub fn color(&self) -> Color {
         match &self {
             Cell::Atom(it) => match it.element {
                 C => LightGrey,
@@ -82,7 +104,7 @@ impl Cell {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Atom {
     pub(crate) element: Element,
-    pub(crate) pos: Vec2
+    pub(crate) pos: Vec2,
 }
 
 impl Atom {
@@ -96,7 +118,7 @@ impl Atom {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum Element {
+pub enum Element {
     C,
     H,
     O,
@@ -109,6 +131,14 @@ impl Element {
             C => 4,
             H => 1,
             O => 2
+        }
+    }
+
+    pub(crate) const fn id(&self) -> &str {
+        match *self {
+            C => "C",
+            H => "H",
+            O => "O",
         }
     }
 }
@@ -150,7 +180,7 @@ impl Cellular for Bond {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum BondOrder {
+pub enum BondOrder {
     Single,
     Double,
     Triple,
@@ -163,6 +193,10 @@ impl BondOrder {
             Double => 2,
             Triple => 3,
         }
+    }
+
+    pub fn id(&self) -> String {
+        format!("{}", self.order())
     }
 }
 
@@ -193,7 +227,141 @@ impl Clone for Bond {
     }
 }
 
+pub enum Substituent {
+    Branch(Branch),
+    Group(Group),
+}
+
+impl ToString for Substituent {
+    fn to_string(&self) -> String {
+        match self {
+            Substituent::Branch(_) => "".to_string(),
+            Substituent::Group(it) => it.to_string(),
+        }
+    }
+}
+
+pub struct Branch {
+    pub chain: Vec<Atom>,
+    pub groups: Vec<Vec<Substituent>>,
+}
+
+impl ToString for Branch {
+    fn to_string(&self) -> String {
+        let mut index = 0;
+        self.groups.iter()
+            .fold("".to_string(), |a, b| {
+                let str = format!("{a}{index}: {} ", b.iter().fold("".to_string(), |c, d| {
+                    format!("{c}{} ", d.to_string())
+                }));
+                index += 1;
+                str
+            })
+    }
+}
+
+impl Branch {
+    pub fn new(chain: Vec<Atom>) -> Branch {
+        let len = chain.len();
+        Branch {
+            chain,
+            groups: Vec::with_capacity(len),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct GroupNode {
+    pub bond: BondOrder,
+    pub atom: Element,
+    pub next: Vec<GroupNode>,
+}
+
+impl ToString for GroupNode {
+    fn to_string(&self) -> String {
+        let start = format!("{}{}", self.bond.id(), self.atom.id());
+
+        let mut mid = self.next.clone();
+        mid.sort_by_key(|a| a.to_string());
+        mid.iter()
+            .fold(start, |a, b| format!("{a}({})", b.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::groups::group_node_tree;
+    use crate::graph_with;
+    use crate::molecule::Group::{Bromo, Carbonyl, Hydroxyl};
+    use crate::spatial::GridState;
+    use crate::test_utils::GW::{A, B};
     use super::*;
+
+    #[test]
+    fn group_to_string() {
+        let groups = vec![Group::Carboxyl, Group::Carbonyl, Group::Hydroxyl];
+
+        assert_eq!(groups[0].to_string(), "carboxyl");
+        assert_eq!(groups[1].to_string(), "carbonyl");
+        assert_eq!(groups[2].to_string(), "hydroxyl");
+    }
+
+    #[test]
+    fn cell_color() {
+        let graph = graph_with!(2, 2,
+            [0, 0; A(C)],
+            [1, 0; A(H)],
+            [0, 1; A(O)],
+            [1, 1; B(Single)]
+        );
+
+        assert_eq!(graph.get(Vec2::xy(0, 0)).unwrap().color(), LightGrey);
+        assert_eq!(graph.get(Vec2::xy(1, 0)).unwrap().color(), White);
+        assert_eq!(graph.get(Vec2::xy(0, 1)).unwrap().color(), Red);
+        assert_eq!(graph.get(Vec2::xy(1, 1)).unwrap().color(), White);
+    }
+
+    #[test]
+    fn cell_pos() {
+        let graph = graph_with!(2, 2,
+            [1, 0; A(H)],
+            [0, 1; A(O)],
+            [1, 1; B(Single)]
+        );
+
+        assert_eq!(graph.cells[0][1].pos(), Vec2::xy(0, 1));
+        assert_eq!(graph.cells[1][1].pos(), Vec2::xy(1, 1));
+    }
+
+    #[test]
+    fn substituent_to_string_for_group() {
+        let a = Substituent::Group(Hydroxyl);
+        let b = Substituent::Group(Bromo);
+
+        assert_eq!(a.to_string(), "hydroxyl".to_string());
+        assert_eq!(b.to_string(), "bromo".to_string())
+    }
+
+    #[test]
+    fn branch_to_string_groups_only() {
+        let branch = Branch {
+            chain: vec![/* Not used in to_string() */],
+            groups: vec![vec![Substituent::Group(Hydroxyl), Substituent::Group(Carbonyl)], vec![Substituent::Group(Bromo)]],
+        };
+
+        assert_eq!(branch.to_string(), "0: hydroxyl carbonyl  1: bromo  ")
+    }
+
+    #[test]
+    fn group_node_to_string() {
+        let graph = graph_with!(1, 3,
+            [0, 0; A(C)],
+            [0, 1; A(O)],
+            [0, 2; A(H)]
+        );
+        let group_node = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up)
+            .unwrap();
+
+        assert_eq!(group_node.to_string(), "1O(1H)");
+    }
 }

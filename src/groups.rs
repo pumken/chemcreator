@@ -5,47 +5,34 @@
 use ruscii::spatial::{Direction, Vec2};
 use thiserror::Error;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
-use crate::spatial::{FromVec2, GridState, ToVec2};
-use crate::molecule::{Atom, BondOrder, Branch, Cell, Element, Group, GroupNode, Substituent};
+use crate::spatial::{FromVec2, GridState};
+use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::molecule::Group::{Carbonyl, Carboxyl, Hydroxyl};
-use crate::{chain, validation};
+use crate::{chain};
 use crate::pointer::Pointer;
-
-/// Determines the name of the molecule on the given `graph`.
-///
-/// ## Errors
-///
-/// If the molecule on the given `graph` is discontinuous, cyclic, or contains invalid bonding,
-/// an [`InvalidGraphError`] will be returned.
-pub fn name_molecule(graph: &GridState) -> Fallible<String> {
-    let cells = graph.find_all(|cell| cell.is_atom())
-        .iter()
-        .map(|&cell| if let Cell::Atom(it) = cell {
-            it
-        } else {
-            panic!("is_atom check failed in name_molecule")
-        })
-        .collect();
-
-    // Initial checks
-    if graph.is_empty() { return Ok("".to_string()); }
-    validation::check_structure(graph)?;
-    validation::check_valence(cells, graph)?;
-
-    // Preliminary chain
-    let all_chains = chain::get_all_chains(graph)?;
-    let chain = chain::longest_chain(all_chains)?;
-    let branch = link_groups(graph, chain)?;
-    // group_indexed_chain.check_chain_index()
-    // group_indexed_chain.name();
-    match graph.simple_counter() {
-        Ok(it) => Ok(it),
-        Err(_) => Err(InvalidGraphError::UnsupportedGroups)
-    }
-}
 
 pub(crate) fn link_groups(graph: &GridState, chain: Vec<Atom>) -> Fallible<Branch> {
     let mut branch = Branch::new(chain);
+
+    fn accumulate_groups(
+        graph: &GridState,
+        accumulator: &mut Branch,
+        index: usize,
+    ) -> Fallible<()> {
+        if index >= accumulator.chain.len() {
+            return Ok(());
+        }
+
+        let group_nodes = group_directions(graph, accumulator, index)?
+            .iter()
+            .map(|&dir| group_node_tree(graph, accumulator.chain[index].pos, dir))
+            .collect::<Fallible<Vec<GroupNode>>>()?;
+
+        let groups = convert_nodes(group_nodes)?;
+        accumulator.groups.push(groups);
+
+        accumulate_groups(graph, accumulator, index + 1)
+    }
 
     accumulate_groups(graph, &mut branch, 0usize)?;
     Ok(branch)
@@ -57,21 +44,12 @@ pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
     link_groups(graph, chain)
 }
 
-fn accumulate_groups(
-    graph: &GridState,
-    accumulator: &mut Branch,
-    index: usize,
-) -> Fallible<()> {
-    let group_nodes = group_directions(graph, accumulator, index)?
-        .iter()
-        .map(|&dir| group_node_tree(graph, accumulator.chain[index].pos, dir))
-        .collect::<Fallible<Vec<GroupNode>>>()?;
-
-    Ok(())
-}
-
+/// Converts and combines the given `group_nodes` into [`Substituent`]s.
+///
+/// ## Errors
+///
+/// If a given [`GroupNode`] is not recognized, [`UnrecognizedGroup`] will be returned.
 fn convert_nodes(group_nodes: Vec<GroupNode>) -> Fallible<Vec<Substituent>> {
-    let mut out = vec![];
     let mut groups = vec![];
 
     for node in group_nodes {
@@ -80,7 +58,7 @@ fn convert_nodes(group_nodes: Vec<GroupNode>) -> Fallible<Vec<Substituent>> {
 
     let new_groups = group_patterns(groups);
 
-    Ok(out)
+    Ok(new_groups)
 }
 
 /// Returns the [`Group`] corresponding to the structure of the given `node`.
@@ -100,25 +78,41 @@ fn identify_single_bond_group(node: GroupNode) -> Fallible<Group> {
     Ok(out)
 }
 
+/// Recognizes compound groups from the given `groups` and converts all into [`Substituent`]s.
 fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     let mut out = vec![];
 
-    while !groups.is_empty() {
+    loop {
         if groups.contains(&Carbonyl) && groups.contains(&Hydroxyl) {
-            groups.retain(|it| it != &Carbonyl || it != &Hydroxyl);
+            groups.retain(|it| it != &Carbonyl && it != &Hydroxyl);
             out.push(Substituent::Group(Carboxyl));
-            continue
+            continue;
         }
-        out.push(Substituent::Group(groups[0].clone()));
-        groups.remove(0);
+        break;
     }
+    let mut rest = groups.into_iter()
+        .map(Substituent::Group)
+        .collect::<Vec<Substituent>>();
+    out.append(&mut rest);
+
     out
 }
 
+/// Constructs a [`GroupNode`] from the given `pos` in the given `direction`.
+///
+/// ## Panics
+///
+/// If the given `pos` does not point to a valid [`Cell::Atom`], or [`Direction::None`] is passed,
+/// this function will panic.
+///
+/// ## Errors
+///
+/// If any invalid structures were found in the bonded group, an [`InvalidGraphError`] will be
+/// returned.
 pub(crate) fn group_node_tree(graph: &GridState, pos: Vec2, direction: Direction) -> Fallible<GroupNode> {
     let ptr = Pointer { graph, pos };
     let bond = ptr.bond_order(direction).unwrap();
-    let atom = ptr.traverse_bond(direction).unwrap();
+    let atom = ptr.traverse_bond(direction)?;
     let mut next = vec![];
 
     for direction in next_directions(graph, atom.pos, pos)? {
@@ -166,41 +160,25 @@ fn next_directions(
 /// [`IncompleteBond`] will be returned.
 fn group_directions(
     graph: &GridState,
-    accumulator: &mut Branch,
+    accumulator: &Branch,
     index: usize,
 ) -> Fallible<Vec<Direction>> {
     let ptr = Pointer { graph, pos: accumulator.chain[index].pos };
-    let cells = ptr.connected();
-    let mut out = vec![];
+    let directions = ptr.connected_directions().into_iter()
+        .filter(|&direction| {
+            let first_element = ptr.traverse_bond(direction).unwrap().element;
+            let single_bond = matches!(ptr.bond_order(direction).unwrap(), BondOrder::Single);
+            let hydrocarbon = matches!(first_element, Element::C) || matches!(first_element, Element::H);
+            !single_bond || !hydrocarbon
+        })
+        .collect::<Vec<Direction>>();
 
-    for cell in cells {
-        let traversal_ptr = Pointer { graph, pos: cell.pos() };
-        let direction = Direction::from_points(ptr.pos, traversal_ptr.pos)
-            .expect("Connected cells should be orthogonal");
-
-        if !matches!(graph.get(ptr.pos + direction.to_vec2()), Ok(Cell::Bond(_))) {
-            continue
-        }
-
-        match traversal_ptr.bond_order(direction) {
-            Some(BondOrder::Double) | Some(BondOrder::Triple) => {
-                out.push(direction);
-                continue
-            }
-            _ => {}
-        }
-
-        match traversal_ptr.traverse_bond(direction)?.element {
-            Element::C | Element::H => {}
-            _ => out.push(direction),
-        }
-    }
-
-    Ok(out)
+    Ok(directions)
 }
 
 pub(crate) type Fallible<T> = Result<T, InvalidGraphError>;
 
+/// The group of invalid structures that can appear on the [`GridState`].
 #[derive(Error, Debug, PartialEq)]
 pub enum InvalidGraphError {
     #[error("Molecule is not continuous.")]
@@ -224,10 +202,78 @@ pub enum InvalidGraphError {
 #[cfg(test)]
 mod tests {
     use crate::molecule::Element::{C, H, O};
-    use crate::molecule::BondOrder::Single;
+    use crate::molecule::BondOrder::{Double, Single};
     use crate::graph_with;
+    use crate::molecule::Group::{Bromo, Ether};
     use crate::test_utils::GW::{A, B};
     use super::*;
+
+    #[test]
+    fn link_groups_recognizes_groups() {
+        let graph = graph_with!(6, 3,
+            [0, 1; A(H)],
+            [1, 0; A(H)], [1, 1; A(C)], [1, 2; A(H)],
+            [2, 1; B(Single)],
+            [3, 0; A(H)], [3, 1; A(C)], [3, 2; A(H)],
+            [4, 1; A(O)],
+            [5, 1; A(H)]
+        );
+        let chain = vec![
+            Atom { element: C, pos: Vec2::xy(1, 1) },
+            Atom { element: C, pos: Vec2::xy(3, 1) },
+        ];
+        let branch = link_groups(&graph, chain.clone()).unwrap();
+        let expected = Branch {
+            chain,
+            groups: vec![
+                vec![],
+                vec![Substituent::Group(Hydroxyl)],
+            ]
+        };
+
+        assert_eq!(branch, expected);
+    }
+
+    #[test]
+    fn identify_single_bond_group_converts_group_node() {
+        let hydroxyl_node = GroupNode {
+            bond: Single,
+            atom: O,
+            next: vec![GroupNode {
+                bond: Single,
+                atom: H,
+                next: vec![],
+            }],
+        };
+        let carbonyl_node = GroupNode {
+            bond: Double,
+            atom: O,
+            next: vec![],
+        };
+        let hydroxyl = identify_single_bond_group(hydroxyl_node).unwrap();
+        let carbonyl = identify_single_bond_group(carbonyl_node).unwrap();
+
+        assert_eq!(hydroxyl, Hydroxyl);
+        assert_eq!(carbonyl, Carbonyl);
+    }
+
+    #[test]
+    fn group_patterns_retains_groups() {
+        let groups = vec![Carbonyl, Bromo, Ether];
+        let expected = groups
+            .iter()
+            .map(|group| Substituent::Group(group.to_owned()))
+            .collect::<Vec<Substituent>>();
+
+        assert_eq!(group_patterns(groups), expected);
+    }
+
+    #[test]
+    fn group_patterns_combines_to_carboxyl() {
+        let groups = vec![Carbonyl, Hydroxyl];
+
+        assert_eq!(group_patterns(groups)[0], vec![Substituent::Group(Carboxyl)][0]);
+    }
 
     #[test]
     fn graph_node_tree() {
@@ -302,5 +348,23 @@ mod tests {
         let expected = vec![Direction::Down, Direction::Right];
 
         assert_eq!(directions, expected);
+    }
+
+    #[test]
+    fn group_directions_recognizes_groups() {
+        let graph = graph_with!(5, 5,
+            [0, 2; A(C)],
+            [1, 2; B(Single)],
+            [2, 0; A(O)], [2, 1; B(Double)], [2, 2; A(C)], [2, 3; A(O)], [2, 4; A(H)]
+        );
+        let branch = Branch {
+            chain: vec![
+                Atom { element: C, pos: Vec2::xy(2, 2) },
+            ],
+            groups: vec![],
+        };
+        let directions = group_directions(&graph, &branch, 0usize).unwrap();
+
+        assert_eq!(directions, vec![Direction::Up, Direction::Down]);
     }
 }

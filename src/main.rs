@@ -10,7 +10,7 @@ use ruscii::drawing::Pencil;
 use ruscii::spatial::{Vec2};
 use ruscii::terminal::Color::{Cyan, Red, White};
 use ruscii::terminal::Window;
-use crate::groups::name_molecule;
+use naming::name_molecule;
 use crate::input::{input_insert_mode, input_view_mode};
 use crate::spatial::{GridState, Invert};
 use crate::molecule::BondOrder::{Double, Single, Triple};
@@ -24,6 +24,7 @@ mod groups;
 mod pointer;
 mod validation;
 mod chain;
+mod naming;
 
 fn main() {
     let mut app = App::new();

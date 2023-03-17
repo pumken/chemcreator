@@ -12,7 +12,7 @@ use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 
 /// Represents a type of functional group on a molecule.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Group {
     /* Alkyl groups */
     Methyl,
@@ -227,6 +227,7 @@ impl Clone for Bond {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Substituent {
     Branch(Branch),
     Group(Group),
@@ -241,6 +242,7 @@ impl ToString for Substituent {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Branch {
     pub chain: Vec<Atom>,
     pub groups: Vec<Vec<Substituent>>,
@@ -261,6 +263,8 @@ impl ToString for Branch {
 }
 
 impl Branch {
+    /// Creates a new [`Branch`] with the given `chain` and with a `groups` field with the same
+    /// capacity as the `chain`.
     pub fn new(chain: Vec<Atom>) -> Branch {
         let len = chain.len();
         Branch {
@@ -350,6 +354,17 @@ mod tests {
         };
 
         assert_eq!(branch.to_string(), "0: hydroxyl carbonyl  1: bromo  ")
+    }
+
+    #[test]
+    fn branch_new_contains_sized_vec() {
+        let chain = vec![
+            Atom { element: C, pos: Vec2::zero() },
+            Atom { element: C, pos: Vec2::zero() },
+        ];
+        let branch = Branch::new(chain);
+
+        assert_eq!(branch.groups.capacity(), 2usize);
     }
 
     #[test]

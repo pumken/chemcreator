@@ -220,6 +220,42 @@ mod tests {
     use crate::test_utils::unwrap_atom;
     use super::*;
 
+    // Also checks accumulate_carbons
+    #[test]
+    fn endpoint_head_chains_finds_all_atoms() {
+        let graph = graph_with!(5, 3,
+            [0, 0; A(C)],
+            [1, 0; A(C)],
+            [2, 0; A(C)], [2, 1; A(C)], [2, 2; A(C)],
+            [3, 0; A(C)],
+            [4, 0; A(C)]
+        );
+        let accumulator = endpoint_head_chains(
+            Atom { element: C, pos: Vec2::zero() },
+            &graph,
+        ).unwrap();
+
+        assert_eq!(accumulator.len(), 2);
+        assert_eq!(accumulator[0].len(), 5);
+        assert_eq!(accumulator[1].len(), 5);
+        assert_ne!(accumulator[0], accumulator[1]);
+    }
+
+    #[test]
+    fn create_branches_copies_correctly() {
+        let atom = Atom { element: C, pos: Vec2::zero() };
+        let mut accumulator = vec![
+            vec![atom.clone()],
+            vec![],
+        ];
+        create_branches(&mut accumulator, 0, 2);
+
+        assert_eq!(accumulator.len(), 4);
+        assert_eq!(accumulator[1], vec![]);
+        assert_eq!(accumulator[2], vec![atom.clone()]);
+        assert_eq!(accumulator[3], vec![atom]);
+    }
+
     #[test]
     fn next_carbons_omits_non_carbons() {
         let graph = graph_with!(3, 3,

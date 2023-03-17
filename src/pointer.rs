@@ -52,6 +52,23 @@ impl<'a> Pointer<'a> {
         out
     }
 
+    /// Returns a [`Vec`] of [`Directions`] to the non-empty [`Cell`]s adjacent to the [`Cell`]
+    /// currently pointed to.
+    pub fn connected_directions(&self) -> Vec<Direction> {
+        let mut out = vec![];
+
+        for direction in Direction::all() {
+            if let Ok(result) = self.graph.get(self.pos + direction.to_vec2()) {
+                match result {
+                    Cell::Atom(_) | Cell::Bond(_) => out.push(direction),
+                    Cell::None(_) => {}
+                }
+            }
+        }
+
+        out
+    }
+
     /// Returns a [`Vec`] of references to the [`Cell`]s bonded to the atom currently pointed to.
     /// Assumes that the current cell is a [`Cell::Atom`].
     ///
@@ -298,6 +315,18 @@ mod tests {
     }
 
     #[test]
+    fn connected_returns_directions() {
+        let graph = graph_with!(4, 4,
+            [0, 1; A(C)],
+            [1, 0; A(H)], [1, 1; A(C)], [1, 2; B(Double)], [1, 3; A(O)]
+        );
+        let ptr = Pointer { graph: &graph, pos: Vec2::xy(1, 1) };
+        let directions = ptr.connected_directions();
+
+        assert_eq!(directions, vec![Direction::Up, Direction::Down, Direction::Left]);
+    }
+
+    #[test]
     fn bonded() {
         let graph = graph_with!(5, 5,
             [2, 0; A(H)],
@@ -486,6 +515,7 @@ mod tests {
 
         assert_eq!(a, Single);
         assert_eq!(b, Single);
+        assert_eq!(c, None);
     }
 
     #[test]

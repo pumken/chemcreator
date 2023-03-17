@@ -171,7 +171,7 @@ impl<'a> Pointer<'a> {
                         // this doesn't work when using Pointer::borrow
                         &traversal_ptr.graph.cells[traversal_ptr.pos.x as usize]
                             [traversal_ptr.pos.y as usize],
-                    )
+                    );
                 }
                 Ok(Cell::Bond(it)) => {
                     if it.orient == BondOrientation::from_direction(direction) {

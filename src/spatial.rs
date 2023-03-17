@@ -71,17 +71,6 @@ impl GridState {
         self.cells[cursor_pos.0][cursor_pos.1] = new_atom;
     }
 
-
-    pub fn upgrade_atom(&self, atom: Atom) -> Result<&Cell, String> {
-        let cell = self.get(atom.pos)?;
-
-        if !matches!(cell, Cell::Atom(_)) {
-            return Err(format!("Attempted to upgrade non-atom cell at ({}, {})", atom.pos.x, atom.pos.y))
-        }
-
-        Ok(cell)
-    }
-
     /// Sets the current [Cell] pointed to by the cursor to [Cell::None].
     pub(crate) fn clear(&mut self) {
         let cursor_pos = (self.cursor.x as usize, self.cursor.y as usize);

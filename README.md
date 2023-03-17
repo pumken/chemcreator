@@ -1,7 +1,7 @@
 <div align="center">
 <h1>ChemCreator</h1>
 
-<img src="https://img.shields.io/github/v/release/pumken/chemcreator"></img>
+<img src="https://img.shields.io/github/v/release/pumken/chemcreator?include_prereleases"></img>
 [![CI](https://github.com/pumken/chemcreator/actions/workflows/CI.yml/badge.svg)](https://github.com/pumken/chemcreator/actions/workflows/CI.yml)
 <img src="https://img.shields.io/github/last-commit/pumken/chemcreator"></img>
 <img src="https://img.shields.io/github/languages/code-size/pumken/chemcreator"></img>

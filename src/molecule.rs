@@ -2,14 +2,14 @@
 //!
 //! The `molecule` module provides functionality for representing molecular components.
 
-use std::fmt::{Display, Formatter};
+use crate::molecule::BondOrder::{Double, Single, Triple};
+use crate::molecule::BondOrientation::{Horiz, Vert};
+use crate::molecule::Element::{C, H, O};
+use crate::spatial::Cellular;
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{LightGrey, Red, White};
-use crate::spatial::Cellular;
-use crate::molecule::Element::{C, H, O};
-use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::BondOrientation::{Horiz, Vert};
+use std::fmt::{Display, Formatter};
 
 /// Represents a functional group, containing the [Cell]s that comprise it.
 pub(crate) struct Group {
@@ -60,9 +60,9 @@ impl Cell {
             Cell::Atom(it) => match it.element {
                 C => LightGrey,
                 O => Red,
-                _ => White
+                _ => White,
             },
-            _ => White
+            _ => White,
         }
     }
 
@@ -70,7 +70,7 @@ impl Cell {
         match self {
             Cell::Atom(it) => it.pos,
             Cell::Bond(it) => it.pos,
-            Cell::None(it) => *it
+            Cell::None(it) => *it,
         }
     }
 
@@ -82,7 +82,7 @@ impl Cell {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Atom {
     pub(crate) element: Element,
-    pub(crate) pos: Vec2
+    pub(crate) pos: Vec2,
 }
 
 impl Atom {
@@ -90,7 +90,7 @@ impl Atom {
         match self.element {
             C => "[C]",
             H => "[H]",
-            O => "[O]"
+            O => "[O]",
         }
     }
 }
@@ -108,18 +108,22 @@ impl Element {
         match *self {
             C => 4,
             H => 1,
-            O => 2
+            O => 2,
         }
     }
 }
 
 impl Display for Element {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match &self {
-            C => "Carbon",
-            H => "Hydrogen",
-            O => "Oxygen"
-        })
+        write!(
+            f,
+            "{}",
+            match &self {
+                C => "Carbon",
+                H => "Hydrogen",
+                O => "Oxygen",
+            }
+        )
     }
 }
 
@@ -182,14 +186,18 @@ impl BondOrientation {
         match direction {
             Direction::Up | Direction::Down => Vert,
             Direction::Left | Direction::Right => Horiz,
-            Direction::None => panic!("Attempted to pass Direction::None to from_direction.")
+            Direction::None => panic!("Attempted to pass Direction::None to from_direction."),
         }
     }
 }
 
 impl Clone for Bond {
     fn clone(&self) -> Bond {
-        Bond { pos: self.pos, order: self.order, orient: self.orient }
+        Bond {
+            pos: self.pos,
+            order: self.order,
+            orient: self.orient,
+        }
     }
 }
 

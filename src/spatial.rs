@@ -3,11 +3,11 @@
 //! The `spatial` module provides functionality for the state and traversal of the grid with which
 //! the user interacts, including the [`GridState`] struct.
 
-use ruscii::spatial::{Direction, Vec2};
+use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Element::{C, H};
 use crate::molecule::{Atom, Bond, BondOrder, Cell, Element};
-use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::pointer::Pointer;
+use ruscii::spatial::{Direction, Vec2};
 
 /// Represents the state of a grid, including all its [Cell]s and the position of the cursor.
 #[derive(Clone, Debug)]
@@ -54,7 +54,10 @@ impl GridState {
     /// Sets the current [Cell] pointed to by the cursor to a [Cell::Atom] with the given [Element].
     pub(crate) fn put_atom(&mut self, element: Element) {
         let cursor_pos = (self.cursor.x as usize, self.cursor.y as usize);
-        let new_atom = Cell::Atom(Atom { element, pos: cursor_pos.to_vec2() });
+        let new_atom = Cell::Atom(Atom {
+            element,
+            pos: cursor_pos.to_vec2(),
+        });
         self.cells[cursor_pos.0][cursor_pos.1] = new_atom;
     }
 
@@ -81,7 +84,7 @@ impl GridState {
         for cell in self.cells.iter().flatten() {
             match cell {
                 Cell::None(_) => {}
-                _ => return false
+                _ => return false,
             }
         }
         true
@@ -91,7 +94,7 @@ impl GridState {
     pub fn filled_cells(&self) -> Vec<&Cell> {
         self.find_all(|cell| match cell {
             Cell::Atom(_) | Cell::Bond(_) => true,
-            Cell::None(_) => false
+            Cell::None(_) => false,
         })
     }
 
@@ -105,8 +108,9 @@ impl GridState {
         let adjusted_unit = match direction {
             Direction::Up => Direction::Down,
             Direction::Down => Direction::Up,
-            Direction::Right | Direction::Left | Direction::None => direction
-        }.vec2();
+            Direction::Right | Direction::Left | Direction::None => direction,
+        }
+        .vec2();
         if self.contains(self.cursor + adjusted_unit) {
             self.cursor += adjusted_unit;
         }
@@ -159,8 +163,12 @@ impl GridState {
             rptr.borrow()
         };
 
-        if let Ok(Cell::Atom(_)) = left { return true; }
-        if let Ok(Cell::Atom(_)) = right { return true; }
+        if let Ok(Cell::Atom(_)) = left {
+            return true;
+        }
+        if let Ok(Cell::Atom(_)) = right {
+            return true;
+        }
         false
     }
 
@@ -170,15 +178,19 @@ impl GridState {
     /// This should eventually be replaced because it ignores all bonds and `[O]` [Atom]s and
     /// assumes that the molecule must be an alkane, alkene, or alkyne.
     pub(crate) fn simple_counter(&self) -> Result<String, &str> {
-        let carbon = self.count(|element| if let Cell::Atom(it) = element {
-            it.element == C
-        } else {
-            false
+        let carbon = self.count(|element| {
+            if let Cell::Atom(it) = element {
+                it.element == C
+            } else {
+                false
+            }
         });
-        let hydrogen = self.count(|element| if let Cell::Atom(it) = element {
-            it.element == H
-        } else {
-            false
+        let hydrogen = self.count(|element| {
+            if let Cell::Atom(it) = element {
+                it.element == H
+            } else {
+                false
+            }
         });
         let prefix = match carbon {
             0 => return Err("No carbons found."),
@@ -192,7 +204,7 @@ impl GridState {
             8 => "oct",
             9 => "non",
             10 => "dec",
-            _ => return Err("Cannot exceed carbon length of 10.")
+            _ => return Err("Cannot exceed carbon length of 10."),
         };
         let suffix = if hydrogen == 2 * carbon - 2 {
             "yne"
@@ -210,14 +222,14 @@ impl GridState {
 impl PartialEq for GridState {
     fn eq(&self, other: &Self) -> bool {
         if self.size != other.size {
-            return false
+            return false;
         }
         let a = self.cells.iter().flatten();
         let b = other.cells.iter().flatten().collect::<Vec<&Cell>>();
 
         for (i, cell) in a.enumerate() {
             if cell != b[i] {
-                return false
+                return false;
             }
         }
         true
@@ -227,7 +239,7 @@ impl PartialEq for GridState {
 /// An enum used to make it easier to construct [`GridState`]s with the `graph_with` macro.
 pub(crate) enum GW {
     A(Element),
-    B(BondOrder)
+    B(BondOrder),
 }
 
 /// Creates a [`GridState`] with the given `vals` at (`x`, `y`). Used with the [`GW`] enum.
@@ -302,23 +314,30 @@ macro_rules! nested_vec {
 }
 
 pub(crate) trait EnumAll {
-    fn all() -> Vec<Self> where Self: Sized;
+    fn all() -> Vec<Self>
+    where
+        Self: Sized;
 }
 
 impl EnumAll for Direction {
     /// Returns all [Direction]s except for [Direction::None].
     fn all() -> Vec<Self> {
-        vec![Direction::Up, Direction::Down, Direction::Left, Direction::Right]
+        vec![
+            Direction::Up,
+            Direction::Down,
+            Direction::Left,
+            Direction::Right,
+        ]
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::molecule::BondOrder::Single;
-    use crate::molecule::Atom;
-    use crate::molecule::Element::O;
     use super::GW::{A, B};
     use super::*;
+    use crate::molecule::Atom;
+    use crate::molecule::BondOrder::Single;
+    use crate::molecule::Element::O;
 
     #[test]
     fn gs_new_creates_sized_grid() {
@@ -337,8 +356,17 @@ mod tests {
             [1, 1; B(Single)]
         );
 
-        assert_eq!(*graph.get(Vec2::xy(0, 0)).unwrap(), Cell::None(Vec2::xy(0, 0)));
-        assert_eq!(*graph.get(Vec2::xy(1, 0)).unwrap(), Cell::Atom(Atom { element: O, pos: Vec2::xy(1, 0) }))
+        assert_eq!(
+            *graph.get(Vec2::xy(0, 0)).unwrap(),
+            Cell::None(Vec2::xy(0, 0))
+        );
+        assert_eq!(
+            *graph.get(Vec2::xy(1, 0)).unwrap(),
+            Cell::Atom(Atom {
+                element: O,
+                pos: Vec2::xy(1, 0)
+            })
+        )
     }
 
     #[test]
@@ -374,6 +402,14 @@ mod tests {
     #[test]
     fn all_returns_every_direction() {
         let x = Direction::all();
-        assert_eq!(x, vec![Direction::Up, Direction::Down, Direction::Left, Direction::Right])
+        assert_eq!(
+            x,
+            vec![
+                Direction::Up,
+                Direction::Down,
+                Direction::Left,
+                Direction::Right
+            ]
+        )
     }
 }

@@ -1,9 +1,9 @@
-use ruscii::spatial::{Direction, Vec2};
 use crate::algorithm::InvalidGraphError;
 use crate::algorithm::InvalidGraphError::IncompleteBond;
-use crate::molecule::{Atom, BondOrientation, Cell};
 use crate::molecule::Element::C;
+use crate::molecule::{Atom, BondOrientation, Cell};
 use crate::spatial::{EnumAll, GridState};
+use ruscii::spatial::{Direction, Vec2};
 
 /// A struct used to move around a [GridState] and borrow __immutable__ references to its cells.
 ///
@@ -18,7 +18,10 @@ pub(crate) struct Pointer<'a> {
 
 impl<'a> Pointer<'a> {
     pub(crate) fn new(cell: &Cell, graph: &'a GridState) -> Pointer<'a> {
-        Pointer { graph, pos: cell.pos() }
+        Pointer {
+            graph,
+            pos: cell.pos(),
+        }
     }
 
     /// Returns a reference to the cell currently pointed to.
@@ -62,10 +65,16 @@ impl<'a> Pointer<'a> {
     pub(crate) fn bonded(&self) -> Result<Vec<&Cell>, InvalidGraphError> {
         match self.borrow().unwrap() {
             Cell::Atom(_) => {}
-            Cell::Bond(_) => panic!("Pointer cannot access bonded atoms: atom was expected at ({}, {}) but bond
-            was found", self.pos.x, self.pos.y),
-            Cell::None(_) => panic!("Pointer cannot access bonded atoms: atom was expected at ({}, {}) but none
-            was found", self.pos.x, self.pos.y)
+            Cell::Bond(_) => panic!(
+                "Pointer cannot access bonded atoms: atom was expected at ({}, {}) but bond
+            was found",
+                self.pos.x, self.pos.y
+            ),
+            Cell::None(_) => panic!(
+                "Pointer cannot access bonded atoms: atom was expected at ({}, {}) but none
+            was found",
+                self.pos.x, self.pos.y
+            ),
         };
 
         let mut out = vec![];
@@ -92,15 +101,18 @@ impl<'a> Pointer<'a> {
     /// [`IncompleteBond`] will be returned.
     pub fn bonded_carbons(&self) -> Result<Vec<Atom>, InvalidGraphError> {
         let bonded = self.bonded()?;
-        Ok(bonded.iter()
-            .filter(|&&cell| if let Cell::Atom(it) = cell {
-                it.element == C
-            } else {
-                false
+        Ok(bonded
+            .iter()
+            .filter(|&&cell| {
+                if let Cell::Atom(it) = cell {
+                    it.element == C
+                } else {
+                    false
+                }
             })
             .map(|&it| match it {
                 Cell::Atom(it) => it.to_owned(),
-                _ => panic!("bonded returned non-atom cell to bonded_carbons")
+                _ => panic!("bonded returned non-atom cell to bonded_carbons"),
             })
             .collect::<Vec<Atom>>())
     }
@@ -117,11 +129,14 @@ impl<'a> Pointer<'a> {
     /// [`IncompleteBond`] will be returned.
     pub fn bonded_carbon_count(&self) -> Result<usize, InvalidGraphError> {
         let bonded = self.bonded()?;
-        Ok(bonded.iter()
-            .filter(|&&atom| if let Cell::Atom(it) = atom {
-                it.element == C
-            } else {
-                false
+        Ok(bonded
+            .iter()
+            .filter(|&&atom| {
+                if let Cell::Atom(it) = atom {
+                    it.element == C
+                } else {
+                    false
+                }
             })
             .count())
     }
@@ -143,21 +158,30 @@ impl<'a> Pointer<'a> {
             panic!("Cannot pass Direction::None to traverse_bond.");
         }
 
-        let mut traversal_ptr = Pointer { graph: self.graph, pos: self.pos };
+        let mut traversal_ptr = Pointer {
+            graph: self.graph,
+            pos: self.pos,
+        };
 
         loop {
             traversal_ptr.move_ptr(direction);
             match traversal_ptr.borrow() {
-                Ok(Cell::Atom(_)) => break Ok(  // this doesn't work when using Pointer::borrow
-                                            &traversal_ptr.graph.cells[traversal_ptr.pos.x as usize][traversal_ptr.pos.y as usize]
-                ),
-                Ok(Cell::Bond(it)) => if it.orient == BondOrientation::from_direction(direction) {
-                    continue;
-                } else {
-                    break Err(IncompleteBond(traversal_ptr.pos));
+                Ok(Cell::Atom(_)) => {
+                    break Ok(
+                        // this doesn't work when using Pointer::borrow
+                        &traversal_ptr.graph.cells[traversal_ptr.pos.x as usize]
+                            [traversal_ptr.pos.y as usize],
+                    )
+                }
+                Ok(Cell::Bond(it)) => {
+                    if it.orient == BondOrientation::from_direction(direction) {
+                        continue;
+                    } else {
+                        break Err(IncompleteBond(traversal_ptr.pos));
+                    }
                 }
                 Ok(Cell::None(_)) => break Err(IncompleteBond(traversal_ptr.pos)),
-                Err(_) => break Err(IncompleteBond(traversal_ptr.pos))
+                Err(_) => break Err(IncompleteBond(traversal_ptr.pos)),
             }
         }
     }
@@ -180,10 +204,20 @@ impl<'a> Pointer<'a> {
 
         match self.borrow().unwrap() {
             Cell::Atom(_) => {}
-            Cell::Bond(_) => return Err(format!("Pointer cannot access bond count: atom was
-            expected at ({}, {}) but bond was found", self.pos.x, self.pos.y)),
-            Cell::None(_) => return Err(format!("Pointer cannot access bond count: atom was
-            expected at ({}, {}) but none was found", self.pos.x, self.pos.y)),
+            Cell::Bond(_) => {
+                return Err(format!(
+                    "Pointer cannot access bond count: atom was
+            expected at ({}, {}) but bond was found",
+                    self.pos.x, self.pos.y
+                ))
+            }
+            Cell::None(_) => {
+                return Err(format!(
+                    "Pointer cannot access bond count: atom was
+            expected at ({}, {}) but none was found",
+                    self.pos.x, self.pos.y
+                ))
+            }
         };
 
         for direction in Direction::all() {
@@ -207,4 +241,3 @@ impl<'a> Pointer<'a> {
         }
     }
 }
-

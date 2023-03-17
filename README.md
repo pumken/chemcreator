@@ -1,6 +1,6 @@
 # ChemCreator
 
-[![Rust](https://github.com/pumken/chemcreator/actions/workflows/rust.yml/badge.svg)](https://github.com/pumken/chemcreator/actions/workflows/rust.yml)
+[![CI](https://github.com/pumken/chemcreator/actions/workflows/CI.yml/badge.svg)](https://github.com/pumken/chemcreator/actions/workflows/CI.yml)
 
 A text-based tool for identifying organic molecules.
 

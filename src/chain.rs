@@ -3,13 +3,13 @@
 //! The `chain` module contains functions that allow for identifying the parent chain of an
 //! organic molecule.
 
-use ruscii::spatial::Vec2;
 use crate::groups::Fallible;
 use crate::groups::InvalidGraphError::{Cycle, Other};
 use crate::molecule::{Atom, Cell, Element};
 use crate::nested_vec;
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
+use ruscii::spatial::Vec2;
 
 pub(crate) fn debug_chain(graph: &GridState) -> Fallible<Vec<Atom>> {
     let all_chains = get_all_chains(graph)?;
@@ -22,18 +22,19 @@ pub(crate) fn debug_chain(graph: &GridState) -> Fallible<Vec<Atom>> {
 ///
 /// If there are no `chains`, this function will return an `Err`.
 pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Fallible<Vec<Atom>> {
-    Ok(match chains.iter()
-        .max_by(|&a, &b| a.len().cmp(&b.len())) {
-        None => return Err(Other("No carbon chain found.")),  // FIXME this is returned when a bond is placed at the edge
-        Some(it) => it
-    }.to_owned())
+    Ok(match chains.iter().max_by(|&a, &b| a.len().cmp(&b.len())) {
+        None => return Err(Other("No carbon chain found.")), // FIXME this is returned when a bond is placed at the edge
+        Some(it) => it,
+    }
+    .to_owned())
 }
 
 pub(crate) fn get_all_chains(graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {
-    let endpoints = endpoint_carbons(graph)?.iter()
+    let endpoints = endpoint_carbons(graph)?
+        .iter()
         .map(|&cell| match cell {
             Cell::Atom(it) => it.to_owned(),
-            _ => panic!("endpoint_carbons returned non-atom cell")
+            _ => panic!("endpoint_carbons returned non-atom cell"),
         })
         .collect::<Vec<Atom>>();
     // Nested Vec hell
@@ -53,13 +54,7 @@ pub(crate) fn get_all_chains(graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {
 fn endpoint_head_chains(endpoint: Atom, graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {
     let mut accumulator = vec![vec![]];
 
-    accumulate_carbons(
-        endpoint.pos,
-        None,
-        0usize,
-        &mut accumulator,
-        graph,
-    )?;
+    accumulate_carbons(endpoint.pos, None, 0usize, &mut accumulator, graph)?;
 
     Ok(accumulator)
 }
@@ -85,7 +80,7 @@ fn accumulate_carbons(
 
     accumulator[branch_index].push(match graph.get(pos) {
         Ok(Cell::Atom(it)) => it.to_owned(),
-        _ => panic!("Non-atom or invalid cell passed to accumulate_carbons")
+        _ => panic!("Non-atom or invalid cell passed to accumulate_carbons"),
     });
 
     let new_branches = create_branches(
@@ -93,17 +88,11 @@ fn accumulate_carbons(
         branch_index,
         match next_carbons.len() {
             0 => return Ok(()),
-            it => it - 1
+            it => it - 1,
         },
     );
     for (i, carbon) in next_carbons.iter().enumerate() {
-        accumulate_carbons(
-            carbon.pos,
-            Some(pos),
-            new_branches[i],
-            accumulator,
-            graph,
-        )?
+        accumulate_carbons(carbon.pos, Some(pos), new_branches[i], accumulator, graph)?
     }
 
     Ok(())
@@ -111,13 +100,17 @@ fn accumulate_carbons(
 
 /// Creates `count` clones of the branch at the given `branch_index` in the `accumulator`. The
 /// returned [`Vec`] contains the indexes of the branch and its copies.
-fn create_branches(accumulator: &mut Vec<Vec<Atom>>, branch_index: usize, count: usize) -> Vec<usize> {
+fn create_branches(
+    accumulator: &mut Vec<Vec<Atom>>,
+    branch_index: usize,
+    count: usize,
+) -> Vec<usize> {
     let mut out = vec![branch_index];
 
     for _ in 0usize..count {
         accumulator.push(accumulator[branch_index].clone());
         out.push(accumulator.len() - 1)
-    };
+    }
 
     out
 }
@@ -146,11 +139,9 @@ fn next_carbons(pos: Vec2, previous_pos: Option<Vec2>, graph: &GridState) -> Fal
 /// If one of the bonds to the current cell is found to be dangling, an
 /// [`IncompleteBond`] will be returned.
 pub(crate) fn endpoint_carbons(graph: &GridState) -> Fallible<Vec<&Cell>> {
-    let all_carbons = graph.find_all(|cell| {
-        match cell {
-            Cell::Atom(atom) => matches!(atom.element, Element::C),
-            _ => false
-        }
+    let all_carbons = graph.find_all(|cell| match cell {
+        Cell::Atom(atom) => matches!(atom.element, Element::C),
+        _ => false,
     });
     let mut out = vec![];
 
@@ -175,8 +166,14 @@ pub(crate) fn endpoint_carbons(graph: &GridState) -> Fallible<Vec<&Cell>> {
 /// If this function traverses the molecule and finds that it is not simply connected, [`Cycle`]
 /// will be returned.
 pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<Vec<bool>>> {
-    if let Cell::None(_) = graph.get(pos).expect("pos should be a valid point on the graph.") {
-        panic!("Passed empty cell ({}, {}) to get_connected_cells", pos.x, pos.y)
+    if let Cell::None(_) = graph
+        .get(pos)
+        .expect("pos should be a valid point on the graph.")
+    {
+        panic!(
+            "Passed empty cell ({}, {}) to get_connected_cells",
+            pos.x, pos.y
+        )
     }
 
     let mut searched_points = nested_vec![graph.size.x; graph.size.y; false];
@@ -197,10 +194,12 @@ pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<
             }
             match cell {
                 Cell::None(_) => {}
-                _ => if !accumulator[cell.pos().x as usize][cell.pos().y as usize] {
-                    accumulate_components(cell.pos(), Some(pos), accumulator, graph)?
-                } else {
-                    return Err(Cycle);
+                _ => {
+                    if !accumulator[cell.pos().x as usize][cell.pos().y as usize] {
+                        accumulate_components(cell.pos(), Some(pos), accumulator, graph)?
+                    } else {
+                        return Err(Cycle);
+                    }
                 }
             }
         }
@@ -213,12 +212,12 @@ pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::graph_with;
     use crate::molecule::BondOrder::Single;
     use crate::molecule::Element::{C, H};
-    use crate::test_utils::GW::{A, B};
     use crate::test_utils::unwrap_atom;
-    use super::*;
+    use crate::test_utils::GW::{A, B};
 
     // Also checks accumulate_carbons
     #[test]
@@ -231,9 +230,13 @@ mod tests {
             [4, 0; A(C)]
         );
         let accumulator = endpoint_head_chains(
-            Atom { element: C, pos: Vec2::zero() },
+            Atom {
+                element: C,
+                pos: Vec2::zero(),
+            },
             &graph,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(accumulator.len(), 2);
         assert_eq!(accumulator[0].len(), 5);
@@ -243,11 +246,11 @@ mod tests {
 
     #[test]
     fn create_branches_copies_correctly() {
-        let atom = Atom { element: C, pos: Vec2::zero() };
-        let mut accumulator = vec![
-            vec![atom.clone()],
-            vec![],
-        ];
+        let atom = Atom {
+            element: C,
+            pos: Vec2::zero(),
+        };
+        let mut accumulator = vec![vec![atom.clone()], vec![]];
         create_branches(&mut accumulator, 0, 2);
 
         assert_eq!(accumulator.len(), 4);
@@ -269,9 +272,10 @@ mod tests {
         let expected = vec![
             graph.get(Vec2::xy(1, 2)).unwrap(),
             graph.get(Vec2::xy(2, 1)).unwrap(),
-        ].iter()
-            .map(|&cell| unwrap_atom(cell))
-            .collect::<Vec<Atom>>();
+        ]
+        .iter()
+        .map(|&cell| unwrap_atom(cell))
+        .collect::<Vec<Atom>>();
 
         assert_eq!(atoms, expected);
     }
@@ -286,9 +290,7 @@ mod tests {
             [2, 1; A(C)]
         );
         let atom = next_carbons(Vec2::xy(1, 1), Some(Vec2::xy(1, 2)), &graph).unwrap();
-        let expected = vec![
-            unwrap_atom(graph.get(Vec2::xy(2, 1)).unwrap()),
-        ];
+        let expected = vec![unwrap_atom(graph.get(Vec2::xy(2, 1)).unwrap())];
 
         assert_eq!(atom, expected);
     }
@@ -321,9 +323,7 @@ mod tests {
             [2, 1; A(H)]
         );
         let cell = endpoint_carbons(&graph).unwrap();
-        let expected = vec![
-            graph.get(Vec2::xy(1, 1)).unwrap()
-        ];
+        let expected = vec![graph.get(Vec2::xy(1, 1)).unwrap()];
 
         assert_eq!(cell, expected);
     }

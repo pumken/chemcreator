@@ -2,14 +2,14 @@
 //!
 //! The `molecule` module provides functionality for representing molecular components.
 
-use std::fmt::{Display, Formatter};
+use crate::molecule::BondOrder::{Double, Single, Triple};
+use crate::molecule::BondOrientation::{Horiz, Vert};
+use crate::molecule::Element::{C, H, O};
+use crate::spatial::Cellular;
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{LightGrey, Red, White};
-use crate::spatial::Cellular;
-use crate::molecule::Element::{C, H, O};
-use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::BondOrientation::{Horiz, Vert};
+use std::fmt::{Display, Formatter};
 
 /// Represents a type of functional group on a molecule.
 #[derive(Clone, Debug, PartialEq)]
@@ -64,7 +64,8 @@ impl ToString for Group {
             Group::Carboxyl => "carboxyl",
             Group::Ester => "ester",
             Group::Ether => "ether",
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
@@ -82,9 +83,9 @@ impl Cell {
             Cell::Atom(it) => match it.element {
                 C => LightGrey,
                 O => Red,
-                _ => White
+                _ => White,
             },
-            _ => White
+            _ => White,
         }
     }
 
@@ -92,7 +93,7 @@ impl Cell {
         match self {
             Cell::Atom(it) => it.pos,
             Cell::Bond(it) => it.pos,
-            Cell::None(it) => *it
+            Cell::None(it) => *it,
         }
     }
 
@@ -112,7 +113,7 @@ impl Atom {
         match self.element {
             C => "[C]",
             H => "[H]",
-            O => "[O]"
+            O => "[O]",
         }
     }
 }
@@ -130,7 +131,7 @@ impl Element {
         match *self {
             C => 4,
             H => 1,
-            O => 2
+            O => 2,
         }
     }
 
@@ -145,11 +146,15 @@ impl Element {
 
 impl Display for Element {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match &self {
-            C => "Carbon",
-            H => "Hydrogen",
-            O => "Oxygen"
-        })
+        write!(
+            f,
+            "{}",
+            match &self {
+                C => "Carbon",
+                H => "Hydrogen",
+                O => "Oxygen",
+            }
+        )
     }
 }
 
@@ -216,14 +221,18 @@ impl BondOrientation {
         match direction {
             Direction::Up | Direction::Down => Vert,
             Direction::Left | Direction::Right => Horiz,
-            Direction::None => panic!("Attempted to pass Direction::None to from_direction.")
+            Direction::None => panic!("Attempted to pass Direction::None to from_direction."),
         }
     }
 }
 
 impl Clone for Bond {
     fn clone(&self) -> Bond {
-        Bond { pos: self.pos, order: self.order, orient: self.orient }
+        Bond {
+            pos: self.pos,
+            order: self.order,
+            orient: self.orient,
+        }
     }
 }
 
@@ -251,14 +260,15 @@ pub struct Branch {
 impl ToString for Branch {
     fn to_string(&self) -> String {
         let mut index = 0;
-        self.groups.iter()
-            .fold("".to_string(), |a, b| {
-                let str = format!("{a}{index}: {} ", b.iter().fold("".to_string(), |c, d| {
-                    format!("{c}{} ", d.to_string())
-                }));
-                index += 1;
-                str
-            })
+        self.groups.iter().fold("".to_string(), |a, b| {
+            let str = format!(
+                "{a}{index}: {} ",
+                b.iter()
+                    .fold("".to_string(), |c, d| { format!("{c}{} ", d.to_string()) })
+            );
+            index += 1;
+            str
+        })
     }
 }
 
@@ -294,12 +304,12 @@ impl ToString for GroupNode {
 
 #[cfg(test)]
 mod tests {
-    use crate::groups::group_node_tree;
+    use super::*;
     use crate::graph_with;
+    use crate::groups::group_node_tree;
     use crate::molecule::Group::{Bromo, Carbonyl, Hydroxyl};
     use crate::spatial::GridState;
     use crate::test_utils::GW::{A, B};
-    use super::*;
 
     #[test]
     fn group_to_string() {
@@ -350,7 +360,10 @@ mod tests {
     fn branch_to_string_groups_only() {
         let branch = Branch {
             chain: vec![/* Not used in to_string() */],
-            groups: vec![vec![Substituent::Group(Hydroxyl), Substituent::Group(Carbonyl)], vec![Substituent::Group(Bromo)]],
+            groups: vec![
+                vec![Substituent::Group(Hydroxyl), Substituent::Group(Carbonyl)],
+                vec![Substituent::Group(Bromo)],
+            ],
         };
 
         assert_eq!(branch.to_string(), "0: hydroxyl carbonyl  1: bromo  ")
@@ -359,8 +372,14 @@ mod tests {
     #[test]
     fn branch_new_contains_sized_vec() {
         let chain = vec![
-            Atom { element: C, pos: Vec2::zero() },
-            Atom { element: C, pos: Vec2::zero() },
+            Atom {
+                element: C,
+                pos: Vec2::zero(),
+            },
+            Atom {
+                element: C,
+                pos: Vec2::zero(),
+            },
         ];
         let branch = Branch::new(chain);
 
@@ -374,8 +393,7 @@ mod tests {
             [0, 1; A(O)],
             [0, 2; A(H)]
         );
-        let group_node = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up)
-            .unwrap();
+        let group_node = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up).unwrap();
 
         assert_eq!(group_node.to_string(), "1O(1H)");
     }

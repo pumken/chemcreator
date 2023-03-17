@@ -1,11 +1,11 @@
 # Based on ruscii and crossterm repositories
-name: Rust
+name: CI
 
 on:
   push:
-    branches: [ "master", 'dev-*' ]
+    branches: "master"
   pull_request:
-    branches: [ "master", 'dev-*' ]
+    branches: "master"
 
 env:
   CARGO_TERM_COLOR: always
@@ -29,12 +29,16 @@ jobs:
       with:
         rust-version: ${{ matrix.rust }}
         components: rustfmt,clippy
-    - name: Toolchain Information
+    - name: Toolchain information
       run: |
         rustc --version
         rustfmt --version
         rustup --version
         cargo --version
+    - name: rustfmt
+      run: cargo fmt --all -- --check
+    - name: Clippy
+      run: cargo clippy -- -D clippy::all
     - name: Build
       run: cargo build --verbose
     - name: Run tests

@@ -38,7 +38,6 @@ pub(crate) fn link_groups(graph: &GridState, chain: Vec<Atom>) -> Fallible<Branc
     Ok(branch)
 }
 
-
 pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
     let all_chains = chain::get_all_chains(graph)?;
     let chain = chain::longest_chain(all_chains)?;

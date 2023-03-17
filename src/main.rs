@@ -5,26 +5,26 @@
 
 #![warn(missing_docs)]
 
-use ruscii::app::{App, State};
-use ruscii::drawing::Pencil;
-use ruscii::spatial::{Vec2};
-use ruscii::terminal::Color::{Cyan, Red, White};
-use ruscii::terminal::Window;
-use naming::name_molecule;
 use crate::input::{input_insert_mode, input_view_mode};
-use crate::spatial::{GridState, Invert};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Cell;
+use crate::spatial::{GridState, Invert};
+use naming::name_molecule;
+use ruscii::app::{App, State};
+use ruscii::drawing::Pencil;
+use ruscii::spatial::Vec2;
+use ruscii::terminal::Color::{Cyan, Red, White};
+use ruscii::terminal::Window;
 
-mod spatial;
-mod molecule;
-mod macros;
-mod input;
-mod groups;
-mod pointer;
-mod validation;
 mod chain;
+mod groups;
+mod input;
+mod macros;
+mod molecule;
 mod naming;
+mod pointer;
+mod spatial;
+mod validation;
 
 fn main() {
     let mut app = App::new();
@@ -43,15 +43,15 @@ fn main() {
                 };
                 state.pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
                 state.sym = match graph.current_cell() {
-                    Cell::Atom(it) => { format!("Atom {}", it.symbol()) }
-                    Cell::Bond(it) => {
-                        match it.order {
-                            Single => "Bond 1x".to_string(),
-                            Double => "Bond 2x".to_string(),
-                            Triple => "Bond 3x".to_string(),
-                        }
+                    Cell::Atom(it) => {
+                        format!("Atom {}", it.symbol())
                     }
-                    Cell::None(_) => { String::new() }
+                    Cell::Bond(it) => match it.order {
+                        Single => "Bond 1x".to_string(),
+                        Double => "Bond 2x".to_string(),
+                        Triple => "Bond 3x".to_string(),
+                    },
+                    Cell::None(_) => String::new(),
                 };
             }
             Mode::Normal => {
@@ -70,26 +70,45 @@ fn main() {
         match state.mode {
             Mode::Start => {
                 pencil
-                    .draw_text("┌────┐          ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 2).inv(&graph))
-                    .draw_text("│  C │hem       ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 1).inv(&graph))
-                    .draw_text("└────┼────┐     ", Vec2::xy(graph.size.x + 2, graph.size.y / 2).inv(&graph))
-                    .draw_text("     │ Cr │eator", Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 1).inv(&graph))
-                    .draw_text("     └────┘     ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 2).inv(&graph))
-                    .draw_text("    Release 1   ", Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 3).inv(&graph));
+                    .draw_text(
+                        "┌────┐          ",
+                        Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 2).inv(&graph),
+                    )
+                    .draw_text(
+                        "│  C │hem       ",
+                        Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 1).inv(&graph),
+                    )
+                    .draw_text(
+                        "└────┼────┐     ",
+                        Vec2::xy(graph.size.x + 2, graph.size.y / 2).inv(&graph),
+                    )
+                    .draw_text(
+                        "     │ Cr │eator",
+                        Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 1).inv(&graph),
+                    )
+                    .draw_text(
+                        "     └────┘     ",
+                        Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 2).inv(&graph),
+                    )
+                    .draw_text(
+                        "    Release 1   ",
+                        Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 3).inv(&graph),
+                    );
             }
             _ => {
                 for cell in graph.cells.iter().flatten() {
-                    pencil
-                        .set_foreground(*&cell.color())
-                        .draw_text(match &cell {
-                            Cell::Atom(it) => { it.symbol() }
-                            Cell::Bond(it) => { it.symbol() }
+                    pencil.set_foreground(cell.color()).draw_text(
+                        match &cell {
+                            Cell::Atom(it) => it.symbol(),
+                            Cell::Bond(it) => it.symbol(),
                             Cell::None(_) => match state.mode {
                                 Mode::Insert => " • ",
                                 Mode::Normal => "   ",
-                                _ => "   "
-                            }
-                        }, Vec2::xy(cell.pos().x * 3, cell.pos().y).inv(&graph));
+                                _ => "   ",
+                            },
+                        },
+                        Vec2::xy(cell.pos().x * 3, cell.pos().y).inv(&graph),
+                    );
                 }
             }
         }
@@ -99,24 +118,48 @@ fn main() {
             pencil
                 .draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 1))
                 .set_foreground(Cyan)
-                .draw_text("<", Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y).inv(&graph))
-                .draw_text(">", Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(&graph))
+                .draw_text(
+                    "<",
+                    Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y).inv(&graph),
+                )
+                .draw_text(
+                    ">",
+                    Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(&graph),
+                )
                 .set_foreground(White);
         }
 
         // Menu
         pencil
-            .draw_text(match state.mode {
-                Mode::Start => "",
-                _ => "ChemCreator"
-            }, Vec2::xy(graph.size.x * 3 + 3, 0))
-            .draw_text(&format!("name | {}", state.name), Vec2::xy(graph.size.x * 3 + 3, 2))
-            .draw_text(&format!(" pos | {}", state.pos), Vec2::xy(graph.size.x * 3 + 3, 3))
-            .draw_text(&format!(" sym | {}", state.sym), Vec2::xy(graph.size.x * 3 + 3, 4))
-            .draw_text(&format!(" key | {}", match state.mode {
-                Mode::Start => format!("        You're using version {version}.          "),
-                _ => state.key.to_string()
-            }), Vec2::xy(graph.size.x * 3 + 3, 5))
+            .draw_text(
+                match state.mode {
+                    Mode::Start => "",
+                    _ => "ChemCreator",
+                },
+                Vec2::xy(graph.size.x * 3 + 3, 0),
+            )
+            .draw_text(
+                &format!("name | {}", state.name),
+                Vec2::xy(graph.size.x * 3 + 3, 2),
+            )
+            .draw_text(
+                &format!(" pos | {}", state.pos),
+                Vec2::xy(graph.size.x * 3 + 3, 3),
+            )
+            .draw_text(
+                &format!(" sym | {}", state.sym),
+                Vec2::xy(graph.size.x * 3 + 3, 4),
+            )
+            .draw_text(
+                &format!(
+                    " key | {}",
+                    match state.mode {
+                        Mode::Start => format!("        You're using version {version}.          "),
+                        _ => state.key.to_string(),
+                    }
+                ),
+                Vec2::xy(graph.size.x * 3 + 3, 5),
+            )
             .set_foreground(Red)
             .draw_text(&state.err.to_string(), Vec2::xy(graph.size.x * 3 + 3, 7))
             .draw_text(&state.debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8));
@@ -148,7 +191,7 @@ impl Default for AppState {
             name: "                ChemCreator                ".to_string(),
             pos: "      Written in Rust by Gavin Tran.       ".to_string(),
             sym: "To start, enter insert mode by pressing F8.".to_string(),
-            key: "",  // Overridden in Start mode to retain &str type
+            key: "", // Overridden in Start mode to retain &str type
             err: "".to_string(),
             debug: "".to_string(),
         }
@@ -157,9 +200,9 @@ impl Default for AppState {
 
 #[cfg(test)]
 mod test_utils {
-    use crate::molecule::{Atom, BondOrder, Cell, Element};
     use crate::molecule::BondOrder::Single;
     use crate::molecule::Element::{C, H, O};
+    use crate::molecule::{Atom, BondOrder, Cell, Element};
     use crate::spatial::GridState;
     use crate::test_utils::GW::{A, B};
     use ruscii::spatial::Vec2;
@@ -205,14 +248,22 @@ mod test_utils {
         let cell = graph.get(Vec2::zero()).unwrap();
         let atom = unwrap_atom(cell);
 
-        assert_eq!(atom, Atom { element: C, pos: Vec2::zero() });
+        assert_eq!(
+            atom,
+            Atom {
+                element: C,
+                pos: Vec2::zero()
+            }
+        );
     }
 
     #[test]
     fn graph_with_empty() {
         let graph = graph_with!(5, 5);
 
-        let any_filled_cells = graph.cells.iter()
+        let any_filled_cells = graph
+            .cells
+            .iter()
             .flatten()
             .any(|cell| !matches!(cell, Cell::None(_)));
 

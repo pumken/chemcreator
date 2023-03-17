@@ -2,15 +2,15 @@
 //!
 //! The `input` module contains functions that interpret user input.
 
-use ruscii::app::State;
-use ruscii::keyboard::{Key, KeyEvent};
-use ruscii::spatial::Direction;
-use crate::groups::debug_branches;
-use crate::{AppState, Mode};
 use crate::chain::debug_chain;
+use crate::groups::debug_branches;
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Element::{C, H, O};
 use crate::spatial::GridState;
+use crate::{AppState, Mode};
+use ruscii::app::State;
+use ruscii::keyboard::{Key, KeyEvent};
+use ruscii::spatial::Direction;
 
 pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: &mut GridState) {
     for key_event in app_state.keyboard().last_key_events() {
@@ -29,19 +29,16 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
             }
             KeyEvent::Pressed(Key::F5) => {
                 state.debug = match debug_chain(graph) {
-                    Ok(it) => {
-                        it.iter()
-                            .fold("".to_string(), |a, b| {
-                                format!("{a} ({}, {}),", b.pos.x, b.pos.y)
-                            })
-                    }
-                    Err(it) => it.to_string()
+                    Ok(it) => it.iter().fold("".to_string(), |a, b| {
+                        format!("{a} ({}, {}),", b.pos.x, b.pos.y)
+                    }),
+                    Err(it) => it.to_string(),
                 };
             }
             KeyEvent::Pressed(Key::F6) => {
                 state.debug = match debug_branches(graph) {
                     Ok(it) => it.to_string(),
-                    Err(it) => it.to_string()
+                    Err(it) => it.to_string(),
                 }
             }
             KeyEvent::Pressed(Key::Num1) => {
@@ -79,8 +76,8 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
             KeyEvent::Pressed(Key::Esc) => state.mode = Mode::Normal,
             _ => {
                 state.key = match key_event {
-                    KeyEvent::Pressed(_) => { "Pressed" }
-                    KeyEvent::Released(_) => { "" }
+                    KeyEvent::Pressed(_) => "Pressed",
+                    KeyEvent::Released(_) => "",
                 }
             }
         }
@@ -92,7 +89,7 @@ pub(crate) fn input_view_mode(app_state: &State, state: &mut AppState) {
         match key_event {
             KeyEvent::Pressed(Key::Esc) => app_state.stop(),
             KeyEvent::Pressed(Key::F8) => state.mode = Mode::Insert,
-            _ => ()
+            _ => (),
         }
     }
 }

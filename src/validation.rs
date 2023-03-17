@@ -3,14 +3,14 @@
 //! The `validation` module provides two functions that checks the [`GridState`] for three invalid
 //! structures: discontinuities, cycles, and atoms with unfilled or overfilled valence shells.
 
-use ruscii::spatial::Vec2;
-use std::cmp::Ordering;
 use crate::chain;
-use crate::groups::{Fallible, InvalidGraphError};
 use crate::groups::InvalidGraphError::Discontinuity;
+use crate::groups::{Fallible, InvalidGraphError};
 use crate::molecule::{Atom, Cell};
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
+use ruscii::spatial::Vec2;
+use std::cmp::Ordering;
 
 /// Checks if the molecule on the [`GridState`] is contiguous.
 ///
@@ -23,7 +23,8 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
         Some(it) => it,
         None => return Ok(()),
     };
-    let filled_pos_directions = graph.filled_cells()
+    let filled_pos_directions = graph
+        .filled_cells()
         .iter()
         .map(|&cell| cell.pos())
         .collect::<Vec<Vec2>>();
@@ -33,7 +34,8 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
         if match graph.get(pos).unwrap() {
             Cell::Atom(_) | Cell::Bond(_) => true,
             Cell::None(_) => false,
-        } != connectivity[pos.x as usize][pos.y as usize] {
+        } != connectivity[pos.x as usize][pos.y as usize]
+        {
             return Err(Discontinuity);
         }
     }
@@ -50,11 +52,15 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
 /// Returns an [`InvalidGraphError::OverfilledValence`] or [`InvalidGraphError::UnfilledValence`]
 /// for the first cell for which its valence shell is not correctly filled.
 pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
-    for atom in atoms {  // this function eventually could be removed and incorporated into bonded() ?
-        let ptr = Pointer { graph, pos: atom.pos };
+    for atom in atoms {
+        // this function eventually could be removed and incorporated into bonded() ?
+        let ptr = Pointer {
+            graph,
+            pos: atom.pos,
+        };
         let bond_count = match ptr.bond_count() {
             Ok(it) => it,
-            Err(it) => panic!("{}", it)
+            Err(it) => panic!("{}", it),
         };
         match bond_count.cmp(&atom.element.bond_number()) {
             Ordering::Less => return Err(InvalidGraphError::UnfilledValence(atom.pos)),
@@ -67,12 +73,12 @@ pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::graph_with;
     use crate::molecule::BondOrder::{Single, Triple};
     use crate::molecule::Element::{C, H, O};
-    use crate::test_utils::GW::{A, B};
     use crate::test_utils::unwrap_atom;
-    use super::*;
+    use crate::test_utils::GW::{A, B};
 
     #[test]
     fn check_structure_validates() {
@@ -131,11 +137,11 @@ mod tests {
             graph.get(Vec2::xy(1, 1)).unwrap(),
             graph.get(Vec2::xy(3, 1)).unwrap(),
             graph.get(Vec2::xy(5, 1)).unwrap(),
-        ].iter()
-            .map(|&cell| unwrap_atom(cell))
-            .collect::<Vec<Atom>>();
-        let references = input_atoms.iter()
-            .collect::<Vec<&Atom>>();
+        ]
+        .iter()
+        .map(|&cell| unwrap_atom(cell))
+        .collect::<Vec<Atom>>();
+        let references = input_atoms.iter().collect::<Vec<&Atom>>();
 
         assert!(matches!(check_valence(references, &graph), Ok(_)));
     }
@@ -165,6 +171,9 @@ mod tests {
         let input_atom = unwrap_atom(graph.get(Vec2::xy(1, 1)).unwrap());
         let err = check_valence(vec![&input_atom], &graph);
 
-        assert_eq!(err, Err(InvalidGraphError::OverfilledValence(Vec2::xy(1, 1))));
+        assert_eq!(
+            err,
+            Err(InvalidGraphError::OverfilledValence(Vec2::xy(1, 1)))
+        );
     }
 }

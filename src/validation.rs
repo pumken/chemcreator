@@ -6,7 +6,7 @@
 use crate::chain;
 use crate::groups::InvalidGraphError::Discontinuity;
 use crate::groups::{Fallible, InvalidGraphError};
-use crate::molecule::{Atom, Cell};
+use crate::molecule::{Atom, Branch, Cell};
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
@@ -69,6 +69,11 @@ pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
         }
     }
     Ok(())
+}
+
+/// Checks if chain indexes are in the correct direction.
+pub fn chain_in_correct_direction(branch: &Branch) -> bool {
+    true
 }
 
 #[cfg(test)]

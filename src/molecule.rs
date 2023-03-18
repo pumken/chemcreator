@@ -9,11 +9,16 @@ use crate::spatial::Cellular;
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{LightGrey, Red, White};
+use std::cmp::Ordering;
+use std::fmt;
 use std::fmt::{Display, Formatter};
 
 /// Represents a type of functional group on a molecule.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Group {
+    Alkane,
+    Alkene,
+    Alkyne,
     /* Alkyl groups */
     Methyl,
     Ethyl,
@@ -41,9 +46,12 @@ pub enum Group {
     Ether,
 }
 
-impl ToString for Group {
-    fn to_string(&self) -> String {
-        match *self {
+impl Display for Group {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+        let str = match *self {
+            Group::Alkane => "alkane",
+            Group::Alkene => "alkene",
+            Group::Alkyne => "alkyne",
             Group::Methyl => "methyl",
             Group::Ethyl => "ethyl",
             Group::Propyl => "propyl",
@@ -64,8 +72,46 @@ impl ToString for Group {
             Group::Carboxyl => "carboxyl",
             Group::Ester => "ester",
             Group::Ether => "ether",
-        }
-        .to_string()
+        };
+        write!(f, "{}", str)
+    }
+}
+
+impl Group {
+    /// Returns the priority level of each functional group for identifying the main functional
+    /// group of a molecule.
+    ///
+    /// A higher priority is indicated by a higher number. The lowest
+    /// priority group is assigned zero. A value of [`None`] indicates that the group is _never
+    /// the main group_ (i.e., always a prefix).
+    pub const fn priority(&self) -> Option<i32> {
+        let priority = match self {
+            Group::Alkane | Group::Alkene | Group::Alkyne => 0,
+            Group::Methyl
+            | Group::Ethyl
+            | Group::Propyl
+            | Group::Isopropyl
+            | Group::Butyl
+            | Group::Pentyl
+            | Group::Hexyl
+            | Group::Heptyl
+            | Group::Octyl
+            | Group::Nonyl
+            | Group::Decyl => return None,
+            Group::Bromo | Group::Chloro | Group::Fluoro | Group::Iodo => return None,
+            Group::Hydroxyl => 3,
+            Group::Carbonyl => 4,
+            Group::Carboxyl => 6,
+            Group::Ester => 5,
+            Group::Ether => return None,
+        };
+        Some(priority)
+    }
+}
+
+impl PartialOrd for Group {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        todo!()
     }
 }
 

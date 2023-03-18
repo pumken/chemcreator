@@ -163,7 +163,7 @@ pub(crate) fn endpoint_carbons(graph: &GridState) -> Fallible<Vec<&Cell>> {
 pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<Vec<bool>>> {
     if let Cell::None(_) = graph
         .get(pos)
-        .expect("pos should be a valid point on the graph.")
+        .expect("pos should be a valid point on the graph")
     {
         panic!(
             "Passed empty cell ({}, {}) to get_connected_cells",

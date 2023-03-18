@@ -11,6 +11,8 @@ use crate::spatial::{FromVec2, GridState};
 use ruscii::spatial::{Direction, Vec2};
 use thiserror::Error;
 
+/// Generates a [`Branch`] from the given `chain` containing all functional groups attached
+/// to it.
 pub(crate) fn link_groups(graph: &GridState, chain: Vec<Atom>) -> Fallible<Branch> {
     let mut branch = Branch::new(chain);
 
@@ -50,11 +52,10 @@ pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
 ///
 /// If a given [`GroupNode`] is not recognized, [`UnrecognizedGroup`] will be returned.
 fn convert_nodes(group_nodes: Vec<GroupNode>) -> Fallible<Vec<Substituent>> {
-    let mut groups = vec![];
-
-    for node in group_nodes {
-        groups.push(identify_single_bond_group(node)?)
-    }
+    let groups = group_nodes
+        .into_iter()
+        .map(identify_single_bond_group)
+        .collect::<Fallible<Vec<Group>>>()?;
 
     let new_groups = group_patterns(groups);
 
@@ -68,12 +69,12 @@ fn convert_nodes(group_nodes: Vec<GroupNode>) -> Fallible<Vec<Substituent>> {
 /// Returns [`UnrecognizedGroup`] if the structure is not valid.
 fn identify_single_bond_group(node: GroupNode) -> Fallible<Group> {
     let string = node.to_string();
-
     let out = match string.as_str() {
         "1O(1H)" => Hydroxyl,
         "2O" => Carbonyl,
         _ => return Err(UnrecognizedGroup),
     };
+
     Ok(out)
 }
 
@@ -89,6 +90,7 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
         }
         break;
     }
+
     let mut rest = groups
         .into_iter()
         .map(Substituent::Group)
@@ -140,17 +142,21 @@ pub(crate) fn group_node_tree(
 /// contracts are broken, this function will panic.
 fn next_directions(graph: &GridState, pos: Vec2, previous_pos: Vec2) -> Fallible<Vec<Direction>> {
     let ptr = Pointer::new(graph, pos);
-    let bonded = ptr.bonded()?;
-    let mut out = vec![];
-
-    for atom in bonded {
-        let result = match Direction::from_points(pos, atom.pos) {
-            Ok(it) => it,
-            Err(_) => return Err(Other("An unexpected error occurred (G149).")),
-        };
-        out.push(result)
-    }
-    out.retain(|&dir| dir != Direction::from_points(pos, previous_pos).unwrap());
+    let out = ptr
+        .bonded()?
+        .into_iter()
+        .map(|atom| {
+            Direction::from_points(pos, atom.pos)
+                .map_err(|_| Other("An unexpected error occurred (groups/next_directions)."))
+        })
+        .filter(|dir| {
+            if let Ok(it) = dir {
+                it != &Direction::from_points(pos, previous_pos).unwrap()
+            } else {
+                true
+            }
+        })
+        .collect::<Fallible<Vec<Direction>>>()?;
 
     Ok(out)
 }

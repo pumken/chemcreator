@@ -54,10 +54,7 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
 pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
     for atom in atoms {
         // this function eventually could be removed and incorporated into bonded() ?
-        let ptr = Pointer {
-            graph,
-            pos: atom.pos,
-        };
+        let ptr = Pointer::new(graph, atom.pos);
         let bond_count = match ptr.bond_count() {
             Ok(it) => it,
             Err(it) => panic!("{}", it),
@@ -100,7 +97,6 @@ mod tests {
             [0, 0; A(C)],
             [2, 0; A(C)]
         );
-
         let err = check_structure(&graph);
 
         assert!(matches!(err, Err(InvalidGraphError::Discontinuity)));

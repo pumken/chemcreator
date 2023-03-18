@@ -117,7 +117,7 @@ fn create_branches(
 /// If one of the bonds to the current cell is found to be dangling, an
 /// [`IncompleteBond`] will be returned.
 fn next_carbons(pos: Vec2, previous_pos: Option<Vec2>, graph: &GridState) -> Fallible<Vec<Atom>> {
-    let ptr = Pointer { graph, pos };
+    let ptr = Pointer::new(graph, pos);
     let mut out = ptr.bonded_carbons()?;
 
     if let Some(it) = previous_pos {
@@ -180,7 +180,7 @@ pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<
         graph: &GridState,
     ) -> Fallible<()> {
         accumulator[pos.x as usize][pos.y as usize] = true;
-        let ptr = Pointer { graph, pos };
+        let ptr = Pointer::new(graph, pos);
         for cell in ptr.connected() {
             if let Some(it) = previous_pos {
                 if cell.pos() == it {

@@ -24,10 +24,7 @@ pub(crate) struct Pointer<'a> {
 
 impl<'a> Pointer<'a> {
     pub(crate) fn new(graph: &'a GridState, pos: Vec2) -> Pointer<'a> {
-        Pointer {
-            graph,
-            pos,
-        }
+        Pointer { graph, pos }
     }
 
     /// Returns a reference to the cell currently pointed to.

@@ -89,7 +89,9 @@ impl GridState {
             element,
             pos: self.cursor,
         });
-        *self.current_cell_mut().expect("cursor should be within bounds") = atom;
+        *self
+            .current_cell_mut()
+            .expect("cursor should be within bounds") = atom;
     }
 
     /// Sets the current [`Cell`] pointed to by the cursor to an [`Cell::Bond`] with the given
@@ -100,13 +102,17 @@ impl GridState {
             order,
             orient: if self.atom_adjacent() { Horiz } else { Vert },
         });
-        *self.current_cell_mut().expect("cursor should be within bounds") = bond;
+        *self
+            .current_cell_mut()
+            .expect("cursor should be within bounds") = bond;
     }
 
     /// Sets the current [`Cell`] pointed to by the cursor to [`Cell::None`].
     pub(crate) fn clear_cell(&mut self) {
         let empty_cell = Cell::None(self.cursor);
-        *self.current_cell_mut().expect("cursor should be within bounds") = empty_cell;
+        *self
+            .current_cell_mut()
+            .expect("cursor should be within bounds") = empty_cell;
     }
 
     /// Checks if the [`GridState`] is empty, i.e., all the cells it contains are set to
@@ -144,7 +150,8 @@ impl GridState {
 
     /// Returns the number of [`Cell`]s that satisfy the given `predicate`.
     pub fn count(&self, predicate: fn(&Cell) -> bool) -> i32 {
-        self.cells.iter()
+        self.cells
+            .iter()
             .flatten()
             .filter(|&cell| predicate(cell))
             .count() as i32
@@ -158,7 +165,8 @@ impl GridState {
 
     /// Returns a [`Vec`] of references to all [`Cell`]s that satisfy the given `predicate`.
     pub fn find_all(&self, predicate: fn(&Cell) -> bool) -> Vec<&Cell> {
-        self.cells.iter()
+        self.cells
+            .iter()
             .flatten()
             .filter(|&cell| predicate(cell))
             .collect::<Vec<&Cell>>()
@@ -167,14 +175,22 @@ impl GridState {
     /// Determines if there are any [`Atom`]s that are horizontally adjacent to the current
     /// [`Cell`].
     fn atom_adjacent(&self) -> bool {
-        let mut lptr = Pointer::new(self, self.current_cell()
-            .expect("current cell should be within bounds").pos());
+        let mut lptr = Pointer::new(
+            self,
+            self.current_cell()
+                .expect("current cell should be within bounds")
+                .pos(),
+        );
         let left = {
             lptr.move_ptr(Direction::Left);
             lptr.borrow()
         };
-        let mut rptr = Pointer::new(self, self.current_cell()
-            .expect("current cell should be within bounds").pos());
+        let mut rptr = Pointer::new(
+            self,
+            self.current_cell()
+                .expect("current cell should be within bounds")
+                .pos(),
+        );
         let right = {
             rptr.move_ptr(Direction::Right);
             rptr.borrow()

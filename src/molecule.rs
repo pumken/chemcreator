@@ -2,13 +2,13 @@
 //!
 //! The `molecule` module provides functionality for representing molecular components.
 
-use std::fmt;
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Element::{C, H, O};
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{LightGrey, Red, White};
+use std::fmt;
 use std::fmt::{Display, Formatter};
 
 /// Represents a type of functional group on a molecule.
@@ -229,10 +229,14 @@ pub enum Substituent {
 
 impl Display for Substituent {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{}", match self {
-            Substituent::Branch(_) => "".to_string(),
-            Substituent::Group(it) => it.to_string(),
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Substituent::Branch(_) => "".to_string(),
+                Substituent::Group(it) => it.to_string(),
+            }
+        )
     }
 }
 
@@ -244,13 +248,17 @@ pub struct Branch {
 
 impl Display for Branch {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        let out = self.groups.iter()
+        let out = self
+            .groups
+            .iter()
             .enumerate()
             .map(|(index, it)| {
-                format!("{index}: {}", it.iter()
-                    .map(|it| it.to_string())
-                    .collect::<Vec<String>>()
-                    .join(", ")
+                format!(
+                    "{index}: {}",
+                    it.iter()
+                        .map(|it| it.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", ")
                 )
             })
             .collect::<Vec<String>>()
@@ -284,8 +292,7 @@ impl Display for GroupNode {
 
         let mut tree = self.next.clone();
         tree.sort_by_key(|node| node.to_string());
-        let out = tree.iter()
-            .fold(primary, |a, b| format!("{a}({b})"));
+        let out = tree.iter().fold(primary, |a, b| format!("{a}({b})"));
         write!(f, "{}", out)
     }
 }

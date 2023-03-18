@@ -11,11 +11,6 @@ use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
 
-pub(crate) fn debug_chain(graph: &GridState) -> Fallible<Vec<Atom>> {
-    let all_chains = get_all_chains(graph)?;
-    longest_chain(all_chains)
-}
-
 /// Gets the longest of the given [`Vec`] of chains, assuming that it is non-empty.
 ///
 /// ## Errors
@@ -146,7 +141,7 @@ pub(crate) fn endpoint_carbons(graph: &GridState) -> Fallible<Vec<&Cell>> {
     let mut out = vec![];
 
     for carbon in all_carbons {
-        let ptr = Pointer::new(carbon, graph);
+        let ptr = Pointer::new(graph, carbon.pos());
         if ptr.bonded_carbon_count()? <= 1 {
             out.push(carbon);
         }

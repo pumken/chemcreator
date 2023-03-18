@@ -2,7 +2,6 @@
 //!
 //! The `input` module contains functions that interpret user input.
 
-use crate::chain::debug_chain;
 use crate::groups::debug_branches;
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Element::{C, H, O};
@@ -28,14 +27,6 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
                 state.key = "O";
             }
             KeyEvent::Pressed(Key::F5) => {
-                state.debug = match debug_chain(graph) {
-                    Ok(it) => it.iter().fold("".to_string(), |a, b| {
-                        format!("{a} ({}, {}),", b.pos.x, b.pos.y)
-                    }),
-                    Err(it) => it.to_string(),
-                };
-            }
-            KeyEvent::Pressed(Key::F6) => {
                 state.debug = match debug_branches(graph) {
                     Ok(it) => it.to_string(),
                     Err(it) => it.to_string(),
@@ -54,7 +45,7 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
                 state.key = "3";
             }
             KeyEvent::Pressed(Key::Backspace) => {
-                graph.clear();
+                graph.clear_cell();
                 state.key = "Backspace";
             }
             KeyEvent::Pressed(Key::Right) => {

@@ -42,7 +42,7 @@ fn main() {
                     Err(it) => ("unidentified".to_string(), it.to_string()),
                 };
                 state.pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
-                state.sym = match graph.current_cell() {
+                state.sym = match graph.current_cell().expect("current cell should be within bounds") {
                     Cell::Atom(it) => {
                         format!("Atom {}", it.symbol())
                     }

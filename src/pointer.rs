@@ -16,16 +16,17 @@ use ruscii::spatial::{Direction, Vec2};
 ///
 /// > There are only two hard things in Computer Science: cache invalidation and naming things.
 /// > — Phil Karlton
+#[derive(Debug, Clone)]
 pub(crate) struct Pointer<'a> {
     pub(crate) graph: &'a GridState,
     pub(crate) pos: Vec2,
 }
 
 impl<'a> Pointer<'a> {
-    pub(crate) fn new(cell: &Cell, graph: &'a GridState) -> Pointer<'a> {
+    pub(crate) fn new(graph: &'a GridState, pos: Vec2) -> Pointer<'a> {
         Pointer {
             graph,
-            pos: cell.pos(),
+            pos,
         }
     }
 

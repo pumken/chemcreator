@@ -13,15 +13,15 @@ use std::cmp::Ordering;
 /// Represents the state of a grid, including all its [Cell]s and the position of the cursor.
 #[derive(Clone, Debug)]
 pub struct GridState {
-    pub(crate) cells: Vec<Vec<Cell>>,
-    pub(crate) size: Vec2,
-    pub(crate) cursor: Vec2,
+    pub cells: Vec<Vec<Cell>>,
+    pub size: Vec2,
+    pub cursor: Vec2,
 }
 
 impl GridState {
-    /// Creates a new [GridState] with the given `width` and `height` populated by [Cell]s that
-    /// all contain [Cell::None] and with the cursor set to the center.
-    pub(crate) fn new(width: usize, height: usize) -> GridState {
+    /// Creates a new [`GridState`] with the given `width` and `height` populated by [`Cell`]s that
+    /// all contain [`Cell::None`] and with the cursor set to the center.
+    pub fn new(width: usize, height: usize) -> GridState {
         let mut cells = vec![];
 
         for x in 0usize..width {
@@ -36,15 +36,15 @@ impl GridState {
         GridState {
             cells,
             size: Vec2::xy(width, height),
-            cursor: Vec2::xy(width / 2, height / 2),
+            cursor: Vec2::xy((width - 1) / 2, (height - 1) / 2),
         }
     }
 
-    /// Returns a reference to the cell at the given `pos`.
+    /// Returns a reference to the [`Cell`] at the given `pos`.
     ///
     /// ## Errors
     ///
-    /// If a `pos` is not a valid point within the graph, this function returns [Err].
+    /// If the `pos` is not a valid point within the graph, this function returns [`Err`].
     pub fn get(&self, pos: Vec2) -> Result<&Cell, String> {
         if !self.contains(pos) {
             return Err(format!("Invalid access of graph at ({}, {})", pos.x, pos.y));
@@ -52,35 +52,71 @@ impl GridState {
         Ok(&self.cells[pos.x as usize][pos.y as usize])
     }
 
-    /// Sets the current [Cell] pointed to by the cursor to a [Cell::Atom] with the given [Element].
-    pub fn put_atom(&mut self, element: Element) {
-        let cursor_pos = (self.cursor.x as usize, self.cursor.y as usize);
-        let new_atom = Cell::Atom(Atom {
-            element,
-            pos: cursor_pos.to_vec2(),
-        });
-        self.cells[cursor_pos.0][cursor_pos.1] = new_atom;
+    /// Returns a reference to the [`Cell`] at the given `pos`.
+    ///
+    /// ## Errors
+    ///
+    /// If the `pos` is not a valid point within the graph, this function returns [`Err`].
+    fn get_mut(&mut self, pos: Vec2) -> Result<&mut Cell, String> {
+        if !self.contains(pos) {
+            return Err(format!("Invalid access of graph at ({}, {})", pos.x, pos.y));
+        }
+        Ok(&mut self.cells[pos.x as usize][pos.y as usize])
     }
 
-    /// Sets the current [Cell] pointed to by the cursor to an [Cell::Bond] with the given
-    /// [BondOrder].
+    /// Returns a reference to the [`Cell`] to which the cursor is currently pointing.
+    ///
+    /// ## Errors
+    ///
+    /// If the `pos` is not a valid point within the graph, this function returns [`Err`].
+    pub fn current_cell(&self) -> Result<&Cell, String> {
+        self.get(self.cursor)
+    }
+
+    /// Returns a mutable reference to the [`Cell`] to which the cursor is currently pointing.
+    ///
+    /// ## Errors
+    ///
+    /// If the `pos` is not a valid point within the graph, this function returns [`Err`].
+    fn current_cell_mut(&mut self) -> Result<&mut Cell, String> {
+        self.get_mut(self.cursor)
+    }
+
+    /// Sets the current [`Cell`] pointed to by the cursor to a [`Cell::Atom`] with the given
+    /// [`Element`].
+    pub fn put_atom(&mut self, element: Element) {
+        let atom = Cell::Atom(Atom {
+            element,
+            pos: self.cursor,
+        });
+        *self
+            .current_cell_mut()
+            .expect("cursor should be within bounds") = atom;
+    }
+
+    /// Sets the current [`Cell`] pointed to by the cursor to an [`Cell::Bond`] with the given
+    /// [`BondOrder`].
     pub fn put_bond(&mut self, order: BondOrder) {
-        let cursor_pos = (self.cursor.x as usize, self.cursor.y as usize);
-        let new_atom = Cell::Bond(Bond {
-            pos: cursor_pos.to_vec2(),
+        let bond = Cell::Bond(Bond {
+            pos: self.cursor,
             order,
             orient: if self.atom_adjacent() { Horiz } else { Vert },
         });
-        self.cells[cursor_pos.0][cursor_pos.1] = new_atom;
+        *self
+            .current_cell_mut()
+            .expect("cursor should be within bounds") = bond;
     }
 
-    /// Sets the current [Cell] pointed to by the cursor to [Cell::None].
-    pub(crate) fn clear(&mut self) {
-        let cursor_pos = (self.cursor.x as usize, self.cursor.y as usize);
-        let new_none = Cell::None(cursor_pos.to_vec2());
-        self.cells[cursor_pos.0][cursor_pos.1] = new_none;
+    /// Sets the current [`Cell`] pointed to by the cursor to [`Cell::None`].
+    pub(crate) fn clear_cell(&mut self) {
+        let empty_cell = Cell::None(self.cursor);
+        *self
+            .current_cell_mut()
+            .expect("cursor should be within bounds") = empty_cell;
     }
 
+    /// Checks if the [`GridState`] is empty, i.e., all the cells it contains are set to
+    /// [`Cell::None`].
     pub fn is_empty(&self) -> bool {
         for cell in self.cells.iter().flatten() {
             match cell {
@@ -99,11 +135,6 @@ impl GridState {
         })
     }
 
-    /// Returns a reference to the [Cell] to which the cursor is currently pointing.
-    pub(crate) fn current_cell(&self) -> &Cell {
-        &self.cells[self.cursor.x as usize][self.cursor.y as usize]
-    }
-
     /// Moves the cursor safely in the given `direction`.
     pub fn move_cursor(&mut self, direction: Direction) {
         let displacement = direction.to_vec2();
@@ -112,20 +143,18 @@ impl GridState {
         }
     }
 
-    /// Returns whether the given position is a valid point on the grid or not.
-    pub(crate) fn contains(&self, pos: Vec2) -> bool {
+    /// Returns whether the given `pos` is a valid point on the grid or not.
+    pub fn contains(&self, pos: Vec2) -> bool {
         pos.x >= 0 && pos.y >= 0 && pos.x < self.size.x && pos.y < self.size.y
     }
 
-    /// Returns the number of [Cell]s that satisfy the given `predicate`.
-    pub(crate) fn count(&self, predicate: fn(&Cell) -> bool) -> i32 {
-        let mut count = 0;
-        for cell in self.cells.iter().flatten() {
-            if predicate(cell) {
-                count += 1;
-            }
-        }
-        count
+    /// Returns the number of [`Cell`]s that satisfy the given `predicate`.
+    pub fn count(&self, predicate: fn(&Cell) -> bool) -> i32 {
+        self.cells
+            .iter()
+            .flatten()
+            .filter(|&cell| predicate(cell))
+            .count() as i32
     }
 
     /// Returns a reference to the first occurrence of a [`Cell`] that satisfies the given
@@ -134,38 +163,40 @@ impl GridState {
         self.cells.iter().flatten().find(|&cell| predicate(cell))
     }
 
-    /// Returns a [`Vec`] of references to all [`Cells`] that satisfy the given `predicate`.
+    /// Returns a [`Vec`] of references to all [`Cell`]s that satisfy the given `predicate`.
     pub fn find_all(&self, predicate: fn(&Cell) -> bool) -> Vec<&Cell> {
-        let mut out = vec![];
-
-        for cell in self.cells.iter().flatten() {
-            if predicate(cell) {
-                out.push(cell);
-            }
-        }
-        out
+        self.cells
+            .iter()
+            .flatten()
+            .filter(|&cell| predicate(cell))
+            .collect::<Vec<&Cell>>()
     }
 
-    /// Determines if there are any [Atom]s that are horizontally adjacent to the current [Cell].
+    /// Determines if there are any [`Atom`]s that are horizontally adjacent to the current
+    /// [`Cell`].
     fn atom_adjacent(&self) -> bool {
-        let mut lptr = Pointer::new(self.current_cell(), self);
+        let mut lptr = Pointer::new(
+            self,
+            self.current_cell()
+                .expect("current cell should be within bounds")
+                .pos(),
+        );
         let left = {
             lptr.move_ptr(Direction::Left);
             lptr.borrow()
         };
-        let mut rptr = Pointer::new(self.current_cell(), self);
+        let mut rptr = Pointer::new(
+            self,
+            self.current_cell()
+                .expect("current cell should be within bounds")
+                .pos(),
+        );
         let right = {
             rptr.move_ptr(Direction::Right);
             rptr.borrow()
         };
 
-        if let Ok(Cell::Atom(_)) = left {
-            return true;
-        }
-        if let Ok(Cell::Atom(_)) = right {
-            return true;
-        }
-        false
+        matches!(left, Ok(Cell::Atom(_))) || matches!(right, Ok(Cell::Atom(_)))
     }
 
     /// A temporary function that identifies the molecule in the [GridState] by counting
@@ -215,6 +246,7 @@ impl GridState {
     }
 }
 
+// Implemented to ignore cursor
 impl PartialEq for GridState {
     fn eq(&self, other: &Self) -> bool {
         if self.size != other.size {
@@ -236,13 +268,6 @@ pub(crate) trait ToVec2 {
     fn to_vec2(self) -> Vec2;
 }
 
-impl ToVec2 for (usize, usize) {
-    /// Converts the tuple to a [`Vec2`].
-    fn to_vec2(self) -> Vec2 {
-        Vec2::xy(self.0, self.1)
-    }
-}
-
 impl ToVec2 for Direction {
     fn to_vec2(self) -> Vec2 {
         match self {
@@ -253,10 +278,6 @@ impl ToVec2 for Direction {
             Direction::None => Vec2::zero(),
         }
     }
-}
-
-pub(crate) trait Cellular {
-    fn pos(&self) -> Vec2;
 }
 
 /// A trait made specifically for [`Vec2`] and [`Direction`] to invert the graph so that the origin
@@ -397,12 +418,6 @@ mod tests {
                 pos: Vec2::xy(1, 0)
             })
         )
-    }
-
-    #[test]
-    fn to_vec2_converts_correctly() {
-        let x = (8usize, 2usize).to_vec2();
-        assert_eq!(x, Vec2::xy(8, 2));
     }
 
     #[test]

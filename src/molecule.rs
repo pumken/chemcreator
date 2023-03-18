@@ -5,7 +5,6 @@
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Element::{C, H, O};
-use crate::spatial::Cellular;
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{LightGrey, Red, White};
@@ -73,7 +72,7 @@ impl Display for Group {
             Group::Ester => "ester",
             Group::Ether => "ether",
         };
-        write!(f, "{}", str)
+        write!(f, "{str}")
     }
 }
 
@@ -135,7 +134,7 @@ impl Cell {
         }
     }
 
-    pub(crate) fn pos(&self) -> Vec2 {
+    pub fn pos(&self) -> Vec2 {
         match self {
             Cell::Atom(it) => it.pos,
             Cell::Bond(it) => it.pos,
@@ -143,19 +142,19 @@ impl Cell {
         }
     }
 
-    pub(crate) fn is_atom(&self) -> bool {
+    pub fn is_atom(&self) -> bool {
         matches!(self, Cell::Atom(_))
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Atom {
-    pub(crate) element: Element,
-    pub(crate) pos: Vec2,
+    pub element: Element,
+    pub pos: Vec2,
 }
 
 impl Atom {
-    pub(crate) const fn symbol(&self) -> &str {
+    pub const fn symbol(&self) -> &str {
         match self.element {
             C => "[C]",
             H => "[H]",
@@ -173,7 +172,7 @@ pub enum Element {
 
 impl Element {
     /// Returns the number of bonds the current [`Element`] should have.
-    pub(crate) const fn bond_number(&self) -> u8 {
+    pub const fn bond_number(&self) -> u8 {
         match *self {
             C => 4,
             H => 1,
@@ -181,7 +180,8 @@ impl Element {
         }
     }
 
-    pub(crate) const fn id(&self) -> &str {
+    /// Returns the atomic symbol of the [`Element`].
+    pub const fn id(&self) -> &str {
         match *self {
             C => "C",
             H => "H",
@@ -191,7 +191,7 @@ impl Element {
 }
 
 impl Display for Element {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -204,15 +204,15 @@ impl Display for Element {
     }
 }
 
-#[derive(Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Bond {
-    pub(crate) pos: Vec2,
-    pub(crate) order: BondOrder,
-    pub(crate) orient: BondOrientation,
+    pub pos: Vec2,
+    pub order: BondOrder,
+    pub orient: BondOrientation,
 }
 
 impl Bond {
-    pub(crate) fn symbol(&self) -> &str {
+    pub fn symbol(&self) -> &str {
         match (&self.order, &self.orient) {
             (Single, Horiz) => "———",
             (Single, Vert) => " | ",
@@ -221,12 +221,6 @@ impl Bond {
             (Triple, Horiz) => "≡≡≡",
             (Triple, Vert) => " T ",
         }
-    }
-}
-
-impl Cellular for Bond {
-    fn pos(&self) -> Vec2 {
-        self.pos
     }
 }
 
@@ -252,7 +246,7 @@ impl BondOrder {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum BondOrientation {
+pub enum BondOrientation {
     Vert,
     Horiz,
 }
@@ -272,49 +266,49 @@ impl BondOrientation {
     }
 }
 
-impl Clone for Bond {
-    fn clone(&self) -> Bond {
-        Bond {
-            pos: self.pos,
-            order: self.order,
-            orient: self.orient,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Substituent {
     Branch(Branch),
     Group(Group),
 }
 
-impl ToString for Substituent {
-    fn to_string(&self) -> String {
-        match self {
-            Substituent::Branch(_) => "".to_string(),
-            Substituent::Group(it) => it.to_string(),
-        }
+impl Display for Substituent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(
+            f,
+            "{}",
+            match self {
+                Substituent::Branch(_) => "".to_string(),
+                Substituent::Group(it) => it.to_string(),
+            }
+        )
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Branch {
     pub chain: Vec<Atom>,
     pub groups: Vec<Vec<Substituent>>,
 }
 
-impl ToString for Branch {
-    fn to_string(&self) -> String {
-        let mut index = 0;
-        self.groups.iter().fold("".to_string(), |a, b| {
-            let str = format!(
-                "{a}{index}: {} ",
-                b.iter()
-                    .fold("".to_string(), |c, d| { format!("{c}{} ", d.to_string()) })
-            );
-            index += 1;
-            str
-        })
+impl Display for Branch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+        let out = self
+            .groups
+            .iter()
+            .enumerate()
+            .map(|(index, it)| {
+                format!(
+                    "{index}: {}",
+                    it.iter()
+                        .map(|it| it.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                )
+            })
+            .collect::<Vec<String>>()
+            .join("; ");
+        write!(f, "{out}")
     }
 }
 
@@ -337,14 +331,14 @@ pub struct GroupNode {
     pub next: Vec<GroupNode>,
 }
 
-impl ToString for GroupNode {
-    fn to_string(&self) -> String {
-        let start = format!("{}{}", self.bond.id(), self.atom.id());
+impl Display for GroupNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+        let primary = format!("{}{}", self.bond.id(), self.atom.id());
 
-        let mut mid = self.next.clone();
-        mid.sort_by_key(|a| a.to_string());
-        mid.iter()
-            .fold(start, |a, b| format!("{a}({})", b.to_string()))
+        let mut tree = self.next.clone();
+        tree.sort_by_key(|node| node.to_string());
+        let out = tree.iter().fold(primary, |a, b| format!("{a}({b})"));
+        write!(f, "{}", out)
     }
 }
 
@@ -412,7 +406,7 @@ mod tests {
             ],
         };
 
-        assert_eq!(branch.to_string(), "0: hydroxyl carbonyl  1: bromo  ")
+        assert_eq!(branch.to_string(), "0: hydroxyl, carbonyl; 1: bromo")
     }
 
     #[test]

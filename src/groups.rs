@@ -4,7 +4,9 @@
 
 use crate::chain;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
-use crate::molecule::Group::{Alkene, Alkyne, Carbonyl, Carboxyl, Hydroxyl};
+use crate::molecule::Group::{
+    Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydroxyl, Iodo,
+};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};
@@ -70,6 +72,10 @@ fn convert_nodes(group_nodes: Vec<GroupNode>) -> Fallible<Vec<Substituent>> {
 fn identify_single_bond_group(node: GroupNode) -> Fallible<Group> {
     let string = node.to_string();
     let out = match string.as_str() {
+        "1B" => Bromo,
+        "1L" => Chloro,
+        "1F" => Fluoro,
+        "1I" => Iodo,
         "1O(1H)" => Hydroxyl,
         "2O" => Carbonyl,
         "2C" => Alkene,
@@ -222,8 +228,6 @@ pub enum InvalidGraphError {
     OverfilledValence(Vec2),
     #[error("Bond at ({}, {}) is incomplete.", .0.x, .0.y)]
     IncompleteBond(Vec2),
-    #[error("This combination of groups is not supported.")]
-    UnsupportedGroups,
     #[error("Unrecognized group.")]
     UnrecognizedGroup,
     #[error("{}", .0)]
@@ -235,15 +239,16 @@ mod tests {
     use super::*;
     use crate::graph_with;
     use crate::molecule::BondOrder::{Double, Single};
-    use crate::molecule::Element::{C, H, O};
+    use crate::molecule::Element::{Br, Cl, C, F, H, I, O};
     use crate::molecule::Group::{Bromo, Ether};
+    use crate::spatial::EnumAll;
     use crate::test_utils::GW::{A, B};
 
     #[test]
     fn link_groups_recognizes_groups() {
         let graph = graph_with!(6, 3,
             [0, 1; A(H)],
-            [1, 0; A(H)], [1, 1; A(C)], [1, 2; A(H)],
+            [1, 0; A(H)], [1, 1; A(C)], [1, 2; A(Cl)],
             [2, 1; B(Single)],
             [3, 0; A(H)], [3, 1; A(C)], [3, 2; A(H)],
             [4, 1; A(O)],
@@ -262,7 +267,10 @@ mod tests {
         let branch = link_groups(&graph, chain.clone()).unwrap();
         let expected = Branch {
             chain,
-            groups: vec![vec![], vec![Substituent::Group(Hydroxyl)]],
+            groups: vec![
+                vec![Substituent::Group(Chloro)],
+                vec![Substituent::Group(Hydroxyl)],
+            ],
         };
 
         assert_eq!(branch, expected);
@@ -417,5 +425,26 @@ mod tests {
         let directions = group_directions(&graph, &branch, 0usize).unwrap();
 
         assert_eq!(directions, vec![Direction::Up, Direction::Down]);
+    }
+
+    #[test]
+    fn group_directions_recognizes_halogens() {
+        let graph = graph_with!(3, 3,
+            [0, 1; A(Cl)],
+            [1, 0; A(Br)],
+            [1, 1; A(C)],
+            [1, 2; A(I)],
+            [2, 1; A(F)]
+        );
+        let branch = Branch {
+            chain: vec![Atom {
+                element: C,
+                pos: Vec2::xy(1, 1),
+            }],
+            groups: vec![],
+        };
+        let directions = group_directions(&graph, &branch, 0usize).unwrap();
+
+        assert_eq!(directions, Direction::all());
     }
 }

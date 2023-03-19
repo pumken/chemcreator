@@ -4,10 +4,10 @@
 
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
-use crate::molecule::Element::{C, H, O};
+use crate::molecule::Element::{C, H, N, O};
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
-use ruscii::terminal::Color::{LightGrey, Red, White};
+use ruscii::terminal::Color::{Blue, Green, LightGrey, Magenta, Red, White, Xterm, Yellow};
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -46,38 +46,6 @@ pub enum Group {
     Ether,
 }
 
-impl Display for Group {
-    /// Displays the ionic prefix for the current [`Group`].
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        let str = match *self {
-            Group::Alkane => "an",
-            Group::Alkene => "en",
-            Group::Alkyne => "yn",
-            Group::Methyl => "methyl",
-            Group::Ethyl => "ethyl",
-            Group::Propyl => "propyl",
-            Group::Isopropyl => "isopropyl",
-            Group::Butyl => "butyl",
-            Group::Pentyl => "pentyl",
-            Group::Hexyl => "hexyl",
-            Group::Heptyl => "heptyl",
-            Group::Octyl => "octyl",
-            Group::Nonyl => "nonyl",
-            Group::Decyl => "decyl",
-            Group::Bromo => "bromo",
-            Group::Chloro => "chloro",
-            Group::Fluoro => "fluoro",
-            Group::Iodo => "iodo",
-            Group::Hydroxyl => "hydroxyl",
-            Group::Carbonyl => "oxo",
-            Group::Carboxyl => "carboxyl",
-            Group::Ester => "ester",
-            Group::Ether => "ether",
-        };
-        write!(f, "{str}")
-    }
-}
-
 impl Group {
     /// Returns the priority level of each functional group for identifying the main functional
     /// group of a molecule.
@@ -111,6 +79,38 @@ impl Group {
 
     pub const fn is_chain_group(self) -> bool {
         matches!(self, Group::Alkane | Group::Alkene | Group::Alkyne)
+    }
+}
+
+impl Display for Group {
+    /// Displays the ionic prefix for the current [`Group`].
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+        let str = match *self {
+            Group::Alkane => "an",
+            Group::Alkene => "en",
+            Group::Alkyne => "yn",
+            Group::Methyl => "methyl",
+            Group::Ethyl => "ethyl",
+            Group::Propyl => "propyl",
+            Group::Isopropyl => "isopropyl",
+            Group::Butyl => "butyl",
+            Group::Pentyl => "pentyl",
+            Group::Hexyl => "hexyl",
+            Group::Heptyl => "heptyl",
+            Group::Octyl => "octyl",
+            Group::Nonyl => "nonyl",
+            Group::Decyl => "decyl",
+            Group::Bromo => "bromo",
+            Group::Chloro => "chloro",
+            Group::Fluoro => "fluoro",
+            Group::Iodo => "iodo",
+            Group::Hydroxyl => "hydroxyl",
+            Group::Carbonyl => "oxo",
+            Group::Carboxyl => "carboxyl",
+            Group::Ester => "ester",
+            Group::Ether => "ether",
+        };
+        write!(f, "{str}")
     }
 }
 
@@ -155,7 +155,12 @@ impl Cell {
     pub fn color(&self) -> Color {
         match &self {
             Cell::Atom(it) => match it.element {
+                Element::Br => Xterm(1),
                 C => LightGrey,
+                Element::Cl => Green,
+                Element::F => Yellow,
+                Element::I => Magenta,
+                N => Blue,
                 O => Red,
                 _ => White,
             },
@@ -182,6 +187,21 @@ pub struct Atom {
     pub pos: Vec2,
 }
 
+impl Atom {
+    pub const fn symbol(&self) -> &str {
+        match self.element {
+            Element::Br => "[Br]",
+            C => "[C]",
+            Element::Cl => "[Cl]",
+            Element::F => "[F]",
+            H => "[H]",
+            Element::I => "[I]",
+            N => "[N]",
+            O => "[O]",
+        }
+    }
+}
+
 impl Default for Atom {
     fn default() -> Self {
         Atom {
@@ -191,20 +211,15 @@ impl Default for Atom {
     }
 }
 
-impl Atom {
-    pub const fn symbol(&self) -> &str {
-        match self.element {
-            C => "[C]",
-            H => "[H]",
-            O => "[O]",
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Element {
+    Br,
     C,
+    Cl,
+    F,
     H,
+    I,
+    N,
     O,
 }
 
@@ -213,16 +228,22 @@ impl Element {
     pub const fn bond_number(&self) -> u8 {
         match *self {
             C => 4,
-            H => 1,
+            N => 3,
             O => 2,
+            H | Element::Br | Element::Cl | Element::F | Element::I => 1,
         }
     }
 
-    /// Returns the atomic symbol of the [`Element`].
+    /// Returns the single-character identifier of the [`Element`].
     pub const fn id(&self) -> &str {
         match *self {
+            Element::Br => "B",
             C => "C",
+            Element::Cl => "L",
+            Element::F => "F",
             H => "H",
+            Element::I => "I",
+            N => "N",
             O => "O",
         }
     }
@@ -233,9 +254,14 @@ impl Display for Element {
         write!(
             f,
             "{}",
-            match &self {
+            match self {
+                Element::Br => "Bromine",
                 C => "Carbon",
+                Element::Cl => "Chlorine",
+                Element::F => "Fluorine",
                 H => "Hydrogen",
+                Element::I => "Iodine",
+                N => "Nitrogen",
                 O => "Oxygen",
             }
         )
@@ -289,14 +315,14 @@ pub enum BondOrientation {
     Horiz,
 }
 
-impl BondOrientation {
+impl From<Direction> for BondOrientation {
     /// Returns the related [`BondOrientation`] to the given `direction`.
     ///
     /// ## Panics
     ///
     /// If [`Direction::None`] is passed to this function.
-    pub const fn from_direction(direction: Direction) -> BondOrientation {
-        match direction {
+    fn from(value: Direction) -> BondOrientation {
+        match value {
             Direction::Up | Direction::Down => Vert,
             Direction::Left | Direction::Right => Horiz,
             Direction::None => panic!("Attempted to pass Direction::None to from_direction."),
@@ -327,6 +353,18 @@ impl Display for Substituent {
 pub struct Branch {
     pub chain: Vec<Atom>,
     pub groups: Vec<Vec<Substituent>>,
+}
+
+impl Branch {
+    /// Creates a new [`Branch`] with the given `chain` and with a `groups` field with the same
+    /// capacity as the `chain`.
+    pub fn new(chain: Vec<Atom>) -> Branch {
+        let len = chain.len();
+        Branch {
+            chain,
+            groups: Vec::with_capacity(len),
+        }
+    }
 }
 
 impl Display for Branch {
@@ -370,18 +408,6 @@ impl FromStr for Branch {
             groups,
         };
         Ok(out)
-    }
-}
-
-impl Branch {
-    /// Creates a new [`Branch`] with the given `chain` and with a `groups` field with the same
-    /// capacity as the `chain`.
-    pub fn new(chain: Vec<Atom>) -> Branch {
-        let len = chain.len();
-        Branch {
-            chain,
-            groups: Vec::with_capacity(len),
-        }
     }
 }
 

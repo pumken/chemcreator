@@ -105,7 +105,7 @@ impl<'a> Pointer<'a> {
             match adjacent_cell {
                 Ok(Cell::Atom(_)) => out.push(self.traverse_bond(direction)?),
                 Ok(Cell::Bond(it)) => {
-                    if it.orient == BondOrientation::from_direction(direction) {
+                    if it.orient == BondOrientation::from(direction) {
                         out.push(self.traverse_bond(direction)?)
                     }
                 }
@@ -173,7 +173,7 @@ impl<'a> Pointer<'a> {
             match traversal_ptr.borrow() {
                 Ok(Cell::Atom(it)) => break Ok(it.to_owned()),
                 Ok(Cell::Bond(it)) => {
-                    if it.orient == BondOrientation::from_direction(direction) {
+                    if it.orient == BondOrientation::from(direction) {
                         continue;
                     } else {
                         break Err(IncompleteBond(traversal_ptr.pos));

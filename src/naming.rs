@@ -5,6 +5,7 @@
 
 use crate::groups::Fallible;
 use crate::groups::InvalidGraphError::Other;
+use crate::molecule::Group::Alkane;
 use crate::molecule::{Branch, Cell, Group, Substituent};
 use crate::spatial::GridState;
 use crate::{chain, groups, validation};
@@ -170,24 +171,31 @@ impl GroupCollection {
         }
     }
 
-    pub fn primary_group(&self) -> Option<Group> {
-        self.collection
+    pub fn primary_group(&self) -> Group {
+        let primary = self
+            .collection
             .iter()
             .map(|fragment| fragment.group)
-            .max_by_key(|&group| group.priority())
+            .filter(|&group| group.priority().is_some())
+            .max_by_key(|&group| group.priority());
+
+        match primary {
+            None => Alkane,
+            Some(it) => it,
+        }
     }
 
     pub fn primary_group_fragment(&self) -> GroupFragment {
         self.collection
             .iter()
-            .find(|&fragment| fragment.group == self.primary_group().unwrap())
+            .find(|&fragment| fragment.group == self.primary_group())
             .map_or_else(GroupFragment::default, GroupFragment::to_owned)
     }
 
     pub fn secondary_group_fragments(&self) -> Vec<GroupFragment> {
         self.collection
             .iter()
-            .filter(|&fragment| fragment.group != self.primary_group().unwrap())
+            .filter(|&fragment| fragment.group != self.primary_group())
             .filter(|&fragment| !fragment.group.is_chain_group())
             .map(GroupFragment::to_owned)
             .collect::<Vec<GroupFragment>>()
@@ -218,7 +226,7 @@ impl Default for GroupFragment {
     fn default() -> Self {
         GroupFragment {
             locants: vec![0],
-            group: Group::Alkane,
+            group: Alkane,
         }
     }
 }
@@ -245,7 +253,7 @@ enum NamingError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::molecule::Group::{Bromo, Carbonyl, Hydroxyl, Iodo};
+    use crate::molecule::Group::{Bromo, Carbonyl, Chloro, Hydroxyl, Iodo};
     use std::str::FromStr;
 
     #[test]
@@ -271,6 +279,17 @@ mod tests {
         ];
 
         assert_eq!(groups.collection, expected);
+    }
+
+    #[test]
+    fn primary_group_doesnt_ignore_halogens() {
+        let collection = GroupCollection {
+            collection: vec![
+                GroupFragment::new(vec![0], Bromo),
+                GroupFragment::new(vec![0], Chloro),
+            ],
+        };
+        assert_eq!(collection.primary_group(), Alkane);
     }
 
     #[test]

@@ -4,7 +4,6 @@
 //! the user interacts, including the [`GridState`] struct.
 
 use crate::molecule::BondOrientation::{Horiz, Vert};
-use crate::molecule::Element::{C, H};
 use crate::molecule::{Atom, Bond, BondOrder, Cell, Element};
 use crate::pointer::Pointer;
 use ruscii::spatial::{Direction, Vec2};
@@ -148,15 +147,6 @@ impl GridState {
         pos.x >= 0 && pos.y >= 0 && pos.x < self.size.x && pos.y < self.size.y
     }
 
-    /// Returns the number of [`Cell`]s that satisfy the given `predicate`.
-    pub fn count(&self, predicate: fn(&Cell) -> bool) -> i32 {
-        self.cells
-            .iter()
-            .flatten()
-            .filter(|&cell| predicate(cell))
-            .count() as i32
-    }
-
     /// Returns a reference to the first occurrence of a [`Cell`] that satisfies the given
     /// `predicate` or [`None`] if none are found that do.
     pub fn find(&self, predicate: fn(&Cell) -> bool) -> Option<&Cell> {
@@ -197,52 +187,6 @@ impl GridState {
         };
 
         matches!(left, Ok(Cell::Atom(_))) || matches!(right, Ok(Cell::Atom(_)))
-    }
-
-    /// A temporary function that identifies the molecule in the [GridState] by counting
-    /// occurrences of the `[C]` and `[H]` [Atom].
-    ///
-    /// This should eventually be replaced because it ignores all bonds and `[O]` [Atom]s and
-    /// assumes that the molecule must be an alkane, alkene, or alkyne.
-    pub(crate) fn simple_counter(&self) -> Result<String, &str> {
-        let carbon = self.count(|element| {
-            if let Cell::Atom(it) = element {
-                it.element == C
-            } else {
-                false
-            }
-        });
-        let hydrogen = self.count(|element| {
-            if let Cell::Atom(it) = element {
-                it.element == H
-            } else {
-                false
-            }
-        });
-        let prefix = match carbon {
-            0 => return Err("No carbons found."),
-            1 => "meth",
-            2 => "eth",
-            3 => "prop",
-            4 => "but",
-            5 => "pent",
-            6 => "hex",
-            7 => "hept",
-            8 => "oct",
-            9 => "non",
-            10 => "dec",
-            _ => return Err("Cannot exceed carbon length of 10."),
-        };
-        let suffix = if hydrogen == 2 * carbon - 2 {
-            "yne"
-        } else if hydrogen == 2 * carbon {
-            "ene"
-        } else if hydrogen == 2 * carbon + 2 {
-            "ane"
-        } else {
-            return Err("Cannot determine class other than alkane, alkene, or alkyne.");
-        };
-        Ok(format!("{}{}", prefix, suffix))
     }
 }
 

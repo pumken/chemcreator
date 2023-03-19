@@ -3,13 +3,13 @@
 //! The `naming` module contains functions that makes final validations and finds the name of
 //! an organic molecule as a [`Branch`].
 
-use std::fmt::{Display, Formatter};
 use crate::groups::Fallible;
+use crate::groups::InvalidGraphError::Other;
 use crate::molecule::{Branch, Cell, Group, Substituent};
 use crate::spatial::GridState;
 use crate::{chain, groups, validation};
+use std::fmt::{Display, Formatter};
 use thiserror::Error;
-use crate::groups::InvalidGraphError::Other;
 
 /// Determines the name of the molecule on the given `graph`.
 ///
@@ -91,7 +91,7 @@ fn suffix(fragment: GroupFragment) -> Result<String, NamingError> {
         Group::Carboxyl => return Ok("oic acid".to_string()),
         Group::Carbonyl => "one",
         Group::Hydroxyl => "ol",
-        _ => return Ok("e".to_string())
+        _ => return Ok("e".to_string()),
     };
 
     Ok(format!("-{locations}{suffix}"))
@@ -105,10 +105,7 @@ fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
         .map(|&it| (it + 1).to_string())
         .collect::<Vec<String>>()
         .join(",");
-    let out = format!(
-        "{numbers}-{}",
-        minor_numeric(locations.len() as i32)?,
-    );
+    let out = format!("{numbers}-{}", minor_numeric(locations.len() as i32)?,);
     Ok(out)
 }
 
@@ -146,22 +143,20 @@ fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GroupCollection {
-    pub collection: Vec<GroupFragment>
+    pub collection: Vec<GroupFragment>,
 }
 
 impl GroupCollection {
     pub fn new(branch: &Branch) -> GroupCollection {
         let mut out = GroupCollection { collection: vec![] };
 
-        branch.groups
-            .iter()
-            .enumerate()
-            .for_each(|(index, link)| link
-                .iter()
-                .for_each(|it| if let Substituent::Group(group) = it {
+        branch.groups.iter().enumerate().for_each(|(index, link)| {
+            link.iter().for_each(|it| {
+                if let Substituent::Group(group) = it {
                     out.push_group(group.to_owned(), index as i32);
-                })
-            );
+                }
+            })
+        });
 
         out
     }
@@ -178,9 +173,7 @@ impl GroupCollection {
     pub fn primary_group(&self) -> Option<Group> {
         self.collection
             .iter()
-            .map(|fragment| {
-                fragment.group
-            })
+            .map(|fragment| fragment.group)
             .max_by_key(|&group| group.priority())
     }
 
@@ -223,13 +216,21 @@ impl GroupFragment {
 
 impl Default for GroupFragment {
     fn default() -> Self {
-        GroupFragment { locants: vec![0], group: Group::Alkane }
+        GroupFragment {
+            locants: vec![0],
+            group: Group::Alkane,
+        }
     }
 }
 
 impl Display for GroupFragment {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}", locants(self.locants.clone()).unwrap(), self.group)
+        write!(
+            f,
+            "{}{}",
+            locants(self.locants.clone()).unwrap(),
+            self.group
+        )
     }
 }
 
@@ -243,13 +244,14 @@ enum NamingError {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use crate::molecule::Group::{Alkane, Bromo, Carbonyl, Hydroxyl, Iodo};
     use super::*;
+    use crate::molecule::Group::{Bromo, Carbonyl, Hydroxyl, Iodo};
+    use std::str::FromStr;
 
     #[test]
     fn prefix_creates_correct_strings() {
-        let branch = Branch::from_str("0: bromo, iodo; 1: oxo, hydroxyl; 2: bromo, hydroxyl").unwrap();
+        let branch =
+            Branch::from_str("0: bromo, iodo; 1: oxo, hydroxyl; 2: bromo, hydroxyl").unwrap();
         let collection = GroupCollection::new(&branch);
         let str = prefix(collection.secondary_group_fragments()).unwrap();
 
@@ -258,16 +260,17 @@ mod tests {
 
     #[test]
     fn collect_groups_aggregates_correctly() {
-        let branch = Branch::from_str("0: bromo, iodo; 1: oxo, hydroxyl; 2: bromo, hydroxyl").unwrap();
+        let branch =
+            Branch::from_str("0: bromo, iodo; 1: oxo, hydroxyl; 2: bromo, hydroxyl").unwrap();
         let groups = GroupCollection::new(&branch);
         let expected = vec![
-            (vec![0, 2], Bromo),
-            (vec![0], Iodo),
-            (vec![1], Carbonyl),
-            (vec![1, 2], Hydroxyl),
+            GroupFragment::new(vec![0, 2], Bromo),
+            GroupFragment::new(vec![0], Iodo),
+            GroupFragment::new(vec![1], Carbonyl),
+            GroupFragment::new(vec![1, 2], Hydroxyl),
         ];
 
-        assert_eq!(groups, expected);
+        assert_eq!(groups.collection, expected);
     }
 
     #[test]

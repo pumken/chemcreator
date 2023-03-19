@@ -110,10 +110,7 @@ impl Group {
     }
 
     pub const fn is_chain_group(self) -> bool {
-        match self {
-            Group::Alkane | Group::Alkene | Group::Alkyne => true,
-            _ => false
-        }
+        matches!(self, Group::Alkane | Group::Alkene | Group::Alkyne)
     }
 }
 
@@ -140,7 +137,7 @@ impl FromStr for Group {
             "carboxyl" => Group::Carboxyl,
             "ester" => Group::Ester,
             "ether" => Group::Ether,
-            _ => return Err(())
+            _ => return Err(()),
         };
         Ok(out)
     }
@@ -187,7 +184,10 @@ pub struct Atom {
 
 impl Default for Atom {
     fn default() -> Self {
-        Atom { element: C, pos: Vec2::zero() }
+        Atom {
+            element: C,
+            pos: Vec2::zero(),
+        }
     }
 }
 
@@ -356,18 +356,18 @@ impl FromStr for Branch {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let groups = s
             .split("; ")
-            .map(|it| it
-                .trim_start_matches(|c: char| c.is_ascii_digit() || c == ':' || c == ' ')
-                .split(", ")
-                .map(|str| Substituent::Group(Group::from_str(str).unwrap()))
-                .collect::<Vec<Substituent>>()
-            )
+            .map(|it| {
+                it.trim_start_matches(|c: char| c.is_ascii_digit() || c == ':' || c == ' ')
+                    .split(", ")
+                    .map(|str| Substituent::Group(Group::from_str(str).unwrap()))
+                    .collect::<Vec<Substituent>>()
+            })
             .collect::<Vec<Vec<Substituent>>>();
 
         let len = 0usize;
         let out = Branch {
             chain: vec![Atom::default(); len],
-            groups
+            groups,
         };
         Ok(out)
     }
@@ -383,8 +383,6 @@ impl Branch {
             groups: Vec::with_capacity(len),
         }
     }
-
-
 }
 
 #[derive(Clone, Debug, PartialEq)]

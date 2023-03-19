@@ -151,8 +151,9 @@ fn next_directions(graph: &GridState, pos: Vec2, previous_pos: Vec2) -> Fallible
         .bonded()?
         .into_iter()
         .map(|atom| {
-            Direction::from_points(pos, atom.pos)
-                .map_err(|_| Other("An unexpected error occurred (groups/next_directions).".to_string()))
+            Direction::from_points(pos, atom.pos).map_err(|_| {
+                Other("An unexpected error occurred (groups/next_directions).".to_string())
+            })
         })
         .filter(|dir| {
             if let Ok(it) = dir {

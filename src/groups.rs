@@ -222,6 +222,8 @@ pub enum InvalidGraphError {
     Discontinuity,
     #[error("Molecule is cyclic.")]
     Cycle,
+    #[error("Bond at ({}, {}) has no inconsistent order.", .0.x, .0.y)]
+    InconsistentBond(Vec2),
     #[error("Cell at ({}, {}) is missing bonds.", .0.x, .0.y)]
     UnfilledValence(Vec2),
     #[error("Cell at ({}, {}) has too many bonds.", .0.x, .0.y)]

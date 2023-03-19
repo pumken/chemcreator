@@ -8,13 +8,13 @@
 use crate::input::{input_insert_mode, input_view_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Cell;
-use crate::naming::name_molecule;
 use crate::spatial::{GridState, Invert};
+use crate::Mode::Insert;
 use ruscii::app::{App, State};
 use ruscii::drawing::Pencil;
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color::{Cyan, Red, White};
-use ruscii::terminal::Window;
+use ruscii::terminal::{Color, Window};
 
 mod chain;
 mod groups;
@@ -34,13 +34,9 @@ fn main() {
 
     app.run(|app_state: &mut State, window: &mut Window| {
         match state.mode {
-            Mode::Insert => {
+            Insert => {
                 input_insert_mode(app_state, &mut state, &mut graph);
 
-                (state.name, state.err) = match name_molecule(&graph) {
-                    Ok(it) => (it, "".to_string()),
-                    Err(it) => ("unidentified".to_string(), it.to_string()),
-                };
                 state.pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
                 state.sym = match graph
                     .current_cell()
@@ -166,10 +162,17 @@ fn main() {
             .set_foreground(Red)
             .draw_text(&state.err.to_string(), Vec2::xy(graph.size.x * 3 + 3, 7))
             .draw_text(&state.debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8));
+
+        if state.macros_enabled && state.mode == Insert {
+            pencil
+                .set_foreground(Color::Yellow)
+                .draw_text("Macro mode enabled.", Vec2::xy(graph.size.x * 3 + 3, 8));
+        }
     });
 }
 
 /// Represents the mode the app is in at a given time.
+#[derive(Copy, Clone, Debug, PartialEq)]
 enum Mode {
     Insert,
     Normal,
@@ -185,6 +188,7 @@ struct AppState {
     key: &'static str,
     err: String,
     debug: String,
+    macros_enabled: bool,
 }
 
 impl Default for AppState {
@@ -197,6 +201,7 @@ impl Default for AppState {
             key: "", // Overridden in Start mode to retain &str type
             err: "".to_string(),
             debug: "".to_string(),
+            macros_enabled: false,
         }
     }
 }

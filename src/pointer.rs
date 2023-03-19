@@ -4,7 +4,7 @@
 //! [`GridState`] and molecular structures on it.
 
 use crate::groups::InvalidGraphError;
-use crate::groups::InvalidGraphError::IncompleteBond;
+use crate::groups::InvalidGraphError::{IncompleteBond, InconsistentBond};
 use crate::molecule::Element::C;
 use crate::molecule::{Atom, BondOrder, BondOrientation, Cell};
 use crate::spatial::{EnumAll, GridState, ToVec2};
@@ -36,16 +36,19 @@ impl<'a> Pointer<'a> {
         self.graph.get(self.pos)
     }
 
-    /// Returns a [`Vec`] of references to the non-empty [`Cell`]s adjacent to the [`Cell`]
-    /// currently pointed to.
+    /// Returns a [`Vec`] of references to the non-empty [`Cell`]s adjacent (or bonded if it is a
+    /// bond) to the [`Cell`] currently pointed to.
     pub fn connected(&self) -> Vec<&Cell> {
         let mut out = vec![];
 
         for direction in Direction::all() {
             if let Ok(result) = self.graph.get(self.pos + direction.to_vec2()) {
                 match result {
-                    Cell::Atom(_) | Cell::Bond(_) => out.push(result),
-                    Cell::None(_) => {}
+                    Cell::Atom(_) => out.push(result),
+                    Cell::Bond(it) if it.orient == BondOrientation::from(direction) => {
+                        out.push(result)
+                    }
+                    _ => {}
                 }
             }
         }
@@ -61,8 +64,11 @@ impl<'a> Pointer<'a> {
         for direction in Direction::all() {
             if let Ok(result) = self.graph.get(self.pos + direction.to_vec2()) {
                 match result {
-                    Cell::Atom(_) | Cell::Bond(_) => out.push(direction),
-                    Cell::None(_) => {}
+                    Cell::Atom(_) => out.push(direction),
+                    Cell::Bond(it) if it.orient == BondOrientation::from(direction) => {
+                        out.push(direction)
+                    }
+                    _ => {}
                 }
             }
         }
@@ -160,20 +166,30 @@ impl<'a> Pointer<'a> {
     /// ## Errors
     ///
     /// If the [`Pointer`] created to traverse the bond encounters a [`Cell::Bond`] of the incorrect
-    /// orientation or a [`Cell::None`], an [`IncompleteBond`] is returned.
+    /// orientation or a [`Cell::None`], an [`IncompleteBond`] is returned. If the bond does not
+    /// have one consistent order, an [`InvalidGraphError::InconsistentBond`] is returned.
     pub fn traverse_bond(&self, direction: Direction) -> Result<Atom, InvalidGraphError> {
         if let Direction::None = direction {
             panic!("Cannot pass Direction::None to traverse_bond");
         }
 
         let mut traversal_ptr = self.clone();
+        let mut current_order = None;
 
         loop {
-            traversal_ptr.move_ptr(direction);
+            if !traversal_ptr.move_ptr(direction) {
+                break Err(IncompleteBond(traversal_ptr.pos));
+            }
             match traversal_ptr.borrow() {
                 Ok(Cell::Atom(it)) => break Ok(it.to_owned()),
                 Ok(Cell::Bond(it)) => {
+                    if let Some(order) = current_order {
+                        if order != it.order {
+                            break Err(InconsistentBond(traversal_ptr.pos));
+                        }
+                    }
                     if it.orient == BondOrientation::from(direction) {
+                        current_order = Some(it.order);
                         continue;
                     } else {
                         break Err(IncompleteBond(traversal_ptr.pos));

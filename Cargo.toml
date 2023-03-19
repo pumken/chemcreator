@@ -1,14 +1,12 @@
 [package]
 name = "chemcreator"
-version = "0.2.0"
+version = "1.0.0"
 description = "A text-based tool for identifying organic molecules."
 authors = ["Gavin Tran"]
 readme = "README.md"
 license-file = "LICENSE"
 edition = "2021"
 repository = "https://github.com/pumken/chemcreator"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 ruscii = "0.3.2"

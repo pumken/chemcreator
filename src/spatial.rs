@@ -193,7 +193,19 @@ impl GridState {
             rptr.borrow()
         };
 
-        matches!(left, Ok(Cell::Atom(_))) || matches!(right, Ok(Cell::Atom(_)))
+        GridState::is_atom_or_horizontal(left) || GridState::is_atom_or_horizontal(right)
+    }
+
+    fn is_atom_or_horizontal(cell_result: Result<&Cell, String>) -> bool {
+        if let Ok(cell) = cell_result {
+            cell.is_atom() || if let Cell::Bond(it) = cell {
+                it.orient == Horiz
+            } else {
+                false
+            }
+        } else {
+            false
+        }
     }
 }
 

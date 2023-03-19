@@ -8,7 +8,6 @@
 use crate::input::{input_insert_mode, input_view_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Cell;
-use crate::naming::name_molecule;
 use crate::spatial::{GridState, Invert};
 use ruscii::app::{App, State};
 use ruscii::drawing::Pencil;

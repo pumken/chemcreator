@@ -4,7 +4,7 @@
 //! [`GridState`] and molecular structures on it.
 
 use crate::groups::InvalidGraphError;
-use crate::groups::InvalidGraphError::IncompleteBond;
+use crate::groups::InvalidGraphError::{IncompleteBond, InconsistentBond};
 use crate::molecule::Element::C;
 use crate::molecule::{Atom, BondOrder, BondOrientation, Cell};
 use crate::spatial::{EnumAll, GridState, ToVec2};
@@ -164,13 +164,15 @@ impl<'a> Pointer<'a> {
     /// ## Errors
     ///
     /// If the [`Pointer`] created to traverse the bond encounters a [`Cell::Bond`] of the incorrect
-    /// orientation or a [`Cell::None`], an [`IncompleteBond`] is returned.
+    /// orientation or a [`Cell::None`], an [`IncompleteBond`] is returned. If the bond does not
+    /// have one consistent order, an [`InvalidGraphError::InconsistentBond`] is returned.
     pub fn traverse_bond(&self, direction: Direction) -> Result<Atom, InvalidGraphError> {
         if let Direction::None = direction {
             panic!("Cannot pass Direction::None to traverse_bond");
         }
 
         let mut traversal_ptr = self.clone();
+        let mut current_order = None;
 
         loop {
             if !traversal_ptr.move_ptr(direction) {
@@ -179,7 +181,13 @@ impl<'a> Pointer<'a> {
             match traversal_ptr.borrow() {
                 Ok(Cell::Atom(it)) => break Ok(it.to_owned()),
                 Ok(Cell::Bond(it)) => {
+                    if let Some(order) = current_order {
+                        if order != it.order {
+                            break Err(InconsistentBond(traversal_ptr.pos))
+                        }
+                    }
                     if it.orient == BondOrientation::from(direction) {
+                        current_order = Some(it.order);
                         continue;
                     } else {
                         break Err(IncompleteBond(traversal_ptr.pos));

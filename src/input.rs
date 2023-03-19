@@ -11,6 +11,7 @@ use crate::{AppState, Mode};
 use ruscii::app::State;
 use ruscii::keyboard::{Key, KeyEvent};
 use ruscii::spatial::Direction;
+use crate::naming::name_molecule;
 
 pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: &mut GridState) {
     for key_event in app_state.keyboard().last_key_events() {
@@ -18,38 +19,47 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
             KeyEvent::Pressed(Key::B) => {
                 graph.put_atom(Element::Br);
                 state.key = "B";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::C) => {
                 graph.put_atom(C);
                 state.key = "C";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::F) => {
                 graph.put_atom(Element::F);
                 state.key = "F";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::H) => {
                 graph.put_atom(H);
                 state.key = "H";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::I) => {
                 graph.put_atom(Element::I);
                 state.key = "I";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::L) => {
                 graph.put_atom(Element::Cl);
                 state.key = "L";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::N) => {
                 graph.put_atom(N);
                 state.key = "N";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::O) => {
                 graph.put_atom(O);
                 state.key = "O";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::F5) => {
                 graph.clear_all();
                 state.key = "F5";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::F12) => {
                 state.debug = match debug_branches(graph) {
@@ -61,18 +71,22 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
             KeyEvent::Pressed(Key::Num1) => {
                 graph.put_bond(Single);
                 state.key = "1";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::Num2) => {
                 graph.put_bond(Double);
                 state.key = "2";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::Num3) => {
                 graph.put_bond(Triple);
                 state.key = "3";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::Backspace) => {
                 graph.clear_cell();
                 state.key = "Backspace";
+                update(state, graph);
             }
             KeyEvent::Pressed(Key::Right) => {
                 graph.move_cursor(Direction::Right);
@@ -109,4 +123,12 @@ pub(crate) fn input_view_mode(app_state: &State, state: &mut AppState) {
             _ => (),
         }
     }
+}
+
+//noinspection RsBorrowChecker
+pub(crate) fn update(state: &mut AppState, graph: &GridState) {
+    (state.name, state.err) = match name_molecule(&graph) {
+        Ok(it) => (it, "".to_string()),
+        Err(it) => ("unidentified".to_string(), it.to_string()),
+    };
 }

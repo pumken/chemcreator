@@ -37,10 +37,6 @@ fn main() {
             Mode::Insert => {
                 input_insert_mode(app_state, &mut state, &mut graph);
 
-                (state.name, state.err) = match name_molecule(&graph) {
-                    Ok(it) => (it, "".to_string()),
-                    Err(it) => ("unidentified".to_string(), it.to_string()),
-                };
                 state.pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
                 state.sym = match graph
                     .current_cell()

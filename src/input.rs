@@ -48,10 +48,15 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
                 state.key = "O";
             }
             KeyEvent::Pressed(Key::F5) => {
+                graph.clear_all();
+                state.key = "F5";
+            }
+            KeyEvent::Pressed(Key::F12) => {
                 state.debug = match debug_branches(graph) {
                     Ok(it) => it.to_string(),
                     Err(it) => it.to_string(),
-                }
+                };
+                state.key = "F12";
             }
             KeyEvent::Pressed(Key::Num1) => {
                 graph.put_bond(Single);

@@ -107,11 +107,18 @@ impl GridState {
     }
 
     /// Sets the current [`Cell`] pointed to by the cursor to [`Cell::None`].
-    pub(crate) fn clear_cell(&mut self) {
+    pub fn clear_cell(&mut self) {
         let empty_cell = Cell::None(self.cursor);
         *self
             .current_cell_mut()
             .expect("cursor should be within bounds") = empty_cell;
+    }
+
+    /// Empties every [`Cell`] on the [`GridState`].
+    pub fn clear_all(&mut self) {
+        for cell in self.cells.iter_mut().flatten() {
+            *cell = Cell::None(cell.pos());
+        }
     }
 
     /// Checks if the [`GridState`] is empty, i.e., all the cells it contains are set to

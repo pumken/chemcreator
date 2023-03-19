@@ -3,16 +3,16 @@
 //! The `input` module contains functions that interpret user input.
 
 use crate::groups::debug_branches;
+use crate::macros::invoke_macro;
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Element;
 use crate::molecule::Element::{C, H, N, O};
+use crate::naming::name_molecule;
 use crate::spatial::GridState;
 use crate::{AppState, Mode};
 use ruscii::app::State;
 use ruscii::keyboard::{Key, KeyEvent};
 use ruscii::spatial::Direction;
-use crate::macros::invoke_macro;
-use crate::naming::name_molecule;
 
 pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: &mut GridState) {
     for key_event in app_state.keyboard().last_key_events() {
@@ -127,7 +127,7 @@ pub(crate) fn input_view_mode(app_state: &State, state: &mut AppState) {
             KeyEvent::Pressed(Key::F8) => {
                 state.mode = Mode::Insert;
                 state.name = "".to_string()
-            },
+            }
             _ => (),
         }
     }

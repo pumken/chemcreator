@@ -45,7 +45,9 @@ impl<'a> Pointer<'a> {
             if let Ok(result) = self.graph.get(self.pos + direction.to_vec2()) {
                 match result {
                     Cell::Atom(_) => out.push(result),
-                    Cell::Bond(it) if it.orient == BondOrientation::from(direction) => out.push(result),
+                    Cell::Bond(it) if it.orient == BondOrientation::from(direction) => {
+                        out.push(result)
+                    }
                     _ => {}
                 }
             }
@@ -176,14 +178,14 @@ impl<'a> Pointer<'a> {
 
         loop {
             if !traversal_ptr.move_ptr(direction) {
-                break Err(IncompleteBond(traversal_ptr.pos))
+                break Err(IncompleteBond(traversal_ptr.pos));
             }
             match traversal_ptr.borrow() {
                 Ok(Cell::Atom(it)) => break Ok(it.to_owned()),
                 Ok(Cell::Bond(it)) => {
                     if let Some(order) = current_order {
                         if order != it.order {
-                            break Err(InconsistentBond(traversal_ptr.pos))
+                            break Err(InconsistentBond(traversal_ptr.pos));
                         }
                     }
                     if it.orient == BondOrientation::from(direction) {

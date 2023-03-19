@@ -3,28 +3,28 @@
 //! Not to be confused with Rust's `macro_rules!` declarations, the `macros` module contains
 //! common actions that should be automatically performed for the user when they make an input.
 
-use ruscii::spatial::Direction;
-use crate::molecule::{Cell, ComponentType};
 use crate::molecule::BondOrder::Single;
 use crate::molecule::Element::{C, H};
+use crate::molecule::ComponentType;
 use crate::pointer::Pointer;
 use crate::spatial::{EnumAll, GridState, ToVec2};
+use ruscii::spatial::Direction;
 
 pub fn invoke_macro(graph: &mut GridState) {
-    match graph.current_cell().expect("cell should be within bounds").comp() {
-        ComponentType::Element(C) => {
-            fill_hydrogen(graph)
-        }
-        ComponentType::None => {}  // just to appease Clippy
+    match graph
+        .current_cell()
+        .expect("cell should be within bounds")
+        .comp()
+    {
+        ComponentType::Element(C) => fill_hydrogen(graph),
+        ComponentType::None => {} // just to appease Clippy
         _ => {}
     }
 }
 
 pub fn fill_hydrogen(graph: &mut GridState) {
-    if let Cell::Atom(atom) = graph.current_cell().expect("cell should be within bounds") {
-        for direction in Direction::all() {
-            hydrogen_arm(graph, direction);
-        }
+    for direction in Direction::all() {
+        hydrogen_arm(graph, direction);
     }
 }
 

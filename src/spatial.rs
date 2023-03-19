@@ -99,7 +99,11 @@ impl GridState {
         let bond = Cell::Bond(Bond {
             pos: self.cursor,
             order,
-            orient: if self.atom_adjacent(self.cursor) { Horiz } else { Vert },
+            orient: if self.atom_adjacent(self.cursor) {
+                Horiz
+            } else {
+                Vert
+            },
         });
         *self
             .current_cell_mut()
@@ -120,7 +124,7 @@ impl GridState {
             ComponentType::Order(it) => Cell::Bond(Bond {
                 pos,
                 order: it,
-                orient: if self.atom_adjacent(pos) { Horiz } else {Vert},
+                orient: if self.atom_adjacent(pos) { Horiz } else { Vert },
             }),
             ComponentType::None => Cell::None(pos),
         }
@@ -184,12 +188,12 @@ impl GridState {
     /// Determines if there are any [`Atom`]s that are horizontally adjacent to the current
     /// [`Cell`].
     fn atom_adjacent(&self, pos: Vec2) -> bool {
-        let mut lptr = Pointer::new(self, pos,);
+        let mut lptr = Pointer::new(self, pos);
         let left = {
             lptr.move_ptr(Direction::Left);
             lptr.borrow()
         };
-        let mut rptr = Pointer::new(self, pos,);
+        let mut rptr = Pointer::new(self, pos);
         let right = {
             rptr.move_ptr(Direction::Right);
             rptr.borrow()
@@ -200,11 +204,12 @@ impl GridState {
 
     fn is_atom_or_horizontal(cell_result: Result<&Cell, String>) -> bool {
         if let Ok(cell) = cell_result {
-            cell.is_atom() || if let Cell::Bond(it) = cell {
-                it.orient == Horiz
-            } else {
-                false
-            }
+            cell.is_atom()
+                || if let Cell::Bond(it) = cell {
+                    it.orient == Horiz
+                } else {
+                    false
+                }
         } else {
             false
         }
@@ -287,8 +292,8 @@ macro_rules! nested_vec {
 
 pub(crate) trait EnumAll {
     fn all() -> Vec<Self>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
 impl EnumAll for Direction {
@@ -305,8 +310,8 @@ impl EnumAll for Direction {
 
 pub(crate) trait FromVec2 {
     fn from_points(first: Vec2, second: Vec2) -> Result<Self, String>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
 impl FromVec2 for Direction {

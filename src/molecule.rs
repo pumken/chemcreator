@@ -14,7 +14,7 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 /// Represents a type of functional group on a molecule.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Group {
     Alkane,
     Alkene,
@@ -114,9 +114,15 @@ impl Display for Group {
     }
 }
 
-impl PartialOrd for Group {
+impl PartialOrd<Self> for Group {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        todo!()
+        let out = match (self.priority(), other.priority()) {
+            (Some(a), Some(b)) => a.cmp(&b),
+            (Some(_), None) => Ordering::Greater,
+            (None, Some(_)) => Ordering::Less,
+            (None, None) => Ordering::Equal,
+        };
+        Some(out)
     }
 }
 
@@ -181,14 +187,14 @@ impl Cell {
         match self {
             Cell::Atom(it) => ComponentType::Element(it.element),
             Cell::Bond(it) => ComponentType::Order(it.order),
-            Cell::None(_) => ComponentType::None
+            Cell::None(_) => ComponentType::None,
         }
     }
 
     pub fn is_atom(&self) -> bool {
         matches!(self, Cell::Atom(_))
     }
-    
+
     pub fn is_empty(&self) -> bool {
         !matches!(self, Cell::None(_))
     }
@@ -198,7 +204,7 @@ impl Cell {
 pub enum ComponentType {
     Element(Element),
     Order(BondOrder),
-    None
+    None,
 }
 
 #[derive(Clone, Debug, PartialEq)]

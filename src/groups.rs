@@ -4,7 +4,7 @@
 
 use crate::chain;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
-use crate::molecule::Group::{Carbonyl, Carboxyl, Hydroxyl};
+use crate::molecule::Group::{Alkene, Alkyne, Carbonyl, Carboxyl, Hydroxyl};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};
@@ -72,6 +72,8 @@ fn identify_single_bond_group(node: GroupNode) -> Fallible<Group> {
     let out = match string.as_str() {
         "1O(1H)" => Hydroxyl,
         "2O" => Carbonyl,
+        "2C" => Alkene,
+        "3C" => Alkyne,
         _ => return Err(UnrecognizedGroup),
     };
 
@@ -121,8 +123,11 @@ pub(crate) fn group_node_tree(
     let atom = ptr.traverse_bond(direction)?;
     let mut next = vec![];
 
-    for direction in next_directions(graph, atom.pos, pos)? {
-        next.push(group_node_tree(graph, atom.pos, direction)?)
+    if atom.element != Element::C {
+        // don't continue if in carbon chain
+        for direction in next_directions(graph, atom.pos, pos)? {
+            next.push(group_node_tree(graph, atom.pos, direction)?)
+        }
     }
 
     Ok(GroupNode {
@@ -146,8 +151,9 @@ fn next_directions(graph: &GridState, pos: Vec2, previous_pos: Vec2) -> Fallible
         .bonded()?
         .into_iter()
         .map(|atom| {
-            Direction::from_points(pos, atom.pos)
-                .map_err(|_| Other("An unexpected error occurred (groups/next_directions)."))
+            Direction::from_points(pos, atom.pos).map_err(|_| {
+                Other("An unexpected error occurred (groups/next_directions).".to_string())
+            })
         })
         .filter(|dir| {
             if let Ok(it) = dir {
@@ -184,6 +190,18 @@ fn group_directions(
                 matches!(first_element, Element::C) || matches!(first_element, Element::H);
             !single_bond || !hydrocarbon
         })
+        .filter(|&direction| {
+            if index > 0 {
+                direction
+                    != Direction::from_points(
+                        accumulator.chain[index].pos,
+                        accumulator.chain[index - 1].pos,
+                    )
+                    .expect("Consecutive indexes should return orthogonal points.")
+            } else {
+                true
+            }
+        })
         .collect::<Vec<Direction>>();
 
     Ok(directions)
@@ -209,7 +227,7 @@ pub enum InvalidGraphError {
     #[error("Unrecognized group.")]
     UnrecognizedGroup,
     #[error("{}", .0)]
-    Other(&'static str),
+    Other(String),
 }
 
 #[cfg(test)]
@@ -295,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    fn graph_node_tree() {
+    fn group_node_tree_parses_structure() {
         let graph = graph_with!(1, 5,
             [0, 0; A(C)],
             [0, 1; B(Single)],
@@ -318,14 +336,14 @@ mod tests {
     }
 
     #[test]
-    fn graph_node_tree_recognizes_implicit_bond() {
+    fn group_node_tree_recognizes_implicit_bond() {
         let graph = graph_with!(1, 3,
             [0, 0; A(C)],
             [0, 1; A(O)],
             [0, 2; A(H)]
         );
-        let a = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up).unwrap();
-        let b = GroupNode {
+        let node = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up).unwrap();
+        let expected = GroupNode {
             bond: Single,
             atom: O,
             next: vec![GroupNode {
@@ -335,7 +353,24 @@ mod tests {
             }],
         };
 
-        assert_eq!(a, b);
+        assert_eq!(node, expected);
+    }
+
+    #[test]
+    fn group_node_tree_recognizes_carbon_group() {
+        let graph = graph_with!(3, 3,
+            [0, 0; A(H)], [0, 1; A(C)], [0, 2; A(H)],
+            [1, 1; B(Double)],
+            [2, 0; A(H)], [2, 1; A(C)], [2, 2; A(H)]
+        );
+        let node = group_node_tree(&graph, Vec2::xy(0, 1), Direction::Right).unwrap();
+        let expected = GroupNode {
+            bond: Double,
+            atom: C,
+            next: vec![],
+        };
+
+        assert_eq!(node, expected);
     }
 
     #[test]
@@ -370,7 +405,7 @@ mod tests {
         let graph = graph_with!(5, 5,
             [0, 2; A(C)],
             [1, 2; B(Single)],
-            [2, 0; A(O)], [2, 1; B(Double)], [2, 2; A(C)], [2, 3; A(O)], [2, 4; A(H)]
+            [2, 0; A(C)], [2, 1; B(Double)], [2, 2; A(C)], [2, 3; A(O)], [2, 4; A(H)]
         );
         let branch = Branch {
             chain: vec![Atom {

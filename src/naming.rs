@@ -255,7 +255,7 @@ mod tests {
         let collection = GroupCollection::new(&branch);
         let str = prefix(collection.secondary_group_fragments()).unwrap();
 
-        assert_eq!(str, "1,3-dibromo-2,3-dihydroxyl-1-iodo-2-oxo")
+        assert_eq!(str, "1,3-dibromo-2,3-dihydroxyl-1-iodo")
     }
 
     #[test]

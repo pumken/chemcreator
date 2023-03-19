@@ -323,7 +323,7 @@ mod tests {
     use crate::graph_with;
     use crate::molecule::Atom;
     use crate::molecule::BondOrder::Single;
-    use crate::molecule::Element::O;
+    use crate::molecule::Element::{C, O};
     use crate::test_utils::GW::{A, B};
 
     #[test]

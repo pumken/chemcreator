@@ -4,7 +4,7 @@
 //! the user interacts, including the [`GridState`] struct.
 
 use crate::molecule::BondOrientation::{Horiz, Vert};
-use crate::molecule::{Atom, Bond, BondOrder, Cell, Element};
+use crate::molecule::{Atom, Bond, BondOrder, Cell, ComponentType, Element};
 use crate::pointer::Pointer;
 use ruscii::spatial::{Direction, Vec2};
 use std::cmp::Ordering;
@@ -56,7 +56,7 @@ impl GridState {
     /// ## Errors
     ///
     /// If the `pos` is not a valid point within the graph, this function returns [`Err`].
-    fn get_mut(&mut self, pos: Vec2) -> Result<&mut Cell, String> {
+    pub(crate) fn get_mut(&mut self, pos: Vec2) -> Result<&mut Cell, String> {
         if !self.contains(pos) {
             return Err(format!("Invalid access of graph at ({}, {})", pos.x, pos.y));
         }
@@ -99,7 +99,7 @@ impl GridState {
         let bond = Cell::Bond(Bond {
             pos: self.cursor,
             order,
-            orient: if self.atom_adjacent() { Horiz } else { Vert },
+            orient: if self.atom_adjacent(self.cursor) { Horiz } else { Vert },
         });
         *self
             .current_cell_mut()
@@ -112,6 +112,18 @@ impl GridState {
         *self
             .current_cell_mut()
             .expect("cursor should be within bounds") = empty_cell;
+    }
+
+    pub fn put(&mut self, pos: Vec2, comp: ComponentType) {
+        *self.get_mut(pos).unwrap() = match comp {
+            ComponentType::Element(it) => Cell::Atom(Atom { element: it, pos }),
+            ComponentType::Order(it) => Cell::Bond(Bond {
+                pos,
+                order: it,
+                orient: if self.atom_adjacent(pos) { Horiz } else {Vert},
+            }),
+            ComponentType::None => Cell::None(pos),
+        }
     }
 
     /// Empties every [`Cell`] on the [`GridState`].
@@ -171,23 +183,13 @@ impl GridState {
 
     /// Determines if there are any [`Atom`]s that are horizontally adjacent to the current
     /// [`Cell`].
-    fn atom_adjacent(&self) -> bool {
-        let mut lptr = Pointer::new(
-            self,
-            self.current_cell()
-                .expect("current cell should be within bounds")
-                .pos(),
-        );
+    fn atom_adjacent(&self, pos: Vec2) -> bool {
+        let mut lptr = Pointer::new(self, pos,);
         let left = {
             lptr.move_ptr(Direction::Left);
             lptr.borrow()
         };
-        let mut rptr = Pointer::new(
-            self,
-            self.current_cell()
-                .expect("current cell should be within bounds")
-                .pos(),
-        );
+        let mut rptr = Pointer::new(self, pos,);
         let right = {
             rptr.move_ptr(Direction::Right);
             rptr.borrow()
@@ -285,8 +287,8 @@ macro_rules! nested_vec {
 
 pub(crate) trait EnumAll {
     fn all() -> Vec<Self>
-    where
-        Self: Sized;
+        where
+            Self: Sized;
 }
 
 impl EnumAll for Direction {
@@ -303,8 +305,8 @@ impl EnumAll for Direction {
 
 pub(crate) trait FromVec2 {
     fn from_points(first: Vec2, second: Vec2) -> Result<Self, String>
-    where
-        Self: Sized;
+        where
+            Self: Sized;
 }
 
 impl FromVec2 for Direction {
@@ -378,7 +380,7 @@ mod tests {
             *graph.get(Vec2::xy(1, 0)).unwrap(),
             Cell::Atom(Atom {
                 element: O,
-                pos: Vec2::xy(1, 0)
+                pos: Vec2::xy(1, 0),
             })
         )
     }
@@ -392,7 +394,7 @@ mod tests {
                 Direction::Up,
                 Direction::Down,
                 Direction::Left,
-                Direction::Right
+                Direction::Right,
             ]
         )
     }

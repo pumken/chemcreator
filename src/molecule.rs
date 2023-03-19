@@ -176,9 +176,29 @@ impl Cell {
         }
     }
 
+    /// Returns the component type of the atom.
+    pub fn comp(&self) -> ComponentType {
+        match self {
+            Cell::Atom(it) => ComponentType::Element(it.element),
+            Cell::Bond(it) => ComponentType::Order(it.order),
+            Cell::None(_) => ComponentType::None
+        }
+    }
+
     pub fn is_atom(&self) -> bool {
         matches!(self, Cell::Atom(_))
     }
+    
+    pub fn is_empty(&self) -> bool {
+        !matches!(self, Cell::None(_))
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum ComponentType {
+    Element(Element),
+    Order(BondOrder),
+    None
 }
 
 #[derive(Clone, Debug, PartialEq)]

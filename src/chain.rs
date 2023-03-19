@@ -18,7 +18,7 @@ use ruscii::spatial::Vec2;
 /// If there are no `chains`, this function will return an `Err`.
 pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Fallible<Vec<Atom>> {
     Ok(match chains.iter().max_by(|&a, &b| a.len().cmp(&b.len())) {
-        None => return Err(Other("No carbon chain found.")), // FIXME this is returned when a bond is placed at the edge
+        None => return Err(Other("No carbon chain found.".to_string())), // FIXME this is returned when a bond is placed at the edge
         Some(it) => it,
     }
     .to_owned())

@@ -11,9 +11,10 @@ use ruscii::terminal::Color::{LightGrey, Red, White};
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
 /// Represents a type of functional group on a molecule.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Group {
     Alkane,
     Alkene,
@@ -46,11 +47,12 @@ pub enum Group {
 }
 
 impl Display for Group {
+    /// Displays the ionic prefix for the current [`Group`].
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         let str = match *self {
-            Group::Alkane => "alkane",
-            Group::Alkene => "alkene",
-            Group::Alkyne => "alkyne",
+            Group::Alkane => "an",
+            Group::Alkene => "en",
+            Group::Alkyne => "yn",
             Group::Methyl => "methyl",
             Group::Ethyl => "ethyl",
             Group::Propyl => "propyl",
@@ -67,7 +69,7 @@ impl Display for Group {
             Group::Fluoro => "fluoro",
             Group::Iodo => "iodo",
             Group::Hydroxyl => "hydroxyl",
-            Group::Carbonyl => "carbonyl",
+            Group::Carbonyl => "oxo",
             Group::Carboxyl => "carboxyl",
             Group::Ester => "ester",
             Group::Ether => "ether",
@@ -83,7 +85,7 @@ impl Group {
     /// A higher priority is indicated by a higher number. The lowest
     /// priority group is assigned zero. A value of [`None`] indicates that the group is _never
     /// the main group_ (i.e., always a prefix).
-    pub const fn priority(&self) -> Option<i32> {
+    pub const fn priority(self) -> Option<i32> {
         let priority = match self {
             Group::Alkane | Group::Alkene | Group::Alkyne => 0,
             Group::Methyl
@@ -106,11 +108,41 @@ impl Group {
         };
         Some(priority)
     }
+
+    pub const fn is_chain_group(self) -> bool {
+        match self {
+            Group::Alkane | Group::Alkene | Group::Alkyne => true,
+            _ => false
+        }
+    }
 }
 
 impl PartialOrd for Group {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         todo!()
+    }
+}
+
+impl FromStr for Group {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let out = match s {
+            "alkane" => Group::Alkane,
+            "alkene" => Group::Alkene,
+            "alkyne" => Group::Alkyne,
+            "bromo" => Group::Bromo,
+            "chloro" => Group::Chloro,
+            "fluoro" => Group::Fluoro,
+            "iodo" => Group::Iodo,
+            "hydroxyl" => Group::Hydroxyl,
+            "oxo" => Group::Carbonyl,
+            "carboxyl" => Group::Carboxyl,
+            "ester" => Group::Ester,
+            "ether" => Group::Ether,
+            _ => return Err(())
+        };
+        Ok(out)
     }
 }
 
@@ -151,6 +183,12 @@ impl Cell {
 pub struct Atom {
     pub element: Element,
     pub pos: Vec2,
+}
+
+impl Default for Atom {
+    fn default() -> Self {
+        Atom { element: C, pos: Vec2::zero() }
+    }
 }
 
 impl Atom {
@@ -312,6 +350,29 @@ impl Display for Branch {
     }
 }
 
+impl FromStr for Branch {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let groups = s
+            .split("; ")
+            .map(|it| it
+                .trim_start_matches(|c: char| c.is_ascii_digit() || c == ':' || c == ' ')
+                .split(", ")
+                .map(|str| Substituent::Group(Group::from_str(str).unwrap()))
+                .collect::<Vec<Substituent>>()
+            )
+            .collect::<Vec<Vec<Substituent>>>();
+
+        let len = 0usize;
+        let out = Branch {
+            chain: vec![Atom::default(); len],
+            groups
+        };
+        Ok(out)
+    }
+}
+
 impl Branch {
     /// Creates a new [`Branch`] with the given `chain` and with a `groups` field with the same
     /// capacity as the `chain`.
@@ -322,6 +383,8 @@ impl Branch {
             groups: Vec::with_capacity(len),
         }
     }
+
+
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -353,10 +416,10 @@ mod tests {
 
     #[test]
     fn group_to_string() {
-        let groups = vec![Group::Carboxyl, Group::Carbonyl, Group::Hydroxyl];
+        let groups = vec![Group::Carboxyl, Carbonyl, Hydroxyl];
 
         assert_eq!(groups[0].to_string(), "carboxyl");
-        assert_eq!(groups[1].to_string(), "carbonyl");
+        assert_eq!(groups[1].to_string(), "oxo");
         assert_eq!(groups[2].to_string(), "hydroxyl");
     }
 
@@ -406,7 +469,37 @@ mod tests {
             ],
         };
 
-        assert_eq!(branch.to_string(), "0: hydroxyl, carbonyl; 1: bromo")
+        assert_eq!(branch.to_string(), "0: hydroxyl, oxo; 1: bromo")
+    }
+
+    #[test]
+    fn branch_from_string_parses_str() {
+        let branch = Branch::from_str("0: hydroxyl").unwrap();
+        let expected = vec![vec![Substituent::Group(Hydroxyl)]];
+
+        assert_eq!(branch.groups, expected);
+    }
+
+    #[test]
+    fn branch_from_string_multiple_groups() {
+        let branch = Branch::from_str("0: hydroxyl; 1: hydroxyl").unwrap();
+        let expected = vec![
+            vec![Substituent::Group(Hydroxyl)],
+            vec![Substituent::Group(Hydroxyl)],
+        ];
+
+        assert_eq!(branch.groups, expected);
+    }
+
+    #[test]
+    fn branch_from_string_multiple_compound_groups() {
+        let branch = Branch::from_str("0: hydroxyl, oxo; 1: hydroxyl, oxo").unwrap();
+        let expected = vec![
+            vec![Substituent::Group(Hydroxyl), Substituent::Group(Carbonyl)],
+            vec![Substituent::Group(Hydroxyl), Substituent::Group(Carbonyl)],
+        ];
+
+        assert_eq!(branch.groups, expected);
     }
 
     #[test]

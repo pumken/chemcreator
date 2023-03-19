@@ -9,7 +9,7 @@ use crate::input::{input_insert_mode, input_view_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Cell;
 use crate::spatial::{GridState, Invert};
-use naming::name_molecule;
+use crate::naming::name_molecule;
 use ruscii::app::{App, State};
 use ruscii::drawing::Pencil;
 use ruscii::spatial::Vec2;

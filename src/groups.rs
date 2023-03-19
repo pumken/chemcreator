@@ -4,7 +4,7 @@
 
 use crate::chain;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
-use crate::molecule::Group::{Alkene, Carbonyl, Carboxyl, Hydroxyl};
+use crate::molecule::Group::{Alkene, Alkyne, Carbonyl, Carboxyl, Hydroxyl};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};
@@ -73,6 +73,7 @@ fn identify_single_bond_group(node: GroupNode) -> Fallible<Group> {
         "1O(1H)" => Hydroxyl,
         "2O" => Carbonyl,
         "2C" => Alkene,
+        "3C" => Alkyne,
         _ => return Err(UnrecognizedGroup),
     };
 
@@ -151,7 +152,7 @@ fn next_directions(graph: &GridState, pos: Vec2, previous_pos: Vec2) -> Fallible
         .into_iter()
         .map(|atom| {
             Direction::from_points(pos, atom.pos)
-                .map_err(|_| Other("An unexpected error occurred (groups/next_directions)."))
+                .map_err(|_| Other("An unexpected error occurred (groups/next_directions).".to_string()))
         })
         .filter(|dir| {
             if let Ok(it) = dir {
@@ -225,7 +226,7 @@ pub enum InvalidGraphError {
     #[error("Unrecognized group.")]
     UnrecognizedGroup,
     #[error("{}", .0)]
-    Other(&'static str),
+    Other(String),
 }
 
 #[cfg(test)]

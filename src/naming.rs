@@ -89,9 +89,12 @@ fn bonding(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
 
 fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
     if let Substituent::Group(group) = fragment.subst {
-        let locations = locants(fragment.locants)?;
+        let locations = locants(fragment.locants.clone())?;
         let suffix = match group {
+            Group::Carboxyl if fragment.locants.len() == 2 => return Ok("edioic acid".to_string()),
             Group::Carboxyl => return Ok("oic acid".to_string()),
+            Group::Carbonyl if fragment.locants == vec![0, fragment.locants.len() as i32 - 1] => return Ok("edial".to_string()),
+            Group::Carbonyl if fragment.locants == vec![0] => return Ok("al".to_string()),
             Group::Carbonyl => "one",
             Group::Hydroxyl => "ol",
             _ => return Ok("e".to_string()),

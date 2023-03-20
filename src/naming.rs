@@ -43,42 +43,43 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
     let chain = chain::longest_chain(all_chains)?;
 
     // Group-linked branch
-    let branch = groups::link_groups(graph, chain)?;
+    let branch = groups::link_groups(graph, chain, None)?;
     // group_indexed_chain.check_chain_index()
 
-    process_name(&branch).map_err(|e| Other(e.to_string()))
+    process_name(branch).map_err(|e| Other(e.to_string()))
 }
 
-fn process_name(branch: &Branch) -> Result<String, NamingError> {
+pub(crate) fn process_name(branch: Branch) -> Result<String, NamingError> {
+    let len = branch.chain.len() as i32;
     let collection = GroupCollection::new(branch);
 
     Ok(format!(
         "{}{}{}{}",
         prefix(collection.secondary_group_fragments())?,
-        major_numeric(branch.chain.len() as i32)?,
+        major_numeric(len)?,
         bonding(collection.chain_group_fragments())?,
         suffix(collection.primary_group_fragment())?,
     ))
 }
 
-fn prefix(mut fragments: Vec<GroupFragment>) -> Result<String, NamingError> {
-    fragments.sort_by_key(|fragment| fragment.group.to_string());
+fn prefix(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
+    fragments.sort_by_key(|fragment| fragment.subst.to_string());
     let out = fragments
         .into_iter()
-        .map(|fragment| format!("{}{}", locants(fragment.locants).unwrap(), fragment.group))
+        .map(|fragment| format!("{}{}", locants(fragment.locants).unwrap(), fragment.subst))
         .collect::<Vec<String>>()
         .join("-");
     Ok(out)
 }
 
-fn bonding(mut fragments: Vec<GroupFragment>) -> Result<String, NamingError> {
-    fragments.sort_by_key(|fragment| fragment.group.to_string());
+fn bonding(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
+    fragments.sort_by_key(|fragment| fragment.subst.to_string());
     if fragments.is_empty() {
         Ok("an".to_string())
     } else {
         let mut out = fragments
             .into_iter()
-            .map(|fragment| format!("{}{}", locants(fragment.locants).unwrap(), fragment.group))
+            .map(|fragment| format!("{}{}", locants(fragment.locants).unwrap(), fragment.subst))
             .collect::<Vec<String>>()
             .join("-");
         out.insert(0, '-');
@@ -86,16 +87,20 @@ fn bonding(mut fragments: Vec<GroupFragment>) -> Result<String, NamingError> {
     }
 }
 
-fn suffix(fragment: GroupFragment) -> Result<String, NamingError> {
-    let locations = locants(fragment.locants)?;
-    let suffix = match fragment.group {
-        Group::Carboxyl => return Ok("oic acid".to_string()),
-        Group::Carbonyl => "one",
-        Group::Hydroxyl => "ol",
-        _ => return Ok("e".to_string()),
-    };
+fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
+    if let Substituent::Group(group) = fragment.subst {
+        let locations = locants(fragment.locants)?;
+        let suffix = match group {
+            Group::Carboxyl => return Ok("oic acid".to_string()),
+            Group::Carbonyl => "one",
+            Group::Hydroxyl => "ol",
+            _ => return Ok("e".to_string()),
+        };
 
-    Ok(format!("-{locations}{suffix}"))
+        Ok(format!("-{locations}{suffix}"))
+    } else {
+        panic!("branch provided to suffix function")
+    }
 }
 
 /// Returns a [`String`] containing a locant prefix with a minor numeric prefix appended.
@@ -106,7 +111,7 @@ fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
         .map(|&it| (it + 1).to_string())
         .collect::<Vec<String>>()
         .join(",");
-    let out = format!("{numbers}-{}", minor_numeric(locations.len() as i32)?,);
+    let out = format!("{numbers}-{}", minor_numeric(locations.len() as i32)?, );
     Ok(out)
 }
 
@@ -166,30 +171,28 @@ fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GroupCollection {
-    pub collection: Vec<GroupFragment>,
+    pub collection: Vec<SubFragment>,
 }
 
 impl GroupCollection {
-    pub fn new(branch: &Branch) -> GroupCollection {
+    pub fn new(branch: Branch) -> GroupCollection {
         let mut out = GroupCollection { collection: vec![] };
 
-        branch.groups.iter().enumerate().for_each(|(index, link)| {
-            link.iter().for_each(|it| {
-                if let Substituent::Group(group) = it {
-                    out.push_group(group.to_owned(), index as i32);
-                }
+        branch.groups.into_iter().enumerate().for_each(|(index, link)| {
+            link.into_iter().for_each(|it| {
+                out.push_fragment(it, index as i32);
             })
         });
 
         out
     }
 
-    fn push_group(&mut self, group: Group, index: i32) {
-        let item = self.collection.iter_mut().find(|it| it.group == group);
+    fn push_fragment(&mut self, subst: Substituent, index: i32) {
+        let item = self.collection.iter_mut().find(|it| it.subst == subst);
 
         match item {
             Some(it) => it.locants.push(index),
-            None => self.collection.push(GroupFragment::new(vec![index], group)),
+            None => self.collection.push(SubFragment::new(vec![index], subst)),
         }
     }
 
@@ -197,75 +200,75 @@ impl GroupCollection {
         let primary = self
             .collection
             .iter()
-            .map(|fragment| fragment.group)
-            .filter(|&group| group.priority().is_some())
-            .max_by_key(|&group| group.priority());
+            .map(|fragment| fragment.subst.to_owned())
+            .filter(|group| group.priority().is_some())
+            .max_by_key(|group| group.priority());
 
         match primary {
-            None => Alkane,
-            Some(it) => it,
+            Some(Substituent::Group(it)) => it,
+            _ => Alkane,
         }
     }
 
-    pub fn primary_group_fragment(&self) -> GroupFragment {
+    pub fn primary_group_fragment(&self) -> SubFragment {
         self.collection
             .iter()
-            .find(|&fragment| fragment.group == self.primary_group())
-            .map_or_else(GroupFragment::default, GroupFragment::to_owned)
+            .find(|&fragment| fragment.subst == Substituent::Group(self.primary_group()))
+            .map_or_else(SubFragment::default, SubFragment::to_owned)
     }
 
-    pub fn secondary_group_fragments(&self) -> Vec<GroupFragment> {
+    pub fn secondary_group_fragments(&self) -> Vec<SubFragment> {
         self.collection
             .iter()
-            .filter(|&fragment| fragment.group != self.primary_group())
-            .filter(|&fragment| !fragment.group.is_chain_group())
-            .map(GroupFragment::to_owned)
-            .collect::<Vec<GroupFragment>>()
+            .filter(|&fragment| fragment.subst != Substituent::Group(self.primary_group()))
+            .filter(|&fragment| !fragment.subst.is_chain_group())
+            .map(SubFragment::to_owned)
+            .collect::<Vec<SubFragment>>()
     }
 
-    pub fn chain_group_fragments(&self) -> Vec<GroupFragment> {
+    pub fn chain_group_fragments(&self) -> Vec<SubFragment> {
         self.collection
             .iter()
-            .filter(|&fragment| fragment.group.is_chain_group())
-            .map(GroupFragment::to_owned)
-            .collect::<Vec<GroupFragment>>()
+            .filter(|&fragment| fragment.subst.is_chain_group())
+            .map(SubFragment::to_owned)
+            .collect::<Vec<SubFragment>>()
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct GroupFragment {
+pub struct SubFragment {
     locants: Vec<i32>,
-    group: Group,
+    subst: Substituent,
 }
 
-impl GroupFragment {
-    pub fn new(locants: Vec<i32>, group: Group) -> GroupFragment {
-        GroupFragment { locants, group }
+impl SubFragment {
+    pub fn new(locants: Vec<i32>, subst: Substituent) -> SubFragment {
+        SubFragment { locants, subst }
     }
 }
 
-impl Default for GroupFragment {
+impl Default for SubFragment {
     fn default() -> Self {
-        GroupFragment {
+        SubFragment {
             locants: vec![0],
-            group: Alkane,
+            subst: Substituent::Group(Alkane),
         }
     }
 }
 
-impl Display for GroupFragment {
+impl Display for SubFragment {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}{}",
             locants(self.locants.clone()).unwrap(),
-            self.group
+            self.subst
         )
     }
 }
 
 #[derive(Debug, Error, PartialEq)]
-enum NamingError {
+pub enum NamingError {
     #[error("A branch was found with too many carbons ({}).", .0)]
     CarbonCount(i32),
     #[error("Found too many occurrences of the {:?} group ({}).", .0, .1)]
@@ -294,10 +297,10 @@ mod tests {
             Branch::from_str("0: bromo, iodo; 1: oxo, hydroxyl; 2: bromo, hydroxyl").unwrap();
         let groups = GroupCollection::new(&branch);
         let expected = vec![
-            GroupFragment::new(vec![0, 2], Bromo),
-            GroupFragment::new(vec![0], Iodo),
-            GroupFragment::new(vec![1], Carbonyl),
-            GroupFragment::new(vec![1, 2], Hydroxyl),
+            SubFragment::new(vec![0, 2], Bromo),
+            SubFragment::new(vec![0], Iodo),
+            SubFragment::new(vec![1], Carbonyl),
+            SubFragment::new(vec![1, 2], Hydroxyl),
         ];
 
         assert_eq!(groups.collection, expected);
@@ -307,8 +310,8 @@ mod tests {
     fn primary_group_doesnt_ignore_halogens() {
         let collection = GroupCollection {
             collection: vec![
-                GroupFragment::new(vec![0], Bromo),
-                GroupFragment::new(vec![0], Chloro),
+                SubFragment::new(vec![0], Bromo),
+                SubFragment::new(vec![0], Chloro),
             ],
         };
         assert_eq!(collection.primary_group(), Alkane);

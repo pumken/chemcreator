@@ -12,6 +12,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use crate::naming::process_name;
 
 /// Represents a type of functional group on a molecule.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -362,13 +363,29 @@ pub enum Substituent {
     Group(Group),
 }
 
+impl Substituent {
+    pub fn priority(&self) -> Option<i32> {
+        match self {
+            Substituent::Group(it) => it.priority(),
+            Substituent::Branch(_) => None,
+        }
+    }
+
+    pub fn is_chain_group(&self) -> bool {
+        match self {
+            Substituent::Group(it) => it.is_chain_group(),
+            Substituent::Branch(_) => false,
+        }
+    }
+}
+
 impl Display for Substituent {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
             "{}",
             match self {
-                Substituent::Branch(_) => "".to_string(),
+                Substituent::Branch(it) => it.to_string(),
                 Substituent::Group(it) => it.to_string(),
             }
         )
@@ -379,6 +396,7 @@ impl Display for Substituent {
 pub struct Branch {
     pub chain: Vec<Atom>,
     pub groups: Vec<Vec<Substituent>>,
+    pub parent_alpha: Option<Atom>,
 }
 
 impl Branch {
@@ -389,28 +407,25 @@ impl Branch {
         Branch {
             chain,
             groups: Vec::with_capacity(len),
+            parent_alpha: None,
+        }
+    }
+
+    pub fn side_branch(chain: Vec<Atom>, parent_alpha: Atom) -> Branch {
+        let len = chain.len();
+        Branch {
+            chain,
+            groups: Vec::with_capacity(len),
+            parent_alpha: Some(parent_alpha),
         }
     }
 }
 
 impl Display for Branch {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        let out = self
-            .groups
-            .iter()
-            .enumerate()
-            .map(|(index, it)| {
-                format!(
-                    "{index}: {}",
-                    it.iter()
-                        .map(|it| it.to_string())
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                )
-            })
-            .collect::<Vec<String>>()
-            .join("; ");
-        write!(f, "{out}")
+        let mut name = process_name(self.clone()).unwrap_or("ERROR!".to_string());
+        name.truncate(name.len() - 3);
+        write!(f, "{name}yl")
     }
 }
 
@@ -432,6 +447,7 @@ impl FromStr for Branch {
         let out = Branch {
             chain: vec![Atom::default(); len],
             groups,
+            parent_alpha: None,
         };
         Ok(out)
     }
@@ -517,6 +533,7 @@ mod tests {
                 vec![Substituent::Group(Hydroxyl), Substituent::Group(Carbonyl)],
                 vec![Substituent::Group(Bromo)],
             ],
+            parent_alpha: None,
         };
 
         assert_eq!(branch.to_string(), "0: hydroxyl, oxo; 1: bromo")

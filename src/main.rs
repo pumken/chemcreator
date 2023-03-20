@@ -5,6 +5,13 @@
 
 #![warn(missing_docs)]
 
+use std::future::Future;
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
+use std::task::Poll;
+use std::time::Duration;
+use async_std::task;
+use async_std::task::JoinHandle;
+use futures::task::noop_waker_ref;
 use crate::input::{input_insert_mode, input_view_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Cell;
@@ -15,6 +22,7 @@ use ruscii::drawing::Pencil;
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color::{Cyan, Red, White};
 use ruscii::terminal::{Color, Window};
+use crate::groups::Fallible;
 
 mod chain;
 mod groups;
@@ -37,6 +45,23 @@ fn main() {
             Insert => {
                 input_insert_mode(app_state, &mut state, &mut graph);
 
+                if let Some(future) = &state.rx {
+                    match future.recv_timeout(Duration::from_millis(10)) {
+                        Ok(result) => {
+                            (state.name, state.err) = match result {
+                                Ok(it) => (it, "".to_string()),
+                                Err(it) => ("unidentified".to_string(), it.to_string()),
+                            };
+                        }
+                        Err(RecvTimeoutError::Timeout) => {
+                            state.name = "calculating...".to_string();
+                            state.err = "".to_string();
+                        }
+                        Err(RecvTimeoutError::Disconnected) => {
+                            panic!("Thread disconnected before sending the result");
+                        }
+                    }
+                }
                 state.pos = format!("({}, {})", graph.cursor.x, graph.cursor.y);
                 state.sym = match graph
                     .current_cell()
@@ -189,6 +214,7 @@ struct AppState {
     err: String,
     debug: String,
     macros_enabled: bool,
+    rx: Option<Receiver<Fallible<String>>>
 }
 
 impl Default for AppState {
@@ -202,6 +228,7 @@ impl Default for AppState {
             err: "".to_string(),
             debug: "".to_string(),
             macros_enabled: false,
+            rx: None,
         }
     }
 }

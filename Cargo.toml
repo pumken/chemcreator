@@ -11,3 +11,5 @@ repository = "https://github.com/pumken/chemcreator"
 [dependencies]
 ruscii = "0.3.2"
 thiserror = "1.0.38"
+futures = "0.3.27"
+async-std = "1.12.0"

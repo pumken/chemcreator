@@ -2,6 +2,10 @@
 //!
 //! The `input` module contains functions that interpret user input.
 
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
+use async_std::task;
 use crate::groups::debug_branches;
 use crate::macros::invoke_macro;
 use crate::molecule::BondOrder::{Double, Single, Triple};
@@ -139,8 +143,13 @@ pub(crate) fn update(state: &mut AppState, graph: &mut GridState) {
         invoke_macro(graph);
     }
 
-    (state.name, state.err) = match name_molecule(graph) {
-        Ok(it) => (it, "".to_string()),
-        Err(it) => ("unidentified".to_string(), it.to_string()),
-    };
+    let (tx, rx) = mpsc::channel();
+    let (txr, rxr) = mpsc::channel();
+    state.rx = Some(rx);
+    thread::spawn(move || {
+        let gs: GridState = rxr.recv().unwrap();
+        let result = name_molecule(&gs);
+        tx.send(result).unwrap();
+    });
+    txr.send(graph.clone()).unwrap()
 }

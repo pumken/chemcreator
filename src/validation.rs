@@ -69,7 +69,7 @@ pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
 }
 
 /// Checks if chain indexes are in the correct direction.
-pub fn chain_in_correct_direction(branch: &Branch) -> bool {
+pub fn chain_in_correct_direction(_branch: &Branch) -> bool {
     true
 }
 

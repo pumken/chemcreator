@@ -8,6 +8,7 @@ use crate::groups::InvalidGraphError::Other;
 use crate::molecule::Group::Alkane;
 use crate::molecule::{Branch, Cell, Group, Substituent};
 use crate::spatial::GridState;
+use crate::validation::chain_in_correct_direction;
 use crate::{chain, groups, validation};
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
@@ -44,7 +45,9 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
 
     // Group-linked branch
     let branch = groups::link_groups(graph, chain, None)?;
-    // group_indexed_chain.check_chain_index()
+    if !chain_in_correct_direction(&branch) {
+        // do something
+    }
 
     process_name(branch).map_err(|e| Other(e.to_string()))
 }

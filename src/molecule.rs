@@ -44,17 +44,6 @@ impl Group {
     pub const fn priority(self) -> Option<i32> {
         let priority = match self {
             Group::Alkane | Group::Alkene | Group::Alkyne => 0,
-            Group::Methyl
-            | Group::Ethyl
-            | Group::Propyl
-            | Group::Isopropyl
-            | Group::Butyl
-            | Group::Pentyl
-            | Group::Hexyl
-            | Group::Heptyl
-            | Group::Octyl
-            | Group::Nonyl
-            | Group::Decyl => return None,
             Group::Bromo | Group::Chloro | Group::Fluoro | Group::Iodo => return None,
             Group::Hydroxyl => 3,
             Group::Carbonyl => 4,
@@ -77,17 +66,6 @@ impl Display for Group {
             Group::Alkane => "an",
             Group::Alkene => "en",
             Group::Alkyne => "yn",
-            Group::Methyl => "methyl",
-            Group::Ethyl => "ethyl",
-            Group::Propyl => "propyl",
-            Group::Isopropyl => "isopropyl",
-            Group::Butyl => "butyl",
-            Group::Pentyl => "pentyl",
-            Group::Hexyl => "hexyl",
-            Group::Heptyl => "heptyl",
-            Group::Octyl => "octyl",
-            Group::Nonyl => "nonyl",
-            Group::Decyl => "decyl",
             Group::Bromo => "bromo",
             Group::Chloro => "chloro",
             Group::Fluoro => "fluoro",

@@ -31,13 +31,9 @@ pub fn fill_hydrogen(graph: &mut GridState) {
 fn hydrogen_arm(graph: &mut GridState, direction: Direction) {
     let mut ptr = Pointer::new(graph, graph.cursor);
     let first_neighbor = ptr.move_ptr(direction) && !ptr.borrow().unwrap().is_empty();
-    let second_neighbor = ptr.move_ptr(direction) && !ptr.borrow().unwrap().is_empty();
     let pos = ptr.pos;
 
-    if first_neighbor && second_neighbor {
-        graph.put(pos, ComponentType::Element(H));
-        graph.put(pos - direction.to_vec2(), ComponentType::Order(Single));
-    } else if first_neighbor && !second_neighbor {
+    if first_neighbor {
         graph.put(pos, ComponentType::Element(H));
     }
 }

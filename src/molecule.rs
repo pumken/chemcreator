@@ -392,7 +392,7 @@ impl Display for Substituent {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Branch {
     pub chain: Vec<Atom>,
     pub groups: Vec<Vec<Substituent>>,
@@ -418,6 +418,12 @@ impl Branch {
             groups: Vec::with_capacity(len),
             parent_alpha: Some(parent_alpha),
         }
+    }
+}
+
+impl PartialEq for Branch {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_string() == other.to_string()
     }
 }
 

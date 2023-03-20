@@ -21,7 +21,7 @@ pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Fallible<Vec<Atom>> {
         None => return Err(Other("No carbon chain found.".to_string())), // FIXME this is returned when a bond is placed at the edge
         Some(it) => it,
     }
-        .to_owned())
+    .to_owned())
 }
 
 pub(crate) fn get_all_chains(graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {
@@ -46,7 +46,11 @@ pub(crate) fn get_all_chains(graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {
 /// ## Errors
 ///
 /// Returns [`InvalidGraphError`] if any invalid structures are found while traversing the graph.
-pub(crate) fn endpoint_head_chains(endpoint: Atom, graph: &GridState, previous_pos: Option<Vec2>) -> Fallible<Vec<Vec<Atom>>> {
+pub(crate) fn endpoint_head_chains(
+    endpoint: Atom,
+    graph: &GridState,
+    previous_pos: Option<Vec2>,
+) -> Fallible<Vec<Vec<Atom>>> {
     let mut accumulator = vec![vec![]];
 
     accumulate_carbons(endpoint.pos, previous_pos, 0usize, &mut accumulator, graph)?;
@@ -232,7 +236,7 @@ mod tests {
             &graph,
             None,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(accumulator.len(), 2);
         assert_eq!(accumulator[0].len(), 5);
@@ -257,25 +261,23 @@ mod tests {
             &graph,
             Some(Vec2::zero()),
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(accumulator.len(), 2);
         assert_eq!(accumulator[0].len(), 4);
         assert_eq!(accumulator[1].len(), 4);
         assert_ne!(accumulator[0], accumulator[1]);
-        assert!(
-            !accumulator
-                .into_iter()
-                .flatten()
-                .collect::<Vec<Atom>>()
-                .contains({
-                    if let Cell::Atom(it) = graph.get(Vec2::zero()).unwrap() {
-                        it
-                    } else {
-                        panic!("")
-                    }
-                })
-        );
+        assert!(!accumulator
+            .into_iter()
+            .flatten()
+            .collect::<Vec<Atom>>()
+            .contains({
+                if let Cell::Atom(it) = graph.get(Vec2::zero()).unwrap() {
+                    it
+                } else {
+                    panic!("")
+                }
+            }));
     }
 
     #[test]
@@ -307,9 +309,9 @@ mod tests {
             graph.get(Vec2::xy(1, 2)).unwrap(),
             graph.get(Vec2::xy(2, 1)).unwrap(),
         ]
-            .iter()
-            .map(|&cell| unwrap_atom(cell))
-            .collect::<Vec<Atom>>();
+        .iter()
+        .map(|&cell| unwrap_atom(cell))
+        .collect::<Vec<Atom>>();
 
         assert_eq!(atoms, expected);
     }

@@ -3,6 +3,7 @@
 //! The `groups` module provides functionality for identifying functional groups on a branch.
 
 use crate::chain;
+use crate::chain::{endpoint_head_chains, longest_chain};
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::molecule::Group::{
     Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydroxyl, Iodo,
@@ -12,11 +13,14 @@ use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};
 use ruscii::spatial::{Direction, Vec2};
 use thiserror::Error;
-use crate::chain::{endpoint_head_chains, longest_chain};
 
 /// Generates a [`Branch`] from the given `chain` containing all functional groups attached
 /// to it.
-pub(crate) fn link_groups(graph: &GridState, chain: Vec<Atom>, parent: Option<Atom>) -> Fallible<Branch> {
+pub(crate) fn link_groups(
+    graph: &GridState,
+    chain: Vec<Atom>,
+    parent: Option<Atom>,
+) -> Fallible<Branch> {
     let mut branch = Branch::new(chain);
 
     fn accumulate_groups(
@@ -31,19 +35,27 @@ pub(crate) fn link_groups(graph: &GridState, chain: Vec<Atom>, parent: Option<At
 
         let directions = group_directions(graph, accumulator, index, parent.clone())?;
 
-        let group_nodes = directions.0
+        let group_nodes = directions
+            .0
             .into_iter()
             .map(|dir| group_node_tree(graph, accumulator.chain[index].pos, dir))
             .collect::<Fallible<Vec<GroupNode>>>()?;
 
-        let mut chain_nodes = directions.1
+        let mut chain_nodes = directions
+            .1
             .into_iter()
             .map(|dir| branch_node_tree(graph, accumulator.chain[index].pos, dir).unwrap())
-            .map(|chain| link_groups(
-                graph,
-                chain,
-                Some(Atom { element: Element::C, pos: accumulator.chain[index].pos })
-            ).unwrap())
+            .map(|chain| {
+                link_groups(
+                    graph,
+                    chain,
+                    Some(Atom {
+                        element: Element::C,
+                        pos: accumulator.chain[index].pos,
+                    }),
+                )
+                .unwrap()
+            })
             .map(Substituent::Branch)
             .collect::<Vec<Substituent>>();
 
@@ -159,7 +171,11 @@ pub(crate) fn group_node_tree(
     })
 }
 
-pub(crate) fn branch_node_tree(graph: &GridState, pos: Vec2, direction: Direction) -> Fallible<Vec<Atom>> {
+pub(crate) fn branch_node_tree(
+    graph: &GridState,
+    pos: Vec2,
+    direction: Direction,
+) -> Fallible<Vec<Atom>> {
     let atom = Pointer::new(graph, pos).traverse_bond(direction)?;
     let chains = endpoint_head_chains(atom, graph, Some(pos))?;
     longest_chain(chains)
@@ -206,7 +222,7 @@ fn group_directions(
     graph: &GridState,
     accumulator: &Branch,
     index: usize,
-    parent: Option<Atom>
+    parent: Option<Atom>,
 ) -> Fallible<(Vec<Direction>, Vec<Direction>)> {
     let ptr = Pointer::new(graph, accumulator.chain[index].pos);
     let directions = ptr
@@ -218,7 +234,7 @@ fn group_directions(
             let hydrogen = matches!(opposite_atom.element, Element::H);
             let in_chain = accumulator.chain.contains(&opposite_atom);
             let parent = Some(opposite_atom) == parent;
-            !(hydrogen || (in_chain && single_bond)) && !parent
+            !(hydrogen || parent || in_chain && single_bond)
         })
         .filter(|&direction| {
             if index > 0 {
@@ -449,8 +465,14 @@ mod tests {
         );
         let branch = Branch {
             chain: vec![
-                Atom { element: C, pos: Vec2::xy(0, 2), },
-                Atom { element: C, pos: Vec2::xy(2, 2), },
+                Atom {
+                    element: C,
+                    pos: Vec2::xy(0, 2),
+                },
+                Atom {
+                    element: C,
+                    pos: Vec2::xy(2, 2),
+                },
             ],
             groups: vec![],
             parent_alpha: None,

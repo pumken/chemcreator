@@ -3,11 +3,11 @@
 //! Not to be confused with Rust's `macro_rules!` declarations, the `macros` module contains
 //! common actions that should be automatically performed for the user when they make an input.
 
-use crate::molecule::BondOrder::Single;
+
 use crate::molecule::ComponentType;
 use crate::molecule::Element::{C, H};
 use crate::pointer::Pointer;
-use crate::spatial::{EnumAll, GridState, ToVec2};
+use crate::spatial::{EnumAll, GridState};
 use ruscii::spatial::Direction;
 
 pub fn invoke_macro(graph: &mut GridState) {

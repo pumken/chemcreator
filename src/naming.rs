@@ -93,7 +93,9 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
         let suffix = match group {
             Group::Carboxyl if fragment.locants.len() == 2 => return Ok("edioic acid".to_string()),
             Group::Carboxyl => return Ok("oic acid".to_string()),
-            Group::Carbonyl if fragment.locants == vec![0, fragment.locants.len() as i32 - 1] => return Ok("edial".to_string()),
+            Group::Carbonyl if fragment.locants == vec![0, fragment.locants.len() as i32 - 1] => {
+                return Ok("edial".to_string())
+            }
             Group::Carbonyl if fragment.locants == vec![0] => return Ok("al".to_string()),
             Group::Carbonyl => "one",
             Group::Hydroxyl => "ol",
@@ -114,7 +116,7 @@ fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
         .map(|&it| (it + 1).to_string())
         .collect::<Vec<String>>()
         .join(",");
-    let out = format!("{numbers}-{}", minor_numeric(locations.len() as i32)?, );
+    let out = format!("{numbers}-{}", minor_numeric(locations.len() as i32)?,);
     Ok(out)
 }
 
@@ -181,11 +183,15 @@ impl GroupCollection {
     pub fn new(branch: Branch) -> GroupCollection {
         let mut out = GroupCollection { collection: vec![] };
 
-        branch.groups.into_iter().enumerate().for_each(|(index, link)| {
-            link.into_iter().for_each(|it| {
-                out.push_fragment(it, index as i32);
-            })
-        });
+        branch
+            .groups
+            .into_iter()
+            .enumerate()
+            .for_each(|(index, link)| {
+                link.into_iter().for_each(|it| {
+                    out.push_fragment(it, index as i32);
+                })
+            });
 
         out
     }

@@ -5,6 +5,7 @@
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Element::{C, H, N, O};
+use crate::naming::process_name;
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{Blue, Green, LightGrey, Magenta, Red, White, Xterm, Yellow};
@@ -12,7 +13,6 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use crate::naming::process_name;
 
 /// Represents a type of functional group on a molecule.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -20,20 +20,6 @@ pub enum Group {
     Alkane,
     Alkene,
     Alkyne,
-    /* Alkyl groups */
-    Methyl,
-    Ethyl,
-    Propyl,
-    Isopropyl,
-    Butyl,
-    Pentyl,
-    Hexyl,
-    Heptyl,
-    Octyl,
-    Nonyl,
-    Decyl,
-    /* Alkenyl groups in future */
-    /* Alkynyl groups in future */
     /* Halide groups */
     Bromo,
     Chloro,
@@ -43,7 +29,8 @@ pub enum Group {
     Hydroxyl,
     Carbonyl,
     Carboxyl,
-    /* Phenyl later */ Ester,
+    /* Phenyl later */
+    Ester,
     Ether,
 }
 
@@ -408,15 +395,6 @@ impl Branch {
             chain,
             groups: Vec::with_capacity(len),
             parent_alpha: None,
-        }
-    }
-
-    pub fn side_branch(chain: Vec<Atom>, parent_alpha: Atom) -> Branch {
-        let len = chain.len();
-        Branch {
-            chain,
-            groups: Vec::with_capacity(len),
-            parent_alpha: Some(parent_alpha),
         }
     }
 }

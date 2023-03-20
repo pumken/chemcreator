@@ -1,6 +1,6 @@
 [package]
 name = "chemcreator"
-version = "1.1.0"
+version = "1.2.0"
 description = "A text-based tool for identifying organic molecules."
 authors = ["Gavin Tran"]
 readme = "README.md"

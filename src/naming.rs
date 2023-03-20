@@ -128,13 +128,13 @@ fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
         1 => "",
         2 => "di",
         3 => "tri",
-        4 => "tetra",
-        5 => "penta",
-        6 => "hexa",
-        7 => "hepta",
-        8 => "octa",
-        9 => "nona",
-        10 => "deca",
+        4 => "tetr",
+        5 => "pent",
+        6 => "hex",
+        7 => "hept",
+        8 => "oct",
+        9 => "non",
+        10 => "dec",
         _ => return Err(NamingError::GroupOccurrence(None, value)),
     };
     Ok(out)
@@ -171,7 +171,9 @@ fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
         27 => "heptacos",
         28 => "octacos",
         29 => "nonacos",
-        30 => "triaconta",
+        30 => "triacont",
+        31 => "untriacont",
+        32 => "duotriacont",
         _ => return Err(NamingError::CarbonCount(value)),
     };
     Ok(out)
@@ -297,7 +299,7 @@ mod tests {
     fn prefix_creates_correct_strings() {
         let branch =
             Branch::from_str("0: bromo, iodo; 1: oxo, hydroxyl; 2: bromo, hydroxyl").unwrap();
-        let collection = GroupCollection::new(&branch);
+        let collection = GroupCollection::new(branch);
         let str = prefix(collection.secondary_group_fragments()).unwrap();
 
         assert_eq!(str, "1,3-dibromo-2,3-dihydroxyl-1-iodo")

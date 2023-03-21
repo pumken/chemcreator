@@ -5,7 +5,9 @@
 use crate::chain;
 use crate::chain::{endpoint_head_chains, longest_chain};
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
-use crate::molecule::Group::{Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydroxyl, Iodo, Nitrile};
+use crate::molecule::Group::{
+    Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydroxyl, Iodo, Nitrile,
+};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};

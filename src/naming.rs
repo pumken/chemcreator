@@ -296,17 +296,17 @@ mod tests {
     #[test]
     fn prefix_creates_correct_strings() {
         let branch =
-            Branch::from_str("0: bromo, iodo; 1: oxo, hydroxyl; 2: bromo, hydroxyl").unwrap();
+            Branch::from_str("0: bromo, iodo; 1: oxo, hydroxy; 2: bromo, hydroxy").unwrap();
         let collection = GroupCollection::new(branch);
         let str = prefix(collection.secondary_group_fragments()).unwrap();
 
-        assert_eq!(str, "1,3-dibromo-2,3-dihydroxyl-1-iodo")
+        assert_eq!(str, "1,3-dibromo-2,3-dihydroxy-1-iodo")
     }
 
     #[test]
     fn collect_groups_aggregates_correctly() {
         let branch =
-            Branch::from_str("0: bromo, iodo; 1: oxo, hydroxyl; 2: bromo, hydroxyl").unwrap();
+            Branch::from_str("0: bromo, iodo; 1: oxo, hydroxy; 2: bromo, hydroxy").unwrap();
         let groups = GroupCollection::new(branch);
         let expected = vec![
             SubFragment::new(vec![0, 2], Substituent::Group(Bromo)),

@@ -17,6 +17,7 @@ use std::str::FromStr;
 /// Represents a type of functional group on a molecule.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Group {
+    /* Chain groups */
     Alkane,
     Alkene,
     Alkyne,
@@ -32,6 +33,8 @@ pub enum Group {
     /* Phenyl later */
     Ester,
     Ether,
+    /* Nitrogen groups */
+    Nitrile,
 }
 
 impl Group {
@@ -47,9 +50,10 @@ impl Group {
             Group::Bromo | Group::Chloro | Group::Fluoro | Group::Iodo => return None,
             Group::Hydroxyl => 3,
             Group::Carbonyl => 4,
-            Group::Carboxyl => 6,
-            Group::Ester => 5,
+            Group::Carboxyl => 7,
+            Group::Ester => 6,
             Group::Ether => return None,
+            Group::Nitrile => 5,
         };
         Some(priority)
     }
@@ -70,11 +74,12 @@ impl Display for Group {
             Group::Chloro => "chloro",
             Group::Fluoro => "fluoro",
             Group::Iodo => "iodo",
-            Group::Hydroxyl => "hydroxyl",
+            Group::Hydroxyl => "hydroxy",
             Group::Carbonyl => "oxo",
-            Group::Carboxyl => "carboxyl",
+            Group::Carboxyl => "carboxy",
             Group::Ester => "ester",
             Group::Ether => "ether",
+            Group::Nitrile => "cyano",
         };
         write!(f, "{str}")
     }
@@ -104,11 +109,12 @@ impl FromStr for Group {
             "chloro" => Group::Chloro,
             "fluoro" => Group::Fluoro,
             "iodo" => Group::Iodo,
-            "hydroxyl" => Group::Hydroxyl,
+            "hydroxy" => Group::Hydroxyl,
             "oxo" => Group::Carbonyl,
-            "carboxyl" => Group::Carboxyl,
+            "carboxy" => Group::Carboxyl,
             "ester" => Group::Ester,
             "ether" => Group::Ether,
+            "cyano" => Group::Nitrile,
             _ => return Err(()),
         };
         Ok(out)
@@ -488,9 +494,9 @@ mod tests {
     fn group_to_string() {
         let groups = vec![Group::Carboxyl, Carbonyl, Hydroxyl];
 
-        assert_eq!(groups[0].to_string(), "carboxyl");
+        assert_eq!(groups[0].to_string(), "carboxy");
         assert_eq!(groups[1].to_string(), "oxo");
-        assert_eq!(groups[2].to_string(), "hydroxyl");
+        assert_eq!(groups[2].to_string(), "hydroxy");
     }
 
     #[test]
@@ -525,15 +531,15 @@ mod tests {
         let a = Substituent::Group(Hydroxyl);
         let b = Substituent::Group(Bromo);
 
-        assert_eq!(a.to_string(), "hydroxyl".to_string());
+        assert_eq!(a.to_string(), "hydroxy".to_string());
         assert_eq!(b.to_string(), "bromo".to_string())
     }
 
     #[test]
     fn branch_reversed_correctly_reverses_chain() {
-        let branch = Branch::from_str("0: hydroxyl, bromo, alkene; 1: chloro").unwrap();
+        let branch = Branch::from_str("0: hydroxy, bromo, alkene; 1: chloro").unwrap();
         let reversed = branch.reversed();
-        let expected = Branch::from_str("0: chloro, alkene; 1: hydroxyl, bromo").unwrap();
+        let expected = Branch::from_str("0: chloro, alkene; 1: hydroxy, bromo").unwrap();
 
         assert_eq!(reversed, expected)
     }
@@ -557,14 +563,14 @@ mod tests {
             ],
             parent_alpha: None,
         };
-        let expected = Branch::from_str("0: hydroxyl, oxo; 1: bromo").unwrap();
+        let expected = Branch::from_str("0: hydroxy, oxo; 1: bromo").unwrap();
 
         assert_eq!(branch, expected);
     }
 
     #[test]
     fn branch_from_string_parses_str() {
-        let branch = Branch::from_str("0: hydroxyl").unwrap();
+        let branch = Branch::from_str("0: hydroxy").unwrap();
         let expected = vec![vec![Substituent::Group(Hydroxyl)]];
 
         assert_eq!(branch.groups, expected);
@@ -572,7 +578,7 @@ mod tests {
 
     #[test]
     fn branch_from_string_multiple_groups() {
-        let branch = Branch::from_str("0: hydroxyl; 1: hydroxyl").unwrap();
+        let branch = Branch::from_str("0: hydroxy; 1: hydroxy").unwrap();
         let expected = vec![
             vec![Substituent::Group(Hydroxyl)],
             vec![Substituent::Group(Hydroxyl)],
@@ -583,7 +589,7 @@ mod tests {
 
     #[test]
     fn branch_from_string_multiple_compound_groups() {
-        let branch = Branch::from_str("0: hydroxyl, oxo; 1: hydroxyl, oxo").unwrap();
+        let branch = Branch::from_str("0: hydroxy, oxo; 1: hydroxy, oxo").unwrap();
         let expected = vec![
             vec![Substituent::Group(Hydroxyl), Substituent::Group(Carbonyl)],
             vec![Substituent::Group(Hydroxyl), Substituent::Group(Carbonyl)],

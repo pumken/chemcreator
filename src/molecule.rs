@@ -88,7 +88,7 @@ impl Display for Group {
             Group::Carbonyl => "oxo",
             Group::Aldehyde => "formyl",
             Group::Carboxyl => "carboxy",
-            Group::AcidHalide(it) => return write!(f, "{}", it.associated_group()),
+            Group::AcidHalide(it) => return write!(f, "{}carbonyl", it.associated_group()),
             Group::Ester => "ester",
             Group::Ether => "ether",
             Group::Nitrile => "cyano",

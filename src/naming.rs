@@ -64,12 +64,14 @@ pub(crate) fn process_name(branch: Branch) -> Result<String, NamingError> {
 
 fn prefix(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
     fragments.sort_by_key(|fragment| fragment.subst.to_string());
-    let out = fragments
-        .into_iter()
-        .map(|fragment| format!("{}{}", locants(fragment.locants).unwrap(), fragment.subst))
-        .collect::<Vec<String>>()
-        .join("-");
-    Ok(out)
+    let mut out = vec![];
+
+    for fragment in fragments.into_iter() {
+        let locants = NamingError::add_substituent(locants(fragment.locants), &fragment.subst)?;
+        out.push(format!("{}{}", locants, fragment.subst))
+    }
+
+    Ok(out.join("-"))
 }
 
 fn bonding(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
@@ -77,11 +79,15 @@ fn bonding(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
     if fragments.is_empty() {
         Ok("an".to_string())
     } else {
-        let mut out = fragments
-            .into_iter()
-            .map(|fragment| format!("{}{}", locants(fragment.locants).unwrap(), fragment.subst))
-            .collect::<Vec<String>>()
-            .join("-");
+        let mut sequence = vec![];
+
+        for fragment in fragments.into_iter() {
+            let locants = NamingError::add_substituent(locants(fragment.locants), &fragment.subst)?;
+
+            sequence.push(format!("{}{}", locants, fragment.subst));
+        }
+
+        let mut out = sequence.join("-");
         out.insert(0, '-');
         Ok(out)
     }
@@ -89,7 +95,8 @@ fn bonding(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
 
 fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
     if let Substituent::Group(group) = fragment.subst {
-        let locations = locants(fragment.locants.clone())?;
+        let locants =
+            NamingError::add_substituent(locants(fragment.locants.clone()), &fragment.subst)?;
         let suffix = match group {
             Group::Carboxyl if fragment.locants.len() == 2 => return Ok("edioic acid".to_string()),
             Group::Carboxyl => return Ok("oic acid".to_string()),
@@ -100,13 +107,14 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
             Group::Nitrile if fragment.locants.len() == 2 => return Ok("edinitrile".to_string()),
             Group::Nitrile => return Ok("onitrile".to_string()),
             Group::AcidHalide(it) if fragment.locants.len() == 2 => {
-                return Ok(format!("edioyl di{it}"))
+                return Ok(format!("edioyl di{it}"));
             }
             Group::AcidHalide(it) => return Ok(format!("oyl {it}")),
+            Group::Amine => "amine",
             _ => return Ok("e".to_string()),
         };
 
-        Ok(format!("-{locations}{suffix}"))
+        Ok(format!("-{locants}{suffix}"))
     } else {
         panic!("branch provided to suffix function")
     }
@@ -129,13 +137,13 @@ fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
         1 => "",
         2 => "di",
         3 => "tri",
-        4 => "tetr",
-        5 => "pent",
-        6 => "hex",
-        7 => "hept",
-        8 => "oct",
-        9 => "non",
-        10 => "dec",
+        4 => "tetra",
+        5 => "penta",
+        6 => "hexa",
+        7 => "hepta",
+        8 => "octa",
+        9 => "nona",
+        10 => "deca",
         _ => return Err(NamingError::GroupOccurrence(None, value)),
     };
     Ok(out)
@@ -286,8 +294,48 @@ impl Display for SubFragment {
 pub enum NamingError {
     #[error("A branch was found with too many carbons ({}).", .0)]
     CarbonCount(i32),
-    #[error("Found too many occurrences of the {:?} group ({}).", .0, .1)]
-    GroupOccurrence(Option<Group>, i32),
+    #[error("Found too many occurrences of {} ({}).", NamingError::process(.0), .1)]
+    GroupOccurrence(Option<Substituent>, i32),
+}
+
+impl NamingError {
+    fn process(subst: &Option<Substituent>) -> String {
+        let unwrapped = subst.as_ref().expect("substituent should be provided");
+        match unwrapped {
+            Substituent::Branch(it) => format!("the {} branch", it),
+            Substituent::Group(it) => match it {
+                Group::Hydrogen | Alkane => panic!("process could not handle: {it}"),
+                Group::AcidHalide(_) | Group::Aldehyde | Group::Carboxyl | Group::Nitrile => {
+                    panic!("excess of 2-max group: {it}")
+                }
+                Group::Alkene => "double bonds",
+                Group::Alkyne => "triple bonds",
+                Group::Bromo => "bromide",
+                Group::Chloro => "chloride",
+                Group::Fluoro => "fluoride",
+                Group::Iodo => "iodide",
+                Group::Hydroxyl => "hydroxyl",
+                Group::Carbonyl => "carbonyl",
+                Group::Ester => "ester",
+                Group::Ether => "ether",
+                Group::Amine => "amine",
+            }
+            .to_string(),
+        }
+    }
+
+    fn add_substituent(
+        e: Result<String, NamingError>,
+        subst: &Substituent,
+    ) -> Result<String, NamingError> {
+        e.map_err(|e| {
+            if let NamingError::GroupOccurrence(_, count) = e {
+                NamingError::GroupOccurrence(Some(subst.clone()), count)
+            } else {
+                panic!("found unexpected error from locants")
+            }
+        })
+    }
 }
 
 #[cfg(test)]

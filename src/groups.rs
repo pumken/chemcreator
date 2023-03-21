@@ -311,7 +311,7 @@ mod tests {
     use crate::graph_with;
     use crate::molecule::BondOrder::{Double, Single};
     use crate::molecule::Element::{Br, Cl, C, F, H, I, O};
-    use crate::molecule::Group::{Bromo, Ether};
+    use crate::molecule::Group::Ether;
     use crate::spatial::EnumAll;
     use crate::test_utils::GW::{A, B};
 

@@ -29,7 +29,7 @@ mod validation;
 fn main() {
     let mut app = App::new();
     let version = env!("CARGO_PKG_VERSION");
-    let mut graph = GridState::new(20, 10);
+    let mut graph = GridState::new(21, 11);
     let mut state = AppState::default();
 
     app.run(|app_state: &mut State, window: &mut Window| {

@@ -35,7 +35,7 @@ impl GridState {
         GridState {
             cells,
             size: Vec2::xy(width, height),
-            cursor: Vec2::xy((width - 1) / 2, (height - 1) / 2),
+            cursor: Vec2::xy(width / 2, height / 2),
         }
     }
 

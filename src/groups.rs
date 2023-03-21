@@ -3,6 +3,7 @@
 //! The `groups` module provides functionality for identifying functional groups on a branch.
 
 use crate::chain;
+use crate::chain::{endpoint_head_chains, longest_chain};
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::molecule::Group::{
     Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydroxyl, Iodo,
@@ -15,37 +16,64 @@ use thiserror::Error;
 
 /// Generates a [`Branch`] from the given `chain` containing all functional groups attached
 /// to it.
-pub(crate) fn link_groups(graph: &GridState, chain: Vec<Atom>) -> Fallible<Branch> {
+pub(crate) fn link_groups(
+    graph: &GridState,
+    chain: Vec<Atom>,
+    parent: Option<Atom>,
+) -> Fallible<Branch> {
     let mut branch = Branch::new(chain);
 
     fn accumulate_groups(
         graph: &GridState,
         accumulator: &mut Branch,
         index: usize,
+        parent: Option<Atom>,
     ) -> Fallible<()> {
         if index >= accumulator.chain.len() {
             return Ok(());
         }
 
-        let group_nodes = group_directions(graph, accumulator, index)?
-            .iter()
-            .map(|&dir| group_node_tree(graph, accumulator.chain[index].pos, dir))
+        let directions = group_directions(graph, accumulator, index, parent.clone())?;
+
+        let group_nodes = directions
+            .0
+            .into_iter()
+            .map(|dir| group_node_tree(graph, accumulator.chain[index].pos, dir))
             .collect::<Fallible<Vec<GroupNode>>>()?;
 
-        let groups = convert_nodes(group_nodes)?;
+        let mut chain_nodes = directions
+            .1
+            .into_iter()
+            .map(|dir| branch_node_tree(graph, accumulator.chain[index].pos, dir).unwrap())
+            .map(|chain| {
+                link_groups(
+                    graph,
+                    chain,
+                    Some(Atom {
+                        element: Element::C,
+                        pos: accumulator.chain[index].pos,
+                    }),
+                )
+                .unwrap()
+            })
+            .map(Substituent::Branch)
+            .collect::<Vec<Substituent>>();
+
+        let mut groups = convert_nodes(group_nodes)?;
+        groups.append(&mut chain_nodes);
         accumulator.groups.push(groups);
 
-        accumulate_groups(graph, accumulator, index + 1)
+        accumulate_groups(graph, accumulator, index + 1, parent)
     }
 
-    accumulate_groups(graph, &mut branch, 0usize)?;
+    accumulate_groups(graph, &mut branch, 0usize, parent)?;
     Ok(branch)
 }
 
 pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
     let all_chains = chain::get_all_chains(graph)?;
     let chain = chain::longest_chain(all_chains)?;
-    link_groups(graph, chain)
+    link_groups(graph, chain, None)
 }
 
 /// Converts and combines the given `group_nodes` into [`Substituent`]s.
@@ -143,6 +171,16 @@ pub(crate) fn group_node_tree(
     })
 }
 
+pub(crate) fn branch_node_tree(
+    graph: &GridState,
+    pos: Vec2,
+    direction: Direction,
+) -> Fallible<Vec<Atom>> {
+    let atom = Pointer::new(graph, pos).traverse_bond(direction)?;
+    let chains = endpoint_head_chains(atom, graph, Some(pos))?;
+    longest_chain(chains)
+}
+
 /// Returns a [`Vec`] of [`Direction`] from the [`Atom`] at the given `pos` to bonded atoms
 /// not including the one at the `previous_pos`.
 ///
@@ -174,7 +212,7 @@ fn next_directions(graph: &GridState, pos: Vec2, previous_pos: Vec2) -> Fallible
 }
 
 /// Returns a [`Vec`] of [`Direction`]s from the [`Atom`] at the given `index` to functional
-/// groups.
+/// groups and side chains, respectively.
 ///
 /// ## Errors
 ///
@@ -184,17 +222,19 @@ fn group_directions(
     graph: &GridState,
     accumulator: &Branch,
     index: usize,
-) -> Fallible<Vec<Direction>> {
+    parent: Option<Atom>,
+) -> Fallible<(Vec<Direction>, Vec<Direction>)> {
     let ptr = Pointer::new(graph, accumulator.chain[index].pos);
     let directions = ptr
         .connected_directions()
         .into_iter()
         .filter(|&direction| {
-            let first_element = ptr.traverse_bond(direction).unwrap().element;
+            let opposite_atom = ptr.traverse_bond(direction).unwrap();
             let single_bond = matches!(ptr.bond_order(direction).unwrap(), BondOrder::Single);
-            let hydrocarbon =
-                matches!(first_element, Element::C) || matches!(first_element, Element::H);
-            !single_bond || !hydrocarbon
+            let hydrogen = matches!(opposite_atom.element, Element::H);
+            let in_chain = accumulator.chain.contains(&opposite_atom);
+            let parent = Some(opposite_atom) == parent;
+            !(hydrogen || parent || in_chain && single_bond)
         })
         .filter(|&direction| {
             if index > 0 {
@@ -208,7 +248,12 @@ fn group_directions(
                 true
             }
         })
-        .collect::<Vec<Direction>>();
+        .partition(|&direction| {
+            let opposite_atom = ptr.traverse_bond(direction).unwrap();
+            let carbon = matches!(opposite_atom.element, Element::C);
+            let in_chain = accumulator.chain.contains(&opposite_atom);
+            in_chain || !carbon
+        });
 
     Ok(directions)
 }
@@ -266,13 +311,14 @@ mod tests {
                 pos: Vec2::xy(3, 1),
             },
         ];
-        let branch = link_groups(&graph, chain.clone()).unwrap();
+        let branch = link_groups(&graph, chain.clone(), None).unwrap();
         let expected = Branch {
             chain,
             groups: vec![
                 vec![Substituent::Group(Chloro)],
                 vec![Substituent::Group(Hydroxyl)],
             ],
+            parent_alpha: None,
         };
 
         assert_eq!(branch, expected);
@@ -418,15 +464,23 @@ mod tests {
             [2, 0; A(C)], [2, 1; B(Double)], [2, 2; A(C)], [2, 3; A(O)], [2, 4; A(H)]
         );
         let branch = Branch {
-            chain: vec![Atom {
-                element: C,
-                pos: Vec2::xy(2, 2),
-            }],
+            chain: vec![
+                Atom {
+                    element: C,
+                    pos: Vec2::xy(0, 2),
+                },
+                Atom {
+                    element: C,
+                    pos: Vec2::xy(2, 2),
+                },
+            ],
             groups: vec![],
+            parent_alpha: None,
         };
-        let directions = group_directions(&graph, &branch, 0usize).unwrap();
+        let directions = group_directions(&graph, &branch, 1usize, None).unwrap();
 
-        assert_eq!(directions, vec![Direction::Up, Direction::Down]);
+        assert_eq!(directions.0, vec![Direction::Up]);
+        assert_eq!(directions.1, vec![Direction::Down]);
     }
 
     #[test]
@@ -444,9 +498,10 @@ mod tests {
                 pos: Vec2::xy(1, 1),
             }],
             groups: vec![],
+            parent_alpha: None,
         };
-        let directions = group_directions(&graph, &branch, 0usize).unwrap();
+        let directions = group_directions(&graph, &branch, 0usize, None).unwrap();
 
-        assert_eq!(directions, Direction::all());
+        assert_eq!(directions.0, Direction::all());
     }
 }

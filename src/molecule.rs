@@ -5,6 +5,7 @@
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Element::{C, H, N, O};
+use crate::naming::process_name;
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{Blue, Green, LightGrey, Magenta, Red, White, Xterm, Yellow};
@@ -19,20 +20,6 @@ pub enum Group {
     Alkane,
     Alkene,
     Alkyne,
-    /* Alkyl groups */
-    Methyl,
-    Ethyl,
-    Propyl,
-    Isopropyl,
-    Butyl,
-    Pentyl,
-    Hexyl,
-    Heptyl,
-    Octyl,
-    Nonyl,
-    Decyl,
-    /* Alkenyl groups in future */
-    /* Alkynyl groups in future */
     /* Halide groups */
     Bromo,
     Chloro,
@@ -42,7 +29,8 @@ pub enum Group {
     Hydroxyl,
     Carbonyl,
     Carboxyl,
-    /* Phenyl later */ Ester,
+    /* Phenyl later */
+    Ester,
     Ether,
 }
 
@@ -56,17 +44,6 @@ impl Group {
     pub const fn priority(self) -> Option<i32> {
         let priority = match self {
             Group::Alkane | Group::Alkene | Group::Alkyne => 0,
-            Group::Methyl
-            | Group::Ethyl
-            | Group::Propyl
-            | Group::Isopropyl
-            | Group::Butyl
-            | Group::Pentyl
-            | Group::Hexyl
-            | Group::Heptyl
-            | Group::Octyl
-            | Group::Nonyl
-            | Group::Decyl => return None,
             Group::Bromo | Group::Chloro | Group::Fluoro | Group::Iodo => return None,
             Group::Hydroxyl => 3,
             Group::Carbonyl => 4,
@@ -89,17 +66,6 @@ impl Display for Group {
             Group::Alkane => "an",
             Group::Alkene => "en",
             Group::Alkyne => "yn",
-            Group::Methyl => "methyl",
-            Group::Ethyl => "ethyl",
-            Group::Propyl => "propyl",
-            Group::Isopropyl => "isopropyl",
-            Group::Butyl => "butyl",
-            Group::Pentyl => "pentyl",
-            Group::Hexyl => "hexyl",
-            Group::Heptyl => "heptyl",
-            Group::Octyl => "octyl",
-            Group::Nonyl => "nonyl",
-            Group::Decyl => "decyl",
             Group::Bromo => "bromo",
             Group::Chloro => "chloro",
             Group::Fluoro => "fluoro",
@@ -362,23 +328,40 @@ pub enum Substituent {
     Group(Group),
 }
 
+impl Substituent {
+    pub fn priority(&self) -> Option<i32> {
+        match self {
+            Substituent::Group(it) => it.priority(),
+            Substituent::Branch(_) => None,
+        }
+    }
+
+    pub fn is_chain_group(&self) -> bool {
+        match self {
+            Substituent::Group(it) => it.is_chain_group(),
+            Substituent::Branch(_) => false,
+        }
+    }
+}
+
 impl Display for Substituent {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
             f,
             "{}",
             match self {
-                Substituent::Branch(_) => "".to_string(),
+                Substituent::Branch(it) => it.to_string(),
                 Substituent::Group(it) => it.to_string(),
             }
         )
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Branch {
     pub chain: Vec<Atom>,
     pub groups: Vec<Vec<Substituent>>,
+    pub parent_alpha: Option<Atom>,
 }
 
 impl Branch {
@@ -389,28 +372,59 @@ impl Branch {
         Branch {
             chain,
             groups: Vec::with_capacity(len),
+            parent_alpha: None,
         }
+    }
+
+    pub fn reversed(&self) -> Branch {
+        let (mut chain, mut groups, parent_alpha) = {
+            let clone = self.clone();
+            (clone.chain, clone.groups, clone.parent_alpha)
+        };
+        chain.reverse();
+
+        groups = Branch::shift_chain_groups(groups);
+        groups.reverse();
+
+        Branch {
+            chain,
+            groups,
+            parent_alpha,
+        }
+    }
+
+    fn shift_chain_groups(mut groups: Vec<Vec<Substituent>>) -> Vec<Vec<Substituent>> {
+        for outer in (1..groups.len()).rev() {
+            let link = &mut groups[outer - 1];
+            let mut cache = vec![];
+
+            for index in (0..link.len()).rev() {
+                if link[index].is_chain_group() {
+                    let element = link.remove(index);
+                    cache.push(element);
+                }
+            }
+
+            groups[outer].append(&mut cache);
+        }
+        groups
+    }
+}
+
+impl PartialEq for Branch {
+    fn eq(&self, other: &Self) -> bool {
+        self.chain == other.chain && self.groups == other.groups
     }
 }
 
 impl Display for Branch {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        let out = self
-            .groups
-            .iter()
-            .enumerate()
-            .map(|(index, it)| {
-                format!(
-                    "{index}: {}",
-                    it.iter()
-                        .map(|it| it.to_string())
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                )
-            })
-            .collect::<Vec<String>>()
-            .join("; ");
-        write!(f, "{out}")
+        let mut name = match process_name(self.clone()) {
+            Ok(it) => it,
+            Err(_) => panic!("unable to process {:?}", self),
+        };
+        name.truncate(name.len() - 3);
+        write!(f, "{name}yl")
     }
 }
 
@@ -423,7 +437,12 @@ impl FromStr for Branch {
             .map(|it| {
                 it.trim_start_matches(|c: char| c.is_ascii_digit() || c == ':' || c == ' ')
                     .split(", ")
-                    .map(|str| Substituent::Group(Group::from_str(str).unwrap()))
+                    .map(|str| {
+                        Substituent::Group(match Group::from_str(str) {
+                            Ok(it) => it,
+                            Err(_) => panic!("\"{str}\" is not a valid group"),
+                        })
+                    })
                     .collect::<Vec<Substituent>>()
             })
             .collect::<Vec<Vec<Substituent>>>();
@@ -432,6 +451,7 @@ impl FromStr for Branch {
         let out = Branch {
             chain: vec![Atom::default(); len],
             groups,
+            parent_alpha: None,
         };
         Ok(out)
     }
@@ -460,7 +480,7 @@ mod tests {
     use super::*;
     use crate::graph_with;
     use crate::groups::group_node_tree;
-    use crate::molecule::Group::{Bromo, Carbonyl, Hydroxyl};
+    use crate::molecule::Group::{Alkene, Bromo, Carbonyl, Hydroxyl};
     use crate::spatial::GridState;
     use crate::test_utils::GW::{A, B};
 
@@ -510,6 +530,24 @@ mod tests {
     }
 
     #[test]
+    fn branch_reversed_correctly_reverses_chain() {
+        let branch = Branch::from_str("0: hydroxyl, bromo, alkene; 1: chloro").unwrap();
+        let reversed = branch.reversed();
+        let expected = Branch::from_str("0: chloro, alkene; 1: hydroxyl, bromo").unwrap();
+
+        assert_eq!(reversed, expected)
+    }
+
+    #[test]
+    fn branch_shift_chain_groups() {
+        let mut groups = vec![vec![Substituent::Group(Alkene)], vec![]];
+        groups = Branch::shift_chain_groups(groups);
+        let expected = vec![vec![], vec![Substituent::Group(Alkene)]];
+
+        assert_eq!(groups, expected);
+    }
+
+    #[test]
     fn branch_to_string_groups_only() {
         let branch = Branch {
             chain: vec![/* Not used in to_string() */],
@@ -517,9 +555,11 @@ mod tests {
                 vec![Substituent::Group(Hydroxyl), Substituent::Group(Carbonyl)],
                 vec![Substituent::Group(Bromo)],
             ],
+            parent_alpha: None,
         };
+        let expected = Branch::from_str("0: hydroxyl, oxo; 1: bromo").unwrap();
 
-        assert_eq!(branch.to_string(), "0: hydroxyl, oxo; 1: bromo")
+        assert_eq!(branch, expected);
     }
 
     #[test]

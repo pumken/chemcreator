@@ -96,7 +96,7 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
             Group::Carbonyl if fragment.locants == vec![0, fragment.locants.len() as i32 - 1] => {
                 return Ok("edial".to_string())
             }
-            Group::Carbonyl if fragment.locants == vec![0] => return Ok("al".to_string()),
+            Group::Aldehyde => return Ok("al".to_string()),
             Group::Carbonyl => "one",
             Group::Hydroxyl => "ol",
             Group::Nitrile => "onitrile",

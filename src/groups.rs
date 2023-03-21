@@ -5,9 +5,7 @@
 use crate::chain;
 use crate::chain::{endpoint_head_chains, longest_chain};
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
-use crate::molecule::Group::{
-    Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydroxyl, Iodo, Nitrile,
-};
+use crate::molecule::Group::{Aldehyde, Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydrogen, Hydroxyl, Iodo, Nitrile};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};
@@ -100,6 +98,7 @@ fn convert_nodes(group_nodes: Vec<GroupNode>) -> Fallible<Vec<Substituent>> {
 fn identify_single_bond_group(node: GroupNode) -> Fallible<Group> {
     let string = node.to_string();
     let out = match string.as_str() {
+        "1H" => Hydrogen,
         "1B" => Bromo,
         "1L" => Chloro,
         "1F" => Fluoro,
@@ -125,6 +124,12 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
             out.push(Substituent::Group(Carboxyl));
             continue;
         }
+        if groups.contains(&Carbonyl) && groups.contains(&Hydrogen) {
+            groups.retain(|it| it != &Carbonyl && it != &Hydrogen);
+            out.push(Substituent::Group(Aldehyde));
+            continue;
+        }
+        groups.retain(|it| it != &Hydrogen);
         break;
     }
 

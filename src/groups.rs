@@ -6,7 +6,10 @@ use crate::chain;
 use crate::chain::{endpoint_head_chains, longest_chain};
 use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
-use crate::molecule::Group::{AcidHalide, Aldehyde, Alkene, Alkyne, Amine, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydrogen, Hydroxyl, Iodo, Nitrile};
+use crate::molecule::Group::{
+    AcidHalide, Aldehyde, Alkene, Alkyne, Amine, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro,
+    Hydrogen, Hydroxyl, Iodo, Nitrile,
+};
 use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;

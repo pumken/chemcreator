@@ -489,7 +489,7 @@ impl Branch {
 
 impl PartialEq for Branch {
     fn eq(&self, other: &Self) -> bool {
-        self.chain == other.chain && self.groups == other.groups
+        self.chain.len() == other.chain.len() && self.groups == other.groups
     }
 }
 

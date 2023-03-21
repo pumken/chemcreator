@@ -7,6 +7,7 @@ use crate::chain;
 use crate::groups::InvalidGraphError::Discontinuity;
 use crate::groups::{Fallible, InvalidGraphError};
 use crate::molecule::{Atom, Branch, Cell};
+use crate::naming::{GroupCollection, SubFragment};
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
@@ -68,9 +69,45 @@ pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
     Ok(())
 }
 
-/// Checks if chain indexes are in the correct direction.
-pub fn chain_in_correct_direction(branch: &Branch) -> bool {
-    true
+impl Branch {
+    /// Checks if chain indexes are in the correct direction.
+    pub fn index_corrected(self) -> Branch {
+        let original = self.clone();
+        let reversed = self.reversed();
+        let original_collection = GroupCollection::new(original.clone());
+        let reversed_collection = GroupCollection::new(reversed.clone());
+
+        match cmp(
+            original_collection.primary_group_fragment(),
+            reversed_collection.primary_group_fragment(),
+        ) {
+            Ordering::Less => return original,
+            Ordering::Greater => return reversed,
+            Ordering::Equal => {}
+        }
+
+        // TODO add more cases:
+        //  lowest-numbered locants for multiple bonds
+        //  lowest-numbered locants for prefixes
+
+        original
+    }
+}
+
+fn cmp(first: SubFragment, second: SubFragment) -> Ordering {
+    let mut first_locants = first.locants;
+    first_locants.sort();
+    let mut second_locants = second.locants;
+    second_locants.sort();
+
+    for (index, locant) in first_locants.iter().enumerate() {
+        match locant.cmp(&second_locants[index]) {
+            Ordering::Equal => continue,
+            Ordering::Less => return Ordering::Less,
+            Ordering::Greater => return Ordering::Greater,
+        }
+    }
+    Ordering::Equal
 }
 
 #[cfg(test)]

@@ -8,7 +8,6 @@ use crate::groups::InvalidGraphError::Other;
 use crate::molecule::Group::Alkane;
 use crate::molecule::{Branch, Cell, Group, Substituent};
 use crate::spatial::GridState;
-use crate::validation::chain_in_correct_direction;
 use crate::{chain, groups, validation};
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
@@ -44,10 +43,8 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
     let chain = chain::longest_chain(all_chains)?;
 
     // Group-linked branch
-    let branch = groups::link_groups(graph, chain, None)?;
-    if !chain_in_correct_direction(&branch) {
-        // do something
-    }
+    let mut branch = groups::link_groups(graph, chain, None)?;
+    branch = branch.index_corrected();
 
     process_name(branch).map_err(|e| Other(e.to_string()))
 }
@@ -251,8 +248,8 @@ impl GroupCollection {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SubFragment {
-    locants: Vec<i32>,
-    subst: Substituent,
+    pub locants: Vec<i32>,
+    pub subst: Substituent,
 }
 
 impl SubFragment {
@@ -309,12 +306,12 @@ mod tests {
     fn collect_groups_aggregates_correctly() {
         let branch =
             Branch::from_str("0: bromo, iodo; 1: oxo, hydroxyl; 2: bromo, hydroxyl").unwrap();
-        let groups = GroupCollection::new(&branch);
+        let groups = GroupCollection::new(branch);
         let expected = vec![
-            SubFragment::new(vec![0, 2], Bromo),
-            SubFragment::new(vec![0], Iodo),
-            SubFragment::new(vec![1], Carbonyl),
-            SubFragment::new(vec![1, 2], Hydroxyl),
+            SubFragment::new(vec![0, 2], Substituent::Group(Bromo)),
+            SubFragment::new(vec![0], Substituent::Group(Iodo)),
+            SubFragment::new(vec![1], Substituent::Group(Carbonyl)),
+            SubFragment::new(vec![1, 2], Substituent::Group(Hydroxyl)),
         ];
 
         assert_eq!(groups.collection, expected);
@@ -324,8 +321,8 @@ mod tests {
     fn primary_group_doesnt_ignore_halogens() {
         let collection = GroupCollection {
             collection: vec![
-                SubFragment::new(vec![0], Bromo),
-                SubFragment::new(vec![0], Chloro),
+                SubFragment::new(vec![0], Substituent::Group(Bromo)),
+                SubFragment::new(vec![0], Substituent::Group(Chloro)),
             ],
         };
         assert_eq!(collection.primary_group(), Alkane);

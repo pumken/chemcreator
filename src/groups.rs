@@ -311,7 +311,7 @@ mod tests {
                 pos: Vec2::xy(3, 1),
             },
         ];
-        let branch = link_groups(&graph, chain.clone()).unwrap();
+        let branch = link_groups(&graph, chain.clone(), None).unwrap();
         let expected = Branch {
             chain,
             groups: vec![
@@ -477,7 +477,7 @@ mod tests {
             groups: vec![],
             parent_alpha: None,
         };
-        let directions = group_directions(&graph, &branch, 1usize).unwrap();
+        let directions = group_directions(&graph, &branch, 1usize, None).unwrap();
 
         assert_eq!(directions.0, vec![Direction::Up]);
         assert_eq!(directions.1, vec![Direction::Down]);
@@ -500,7 +500,7 @@ mod tests {
             groups: vec![],
             parent_alpha: None,
         };
-        let directions = group_directions(&graph, &branch, 0usize).unwrap();
+        let directions = group_directions(&graph, &branch, 0usize, None).unwrap();
 
         assert_eq!(directions.0, Direction::all());
     }

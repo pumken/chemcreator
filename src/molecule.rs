@@ -375,17 +375,54 @@ impl Branch {
             parent_alpha: None,
         }
     }
+
+    pub fn reversed(&self) -> Branch {
+        let (mut chain, mut groups, parent_alpha) = {
+            let clone = self.clone();
+            (clone.chain, clone.groups, clone.parent_alpha)
+        };
+        chain.reverse();
+
+        groups = Branch::shift_chain_groups(groups);
+        groups.reverse();
+
+        Branch {
+            chain,
+            groups,
+            parent_alpha,
+        }
+    }
+
+    fn shift_chain_groups(mut groups: Vec<Vec<Substituent>>) -> Vec<Vec<Substituent>> {
+        for outer in (1..groups.len()).rev() {
+            let link = &mut groups[outer - 1];
+            let mut cache = vec![];
+
+            for index in (0..link.len()).rev() {
+                if link[index].is_chain_group() {
+                    let element = link.remove(index);
+                    cache.push(element);
+                }
+            }
+
+            groups[outer].append(&mut cache);
+        }
+        groups
+    }
 }
 
 impl PartialEq for Branch {
     fn eq(&self, other: &Self) -> bool {
-        self.to_string() == other.to_string()
+        self.chain == other.chain && self.groups == other.groups
     }
 }
 
 impl Display for Branch {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        let mut name = process_name(self.clone()).unwrap_or("ERROR!".to_string());
+        let mut name = match process_name(self.clone()) {
+            Ok(it) => it,
+            Err(_) => panic!("unable to process {:?}", self),
+        };
         name.truncate(name.len() - 3);
         write!(f, "{name}yl")
     }
@@ -400,7 +437,12 @@ impl FromStr for Branch {
             .map(|it| {
                 it.trim_start_matches(|c: char| c.is_ascii_digit() || c == ':' || c == ' ')
                     .split(", ")
-                    .map(|str| Substituent::Group(Group::from_str(str).unwrap()))
+                    .map(|str| {
+                        Substituent::Group(match Group::from_str(str) {
+                            Ok(it) => it,
+                            Err(_) => panic!("\"{str}\" is not a valid group"),
+                        })
+                    })
                     .collect::<Vec<Substituent>>()
             })
             .collect::<Vec<Vec<Substituent>>>();
@@ -438,7 +480,7 @@ mod tests {
     use super::*;
     use crate::graph_with;
     use crate::groups::group_node_tree;
-    use crate::molecule::Group::{Bromo, Carbonyl, Hydroxyl};
+    use crate::molecule::Group::{Alkene, Bromo, Carbonyl, Hydroxyl};
     use crate::spatial::GridState;
     use crate::test_utils::GW::{A, B};
 
@@ -488,6 +530,24 @@ mod tests {
     }
 
     #[test]
+    fn branch_reversed_correctly_reverses_chain() {
+        let branch = Branch::from_str("0: hydroxyl, bromo, alkene; 1: chloro").unwrap();
+        let reversed = branch.reversed();
+        let expected = Branch::from_str("0: chloro, alkene; 1: hydroxyl, bromo").unwrap();
+
+        assert_eq!(reversed, expected)
+    }
+
+    #[test]
+    fn branch_shift_chain_groups() {
+        let mut groups = vec![vec![Substituent::Group(Alkene)], vec![]];
+        groups = Branch::shift_chain_groups(groups);
+        let expected = vec![vec![], vec![Substituent::Group(Alkene)]];
+
+        assert_eq!(groups, expected);
+    }
+
+    #[test]
     fn branch_to_string_groups_only() {
         let branch = Branch {
             chain: vec![/* Not used in to_string() */],
@@ -497,8 +557,9 @@ mod tests {
             ],
             parent_alpha: None,
         };
+        let expected = Branch::from_str("0: hydroxyl, oxo; 1: bromo").unwrap();
 
-        assert_eq!(branch.to_string(), "0: hydroxyl, oxo; 1: bromo")
+        assert_eq!(branch, expected);
     }
 
     #[test]

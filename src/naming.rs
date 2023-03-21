@@ -103,6 +103,7 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
                 return Ok(format!("edioyl di{it}"))
             }
             Group::AcidHalide(it) => return Ok(format!("oyl {it}")),
+            Group::Amine => "amine",
             _ => return Ok("e".to_string()),
         };
 
@@ -129,13 +130,13 @@ fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
         1 => "",
         2 => "di",
         3 => "tri",
-        4 => "tetr",
-        5 => "pent",
-        6 => "hex",
-        7 => "hept",
-        8 => "oct",
-        9 => "non",
-        10 => "dec",
+        4 => "tetra",
+        5 => "penta",
+        6 => "hexa",
+        7 => "hepta",
+        8 => "octa",
+        9 => "nona",
+        10 => "deca",
         _ => return Err(NamingError::GroupOccurrence(None, value)),
     };
     Ok(out)

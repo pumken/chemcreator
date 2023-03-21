@@ -40,6 +40,7 @@ pub enum Group {
     Ester,
     Ether,
     /* Nitrogen groups */
+    Amine,
     Nitrile,
 }
 
@@ -64,6 +65,7 @@ impl Group {
             Group::Aldehyde => 5,
             Group::Carbonyl => 4,
             Group::Hydroxyl => 3,
+            Group::Amine => 1,
             Group::Alkane | Group::Alkene | Group::Alkyne => 0,
             Group::Hydrogen
             | Group::Bromo
@@ -99,6 +101,7 @@ impl Display for Group {
             Group::AcidHalide(it) => return write!(f, "{}carbonyl", it.associated_group()),
             Group::Ester => "ester",
             Group::Ether => "ether",
+            Group::Amine => "amino",
             Group::Nitrile => "cyano",
         };
         write!(f, "{str}")
@@ -135,6 +138,7 @@ impl FromStr for Group {
             "carboxy" => Group::Carboxyl,
             "ester" => Group::Ester,
             "ether" => Group::Ether,
+            "amino" => Group::Amine,
             "cyano" => Group::Nitrile,
             _ => return Err(()),
         };

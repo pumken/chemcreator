@@ -6,10 +6,7 @@ use crate::chain;
 use crate::chain::{endpoint_head_chains, longest_chain};
 use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
-use crate::molecule::Group::{
-    AcidHalide, Aldehyde, Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydrogen,
-    Hydroxyl, Iodo, Nitrile,
-};
+use crate::molecule::Group::{AcidHalide, Aldehyde, Alkene, Alkyne, Amine, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydrogen, Hydroxyl, Iodo, Nitrile};
 use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;
@@ -109,6 +106,7 @@ fn identify_single_bond_group(node: GroupNode) -> Fallible<Group> {
         "1F" => Fluoro,
         "1I" => Iodo,
         "1O(1H)" => Hydroxyl,
+        "1N(1H)(1H)" => Amine,
         "2O" => Carbonyl,
         "2C" => Alkene,
         "3C" => Alkyne,

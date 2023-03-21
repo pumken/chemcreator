@@ -52,17 +52,20 @@ impl Group {
     /// the main group_ (i.e., always a prefix).
     pub const fn priority(self) -> Option<i32> {
         let priority = match self {
-            Group::Hydrogen => return None,
-            Group::Alkane | Group::Alkene | Group::Alkyne => 0,
-            Group::Bromo | Group::Chloro | Group::Fluoro | Group::Iodo => return None,
-            Group::Hydroxyl => 3,
-            Group::Carbonyl => 4,
-            Group::Aldehyde => 5,
-            Group::Carboxyl => 9,
-            Group::AcidHalide(_) => 7,
-            Group::Ester => 8,
-            Group::Ether => return None,
+            Group::Carboxyl => 12,
+            Group::Ester => 11,
+            Group::AcidHalide(halogen) => match halogen {
+                Halogen::Fluorine => 10,
+                Halogen::Chlorine => 9,
+                Halogen::Bromine => 8,
+                Halogen::Iodine => 7,
+            }
             Group::Nitrile => 6,
+            Group::Aldehyde => 5,
+            Group::Carbonyl => 4,
+            Group::Hydroxyl => 3,
+            Group::Alkane | Group::Alkene | Group::Alkyne => 0,
+            Group::Hydrogen | Group::Bromo | Group::Chloro | Group::Fluoro | Group::Iodo | Group::Ether => return None,
         };
         Some(priority)
     }

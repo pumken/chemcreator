@@ -131,7 +131,6 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
             [Carbonyl, Bromo => AcidHalide(Bromine)],
             [Carbonyl, Iodo => AcidHalide(Iodine)],
             [Carbonyl, Hydrogen => Aldehyde]
-
         );
         groups.retain(|it| it != &Hydrogen);
         break;

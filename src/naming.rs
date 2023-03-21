@@ -100,6 +100,7 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
             Group::Carbonyl => "one",
             Group::Hydroxyl => "ol",
             Group::Nitrile => "onitrile",
+            Group::AcidHalide(it) if fragment.locants.len() == 2 => return Ok(format!("edioyl di{it}")),
             Group::AcidHalide(it) => return Ok(format!("oyl {it}")),
             _ => return Ok("e".to_string()),
         };

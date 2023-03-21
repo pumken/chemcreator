@@ -6,6 +6,7 @@ use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Element::{C, H, N, O};
 use crate::naming::process_name;
+use crate::spatial::EnumAll;
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{Blue, Green, LightGrey, Magenta, Red, White, Xterm, Yellow};
@@ -17,7 +18,9 @@ use std::str::FromStr;
 /// Represents a type of functional group on a molecule.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Group {
-    /* Chain groups */
+    /* Not a group, but useful */
+    Hydrogen,
+    /* Multiple bond groups */
     Alkane,
     Alkene,
     Alkyne,
@@ -29,8 +32,11 @@ pub enum Group {
     /* General groups */
     Hydroxyl,
     Carbonyl,
+    /* Compound groups */
+    Aldehyde,
+    AcidHalide(Halogen),
     Carboxyl,
-    /* Phenyl later */
+    /* Chain groups */
     Ester,
     Ether,
     /* Nitrogen groups */
@@ -46,14 +52,25 @@ impl Group {
     /// the main group_ (i.e., always a prefix).
     pub const fn priority(self) -> Option<i32> {
         let priority = match self {
-            Group::Alkane | Group::Alkene | Group::Alkyne => 0,
-            Group::Bromo | Group::Chloro | Group::Fluoro | Group::Iodo => return None,
-            Group::Hydroxyl => 3,
+            Group::Carboxyl => 12,
+            Group::Ester => 11,
+            Group::AcidHalide(halogen) => match halogen {
+                Halogen::Fluorine => 10,
+                Halogen::Chlorine => 9,
+                Halogen::Bromine => 8,
+                Halogen::Iodine => 7,
+            },
+            Group::Nitrile => 6,
+            Group::Aldehyde => 5,
             Group::Carbonyl => 4,
-            Group::Carboxyl => 7,
-            Group::Ester => 6,
-            Group::Ether => return None,
-            Group::Nitrile => 5,
+            Group::Hydroxyl => 3,
+            Group::Alkane | Group::Alkene | Group::Alkyne => 0,
+            Group::Hydrogen
+            | Group::Bromo
+            | Group::Chloro
+            | Group::Fluoro
+            | Group::Iodo
+            | Group::Ether => return None,
         };
         Some(priority)
     }
@@ -67,6 +84,7 @@ impl Display for Group {
     /// Displays the ionic prefix for the current [`Group`].
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         let str = match *self {
+            Group::Hydrogen => "",
             Group::Alkane => "an",
             Group::Alkene => "en",
             Group::Alkyne => "yn",
@@ -76,7 +94,9 @@ impl Display for Group {
             Group::Iodo => "iodo",
             Group::Hydroxyl => "hydroxy",
             Group::Carbonyl => "oxo",
+            Group::Aldehyde => "formyl",
             Group::Carboxyl => "carboxy",
+            Group::AcidHalide(it) => return write!(f, "{}carbonyl", it.associated_group()),
             Group::Ester => "ester",
             Group::Ether => "ether",
             Group::Nitrile => "cyano",
@@ -102,6 +122,7 @@ impl FromStr for Group {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let out = match s {
+            "hydrogen" => Group::Hydrogen,
             "alkane" => Group::Alkane,
             "alkene" => Group::Alkene,
             "alkyne" => Group::Alkyne,
@@ -118,6 +139,51 @@ impl FromStr for Group {
             _ => return Err(()),
         };
         Ok(out)
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Halogen {
+    Fluorine,
+    Chlorine,
+    Bromine,
+    Iodine,
+}
+
+impl Halogen {
+    pub fn associated_group(&self) -> Group {
+        match self {
+            Halogen::Fluorine => Group::Fluoro,
+            Halogen::Chlorine => Group::Chloro,
+            Halogen::Bromine => Group::Bromo,
+            Halogen::Iodine => Group::Iodo,
+        }
+    }
+}
+
+impl Display for Halogen {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let str = match self {
+            Halogen::Fluorine => "fluoride",
+            Halogen::Chlorine => "chloride",
+            Halogen::Bromine => "bromide",
+            Halogen::Iodine => "iodide",
+        };
+        write!(f, "{str}")
+    }
+}
+
+impl EnumAll for Halogen {
+    fn all() -> Vec<Self>
+    where
+        Self: Sized,
+    {
+        vec![
+            Halogen::Fluorine,
+            Halogen::Chlorine,
+            Halogen::Bromine,
+            Halogen::Iodine,
+        ]
     }
 }
 

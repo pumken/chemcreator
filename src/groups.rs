@@ -4,10 +4,13 @@
 
 use crate::chain;
 use crate::chain::{endpoint_head_chains, longest_chain};
+use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::molecule::Group::{
-    Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydroxyl, Iodo, Nitrile,
+    AcidHalide, Aldehyde, Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydrogen,
+    Hydroxyl, Iodo, Nitrile,
 };
+use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};
@@ -72,7 +75,7 @@ pub(crate) fn link_groups(
 
 pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
     let all_chains = chain::get_all_chains(graph)?;
-    let chain = chain::longest_chain(all_chains)?;
+    let chain = longest_chain(all_chains)?;
     link_groups(graph, chain, None)
 }
 
@@ -100,6 +103,7 @@ fn convert_nodes(group_nodes: Vec<GroupNode>) -> Fallible<Vec<Substituent>> {
 fn identify_single_bond_group(node: GroupNode) -> Fallible<Group> {
     let string = node.to_string();
     let out = match string.as_str() {
+        "1H" => Hydrogen,
         "1B" => Bromo,
         "1L" => Chloro,
         "1F" => Fluoro,
@@ -120,11 +124,15 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     let mut out = vec![];
 
     loop {
-        if groups.contains(&Carbonyl) && groups.contains(&Hydroxyl) {
-            groups.retain(|it| it != &Carbonyl && it != &Hydroxyl);
-            out.push(Substituent::Group(Carboxyl));
-            continue;
-        }
+        compound!(groups, out,
+            [Carbonyl, Hydroxyl => Carboxyl],
+            [Carbonyl, Fluoro => AcidHalide(Fluorine)],
+            [Carbonyl, Chloro => AcidHalide(Chlorine)],
+            [Carbonyl, Bromo => AcidHalide(Bromine)],
+            [Carbonyl, Iodo => AcidHalide(Iodine)],
+            [Carbonyl, Hydrogen => Aldehyde]
+        );
+        groups.retain(|it| it != &Hydrogen);
         break;
     }
 
@@ -135,6 +143,21 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     out.append(&mut rest);
 
     out
+}
+
+/// Takes the given `groups`, matches them against the cases given and returns the resultant
+/// groups to `out`.
+#[macro_export]
+macro_rules! compound {
+    ($groups:expr, $out:expr, $([$first:expr, $second:expr => $comp:expr]),*) => {
+        $(
+        if $groups.contains(&$first) && $groups.contains(&$second) {
+            $groups.retain(|it| it != &$first && it != &$second);
+            $out.push(Substituent::Group($comp));
+            continue;
+        }
+        )*
+    };
 }
 
 /// Constructs a [`GroupNode`] from the given `pos` in the given `direction`.
@@ -232,10 +255,9 @@ fn group_directions(
         .filter(|&direction| {
             let opposite_atom = ptr.traverse_bond(direction).unwrap();
             let single_bond = matches!(ptr.bond_order(direction).unwrap(), BondOrder::Single);
-            let hydrogen = matches!(opposite_atom.element, Element::H);
             let in_chain = accumulator.chain.contains(&opposite_atom);
             let parent = Some(opposite_atom) == parent;
-            !(hydrogen || parent || in_chain && single_bond)
+            !(parent || in_chain && single_bond)
         })
         .filter(|&direction| {
             if index > 0 {
@@ -288,7 +310,7 @@ mod tests {
     use crate::graph_with;
     use crate::molecule::BondOrder::{Double, Single};
     use crate::molecule::Element::{Br, Cl, C, F, H, I, O};
-    use crate::molecule::Group::{Bromo, Ether};
+    use crate::molecule::Group::Ether;
     use crate::spatial::EnumAll;
     use crate::test_utils::GW::{A, B};
 
@@ -350,7 +372,7 @@ mod tests {
 
     #[test]
     fn group_patterns_retains_groups() {
-        let groups = vec![Carbonyl, Bromo, Ether];
+        let groups = vec![Carbonyl, Ether];
         let expected = groups
             .iter()
             .map(|group| Substituent::Group(group.to_owned()))

@@ -126,11 +126,11 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     loop {
         compound!(groups, out,
             [Carbonyl, Hydroxyl => Carboxyl],
-            [Carbonyl, Hydrogen => Aldehyde],
             [Carbonyl, Fluoro => AcidHalide(Fluorine)],
             [Carbonyl, Chloro => AcidHalide(Chlorine)],
             [Carbonyl, Bromo => AcidHalide(Bromine)],
-            [Carbonyl, Iodo => AcidHalide(Iodine)]
+            [Carbonyl, Iodo => AcidHalide(Iodine)],
+            [Carbonyl, Hydrogen => Aldehyde]
 
         );
         groups.retain(|it| it != &Hydrogen);

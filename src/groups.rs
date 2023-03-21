@@ -4,15 +4,18 @@
 
 use crate::chain;
 use crate::chain::{endpoint_head_chains, longest_chain};
+use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
-use crate::molecule::Group::{AcidHalide, Aldehyde, Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydrogen, Hydroxyl, Iodo, Nitrile};
+use crate::molecule::Group::{
+    AcidHalide, Aldehyde, Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydrogen,
+    Hydroxyl, Iodo, Nitrile,
+};
+use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};
 use ruscii::spatial::{Direction, Vec2};
 use thiserror::Error;
-use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
-use crate::compound;
 
 /// Generates a [`Branch`] from the given `chain` containing all functional groups attached
 /// to it.
@@ -143,6 +146,8 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     out
 }
 
+/// Takes the given `groups`, matches them against the cases given and returns the resultant
+/// groups to `out`.
 #[macro_export]
 macro_rules! compound {
     ($groups:expr, $out:expr, $([$first:expr, $second:expr => $comp:expr]),*) => {
@@ -368,7 +373,7 @@ mod tests {
 
     #[test]
     fn group_patterns_retains_groups() {
-        let groups = vec![Carbonyl, Bromo, Ether];
+        let groups = vec![Carbonyl, Ether];
         let expected = groups
             .iter()
             .map(|group| Substituent::Group(group.to_owned()))

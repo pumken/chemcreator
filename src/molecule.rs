@@ -6,6 +6,7 @@ use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Element::{C, H, N, O};
 use crate::naming::process_name;
+use crate::spatial::EnumAll;
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{Blue, Green, LightGrey, Magenta, Red, White, Xterm, Yellow};
@@ -13,7 +14,6 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use crate::spatial::EnumAll;
 
 /// Represents a type of functional group on a molecule.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -143,7 +143,7 @@ pub enum Halogen {
 }
 
 impl Halogen {
-    pub fn associated_group(&self) -> Group{
+    pub fn associated_group(&self) -> Group {
         match self {
             Halogen::Fluorine => Group::Fluoro,
             Halogen::Chlorine => Group::Chloro,
@@ -166,8 +166,16 @@ impl Display for Halogen {
 }
 
 impl EnumAll for Halogen {
-    fn all() -> Vec<Self> where Self: Sized {
-        vec![Halogen::Fluorine, Halogen::Chlorine, Halogen::Bromine, Halogen::Iodine]
+    fn all() -> Vec<Self>
+    where
+        Self: Sized,
+    {
+        vec![
+            Halogen::Fluorine,
+            Halogen::Chlorine,
+            Halogen::Bromine,
+            Halogen::Iodine,
+        ]
     }
 }
 

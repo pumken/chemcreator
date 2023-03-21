@@ -12,7 +12,7 @@ use ruscii::terminal::Color;
 use ruscii::terminal::Color::{Blue, Green, LightGrey, Magenta, Red, White, Xterm, Yellow};
 use std::cmp::Ordering;
 use std::fmt;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 /// Represents a type of functional group on a molecule.

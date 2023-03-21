@@ -294,7 +294,7 @@ impl Display for SubFragment {
 pub enum NamingError {
     #[error("A branch was found with too many carbons ({}).", .0)]
     CarbonCount(i32),
-    #[error("Found too many occurrences of the {:?} group ({}).", NamingError::process(.0), .1)]
+    #[error("Found too many occurrences of {} ({}).", NamingError::process(.0), .1)]
     GroupOccurrence(Option<Substituent>, i32),
 }
 
@@ -302,8 +302,25 @@ impl NamingError {
     fn process(subst: &Option<Substituent>) -> String {
         let unwrapped = subst.as_ref().expect("substituent should be provided");
         match unwrapped {
-            Substituent::Branch(it) => format!("{} branch", it),
-            Substituent::Group(it) => it.to_string(),
+            Substituent::Branch(it) => format!("the {} branch", it),
+            Substituent::Group(it) => match it {
+                Group::Hydrogen | Alkane => panic!("process could not handle: {it}"),
+                Group::AcidHalide(_) | Group::Aldehyde | Group::Carboxyl | Group::Nitrile => {
+                    panic!("excess of 2-max group: {it}")
+                }
+                Group::Alkene => "double bonds",
+                Group::Alkyne => "triple bonds",
+                Group::Bromo => "bromide",
+                Group::Chloro => "chloride",
+                Group::Fluoro => "fluoride",
+                Group::Iodo => "iodide",
+                Group::Hydroxyl => "hydroxyl",
+                Group::Carbonyl => "carbonyl",
+                Group::Ester => "ester",
+                Group::Ether => "ether",
+                Group::Amine => "amine",
+            }
+            .to_string(),
         }
     }
 

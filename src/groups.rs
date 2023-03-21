@@ -5,12 +5,14 @@
 use crate::chain;
 use crate::chain::{endpoint_head_chains, longest_chain};
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
-use crate::molecule::Group::{Aldehyde, Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydrogen, Hydroxyl, Iodo, Nitrile};
+use crate::molecule::Group::{AcidHalide, Aldehyde, Alkene, Alkyne, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro, Hydrogen, Hydroxyl, Iodo, Nitrile};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};
 use ruscii::spatial::{Direction, Vec2};
 use thiserror::Error;
+use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
+use crate::compound;
 
 /// Generates a [`Branch`] from the given `chain` containing all functional groups attached
 /// to it.
@@ -70,7 +72,7 @@ pub(crate) fn link_groups(
 
 pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
     let all_chains = chain::get_all_chains(graph)?;
-    let chain = chain::longest_chain(all_chains)?;
+    let chain = longest_chain(all_chains)?;
     link_groups(graph, chain, None)
 }
 
@@ -119,16 +121,15 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     let mut out = vec![];
 
     loop {
-        if groups.contains(&Carbonyl) && groups.contains(&Hydroxyl) {
-            groups.retain(|it| it != &Carbonyl && it != &Hydroxyl);
-            out.push(Substituent::Group(Carboxyl));
-            continue;
-        }
-        if groups.contains(&Carbonyl) && groups.contains(&Hydrogen) {
-            groups.retain(|it| it != &Carbonyl && it != &Hydrogen);
-            out.push(Substituent::Group(Aldehyde));
-            continue;
-        }
+        compound!(groups, out,
+            [Carbonyl, Hydroxyl => Carboxyl],
+            [Carbonyl, Hydrogen => Aldehyde],
+            [Carbonyl, Fluoro => AcidHalide(Fluorine)],
+            [Carbonyl, Chloro => AcidHalide(Chlorine)],
+            [Carbonyl, Bromo => AcidHalide(Bromine)],
+            [Carbonyl, Iodo => AcidHalide(Iodine)]
+
+        );
         groups.retain(|it| it != &Hydrogen);
         break;
     }
@@ -140,6 +141,19 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     out.append(&mut rest);
 
     out
+}
+
+#[macro_export]
+macro_rules! compound {
+    ($groups:expr, $out:expr, $([$first:expr, $second:expr => $comp:expr]),*) => {
+        $(
+        if $groups.contains(&$first) && $groups.contains(&$second) {
+            $groups.retain(|it| it != &$first && it != &$second);
+            $out.push(Substituent::Group($comp));
+            continue;
+        }
+        )*
+    };
 }
 
 /// Constructs a [`GroupNode`] from the given `pos` in the given `direction`.
@@ -237,10 +251,9 @@ fn group_directions(
         .filter(|&direction| {
             let opposite_atom = ptr.traverse_bond(direction).unwrap();
             let single_bond = matches!(ptr.bond_order(direction).unwrap(), BondOrder::Single);
-            let hydrogen = matches!(opposite_atom.element, Element::H);
             let in_chain = accumulator.chain.contains(&opposite_atom);
             let parent = Some(opposite_atom) == parent;
-            !(hydrogen || parent || in_chain && single_bond)
+            !(parent || in_chain && single_bond)
         })
         .filter(|&direction| {
             if index > 0 {

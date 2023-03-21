@@ -13,6 +13,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use crate::spatial::EnumAll;
 
 /// Represents a type of functional group on a molecule.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -33,6 +34,7 @@ pub enum Group {
     Carbonyl,
     /* Compound groups */
     Aldehyde,
+    AcidHalide(Halogen),
     Carboxyl,
     /* Chain groups */
     Ester,
@@ -56,8 +58,9 @@ impl Group {
             Group::Hydroxyl => 3,
             Group::Carbonyl => 4,
             Group::Aldehyde => 5,
-            Group::Carboxyl => 8,
-            Group::Ester => 7,
+            Group::Carboxyl => 9,
+            Group::AcidHalide(_) => 7,
+            Group::Ester => 8,
             Group::Ether => return None,
             Group::Nitrile => 6,
         };
@@ -85,6 +88,7 @@ impl Display for Group {
             Group::Carbonyl => "oxo",
             Group::Aldehyde => "formyl",
             Group::Carboxyl => "carboxy",
+            Group::AcidHalide(it) => return write!(f, "{}", it.associated_group()),
             Group::Ester => "ester",
             Group::Ether => "ether",
             Group::Nitrile => "cyano",
@@ -127,6 +131,43 @@ impl FromStr for Group {
             _ => return Err(()),
         };
         Ok(out)
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Halogen {
+    Fluorine,
+    Chlorine,
+    Bromine,
+    Iodine,
+}
+
+impl Halogen {
+    pub fn associated_group(&self) -> Group{
+        match self {
+            Halogen::Fluorine => Group::Fluoro,
+            Halogen::Chlorine => Group::Chloro,
+            Halogen::Bromine => Group::Bromo,
+            Halogen::Iodine => Group::Iodo,
+        }
+    }
+}
+
+impl Display for Halogen {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let str = match self {
+            Halogen::Fluorine => "fluoride",
+            Halogen::Chlorine => "chloride",
+            Halogen::Bromine => "bromide",
+            Halogen::Iodine => "iodide",
+        };
+        write!(f, "{str}")
+    }
+}
+
+impl EnumAll for Halogen {
+    fn all() -> Vec<Self> where Self: Sized {
+        vec![Halogen::Fluorine, Halogen::Chlorine, Halogen::Bromine, Halogen::Iodine]
     }
 }
 

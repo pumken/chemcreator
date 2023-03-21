@@ -59,13 +59,18 @@ impl Group {
                 Halogen::Chlorine => 9,
                 Halogen::Bromine => 8,
                 Halogen::Iodine => 7,
-            }
+            },
             Group::Nitrile => 6,
             Group::Aldehyde => 5,
             Group::Carbonyl => 4,
             Group::Hydroxyl => 3,
             Group::Alkane | Group::Alkene | Group::Alkyne => 0,
-            Group::Hydrogen | Group::Bromo | Group::Chloro | Group::Fluoro | Group::Iodo | Group::Ether => return None,
+            Group::Hydrogen
+            | Group::Bromo
+            | Group::Chloro
+            | Group::Fluoro
+            | Group::Iodo
+            | Group::Ether => return None,
         };
         Some(priority)
     }

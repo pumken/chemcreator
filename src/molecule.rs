@@ -17,6 +17,7 @@ use std::str::FromStr;
 /// Represents a type of functional group on a molecule.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Group {
+    /* Chain groups */
     Alkane,
     Alkene,
     Alkyne,
@@ -32,6 +33,8 @@ pub enum Group {
     /* Phenyl later */
     Ester,
     Ether,
+    /* Nitrogen groups */
+    Nitrile,
 }
 
 impl Group {
@@ -47,9 +50,10 @@ impl Group {
             Group::Bromo | Group::Chloro | Group::Fluoro | Group::Iodo => return None,
             Group::Hydroxyl => 3,
             Group::Carbonyl => 4,
-            Group::Carboxyl => 6,
-            Group::Ester => 5,
+            Group::Carboxyl => 7,
+            Group::Ester => 6,
             Group::Ether => return None,
+            Group::Nitrile => 5,
         };
         Some(priority)
     }
@@ -70,11 +74,12 @@ impl Display for Group {
             Group::Chloro => "chloro",
             Group::Fluoro => "fluoro",
             Group::Iodo => "iodo",
-            Group::Hydroxyl => "hydroxyl",
+            Group::Hydroxyl => "hydroxy",
             Group::Carbonyl => "oxo",
-            Group::Carboxyl => "carboxyl",
+            Group::Carboxyl => "carboxy",
             Group::Ester => "ester",
             Group::Ether => "ether",
+            Group::Nitrile => "cyano",
         };
         write!(f, "{str}")
     }
@@ -109,6 +114,7 @@ impl FromStr for Group {
             "carboxyl" => Group::Carboxyl,
             "ester" => Group::Ester,
             "ether" => Group::Ether,
+            "cyano" => Group::Nitrile,
             _ => return Err(()),
         };
         Ok(out)

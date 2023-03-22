@@ -3,13 +3,13 @@
 //! Not to be confused with Rust's `macro_rules!` declarations, the `macros` module contains
 //! common actions that should be automatically performed for the user when they make an input.
 
-use std::ops::{Index, IndexMut};
-use crate::molecule::{Cell, ComponentType};
-use crate::molecule::Element::{C, H, O};
-use crate::pointer::Pointer;
-use crate::spatial::{EnumAll, GridState};
-use ruscii::spatial::{Direction, Vec2};
 use crate::molecule::BondOrder::{Double, Single};
+use crate::molecule::Element::{C, H, O};
+use crate::molecule::{Cell, ComponentType};
+use crate::pointer::Pointer;
+use crate::spatial::{EnumAll, GridState, ToVec2};
+use ruscii::spatial::{Direction, Vec2};
+use std::cmp::Ordering;
 
 #[derive(Clone, Debug, PartialEq)]
 struct CellBlock<'a> {
@@ -34,7 +34,7 @@ impl<'a> CellBlock<'a> {
             Direction::Down => -relative,
             Direction::Right => Vec2::xy(relative.y, -relative.x),
             Direction::Left => Vec2::xy(-relative.y, relative.x),
-            Direction::None => panic!("Direction::None passed to borrow")
+            Direction::None => panic!("Direction::None passed to borrow"),
         };
         let absolute = rotated + self.graph.cursor;
 
@@ -57,13 +57,11 @@ macro_rules! block {
     };
 }
 
-pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: ComponentType) {
+pub fn invoke_macro(graph: &mut GridState, new: ComponentType, _previous: ComponentType) {
     match new {
         ComponentType::Element(C) => {
             for direction in Direction::all() {
-                let mut block = block!(graph,
-                    [(0, 1), (0, 2)],
-                );
+                let mut block = block!(graph, [(0, 1), (0, 2)],);
                 block.direction = direction;
 
                 let first = match block.borrow(0, 0) {
@@ -86,9 +84,7 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: Compone
         }
         ComponentType::Element(O) => {
             for direction in Direction::all() {
-                let mut block = block!(graph,
-                    [(0, 1), (0, 2), (0, -1)],
-                );
+                let mut block = block!(graph, [(0, 1), (0, 2), (0, -1)],);
                 block.direction = direction;
 
                 let first = match block.borrow(0, 0) {
@@ -100,6 +96,7 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: Compone
                     Ok(it) => it,
                     Err(_) => continue,
                 };
+                let second_pos = second.pos();
                 let third = match block.borrow(0, 2) {
                     Ok(it) => it,
                     Err(_) => continue,
@@ -111,10 +108,12 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: Compone
 
                 if carbonyl_ext {
                     graph.put(first_pos, ComponentType::Order(Double));
+                    hydrogen_correction(graph, second_pos);
                 }
 
                 if hydroxyl_ext {
                     graph.put(third_pos, ComponentType::Element(H));
+                    hydrogen_correction(graph, first_pos);
                 }
             }
         }
@@ -125,30 +124,91 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: Compone
 
 pub fn hydrogen_extension(graph: &mut GridState) {
     let bond_count = Pointer::new(graph, graph.cursor).bond_count().unwrap();
-    let mut bonds_needed = graph.current_cell().unwrap().unwrap_atom().element.bond_number() - bond_count;
+    let mut bonds_needed = graph
+        .current_cell()
+        .unwrap()
+        .unwrap_atom()
+        .element
+        .bond_number()
+        - bond_count;
 
     for direction in Direction::all() {
         if bonds_needed <= 0 {
             return;
         }
-        if hydrogen_arm(graph, direction) {
+        if hydrogen_fill(graph, graph.cursor + direction.to_vec2()) {
             bonds_needed -= 1;
         }
     }
 }
 
-fn hydrogen_arm(graph: &mut GridState, direction: Direction) -> bool {
-    let selection = block!(graph,
-        [(-1, 0), (0, 1), (1, 0)],
-    );
-    let mut ptr = Pointer::new(graph, graph.cursor);
-    let first_neighbor = ptr.move_ptr(direction) && !ptr.borrow().unwrap().is_empty();
-    let pos = ptr.pos;
+fn hydrogen_fill(graph: &mut GridState, pos: Vec2) -> bool {
+    let ptr = Pointer::new(graph, pos);
+    let first_neighbor = !match ptr.borrow() {
+        Ok(it) => it.is_empty(),
+        Err(_) => return false,
+    };
 
     if first_neighbor {
         graph.put(pos, ComponentType::Element(H));
         true
     } else {
         false
+    }
+}
+
+pub fn hydrogen_correction(graph: &mut GridState, pos: Vec2) {
+    let bond_count = Pointer::new(graph, pos).bond_count().unwrap();
+    let mut bonds_needed = graph.get(pos).unwrap().unwrap_atom().element.bond_number() - bond_count;
+
+    for direction in Direction::all() {
+        let adjusted = pos + direction.to_vec2();
+
+        match bonds_needed.cmp(&0) {
+            Ordering::Equal => return,
+            Ordering::Less => {
+                if hydrogen_remove(graph, adjusted) {
+                    bonds_needed += 1;
+                }
+            }
+            Ordering::Greater => {
+                if hydrogen_fill(graph, adjusted) {
+                    bonds_needed -= 1;
+                }
+            }
+        }
+    }
+}
+
+fn hydrogen_remove(graph: &mut GridState, pos: Vec2) -> bool {
+    let cell = graph.get(pos).unwrap();
+
+    if cell.is_atom() && cell.unwrap_atom().element == H {
+        graph.put(pos, ComponentType::None);
+        true
+    } else {
+        false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graph_with;
+    use crate::test_utils::GW::{A, B};
+
+    #[test]
+    fn hydrogen_correction_leaves_full_bonds() {
+        let mut graph = graph_with!(3, 3,
+            [1, 1; A(C)],
+            [0, 1; A(H)],
+            [1, 0; A(H)],
+            [1, 2; B(Double)],
+            [2, 1; B(Single)],
+        );
+        hydrogen_correction(&mut graph, Vec2::xy(1, 1));
+        let ptr = Pointer::new(&graph, Vec2::xy(1, 1));
+
+        assert_eq!(ptr.bond_count(), Ok(4));
     }
 }

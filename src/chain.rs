@@ -215,7 +215,6 @@ mod tests {
     use crate::graph_with;
     use crate::molecule::BondOrder::Single;
     use crate::molecule::Element::{C, H};
-    use crate::test_utils::unwrap_atom;
     use crate::test_utils::GW::{A, B};
 
     // Also checks accumulate_carbons
@@ -310,7 +309,7 @@ mod tests {
             graph.get(Vec2::xy(2, 1)).unwrap(),
         ]
         .iter()
-        .map(|&cell| unwrap_atom(cell))
+        .map(|&cell| cell.unwrap_atom())
         .collect::<Vec<Atom>>();
 
         assert_eq!(atoms, expected);
@@ -326,7 +325,7 @@ mod tests {
             [2, 1; A(C)],
         );
         let atom = next_carbons(Vec2::xy(1, 1), Some(Vec2::xy(1, 2)), &graph).unwrap();
-        let expected = vec![unwrap_atom(graph.get(Vec2::xy(2, 1)).unwrap())];
+        let expected = vec![graph.get(Vec2::xy(2, 1)).unwrap().unwrap_atom()];
 
         assert_eq!(atom, expected);
     }

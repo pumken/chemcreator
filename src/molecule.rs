@@ -249,7 +249,7 @@ impl Cell {
         match self {
             Cell::Atom(atom) => atom.to_owned(),
             Cell::Bond(_) => panic!("called Cell::unwrap_atom() on a Cell::Bond value"),
-            Cell::None(_) => panic!("called Cell::unwrap_atom() on a Cell::None value")
+            Cell::None(_) => panic!("called Cell::unwrap_atom() on a Cell::None value"),
         }
     }
 }

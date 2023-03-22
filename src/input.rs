@@ -5,8 +5,8 @@
 use crate::groups::debug_branches;
 use crate::macros::invoke_macro;
 use crate::molecule::BondOrder::{Double, Single, Triple};
+use crate::molecule::Element::{Cl, C, H, I, N, O};
 use crate::molecule::{ComponentType, Element};
-use crate::molecule::Element::{C, Cl, H, I, N, O};
 use crate::naming::name_molecule;
 use crate::spatial::GridState;
 use crate::{AppState, Mode};
@@ -124,7 +124,10 @@ pub(crate) fn input_view_mode(app_state: &State, state: &mut AppState) {
 
 //noinspection RsBorrowChecker
 pub(crate) fn update(state: &mut AppState, graph: &mut GridState, comp: ComponentType) {
-    let previous = graph.current_cell().expect("cell should be within bounds").comp();
+    let previous = graph
+        .current_cell()
+        .expect("cell should be within bounds")
+        .comp();
 
     match comp {
         ComponentType::Element(it) => graph.put_atom(it),

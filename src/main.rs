@@ -221,14 +221,6 @@ mod test_utils {
         B(BondOrder),
     }
 
-    pub(crate) fn unwrap_atom(cell: &Cell) -> Atom {
-        if let Cell::Atom(atom) = cell {
-            atom.to_owned()
-        } else {
-            panic!("Called unwrap_atom on non-atom value")
-        }
-    }
-
     /// Creates a [`GridState`] with the given `vals` at (`x`, `y`). Used with the [`GW`] enum.
     #[macro_export]
     macro_rules! graph_with {
@@ -254,7 +246,7 @@ mod test_utils {
             [0, 0; A(C)],
         );
         let cell = graph.get(Vec2::zero()).unwrap();
-        let atom = unwrap_atom(cell);
+        let atom = cell.unwrap_atom();
 
         assert_eq!(
             atom,

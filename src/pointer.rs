@@ -291,7 +291,6 @@ mod tests {
     use crate::graph_with;
     use crate::molecule::BondOrder::{Double, Single, Triple};
     use crate::molecule::Element::{C, H, O};
-    use crate::test_utils::unwrap_atom;
     use crate::test_utils::GW::{A, B};
 
     #[test]
@@ -381,9 +380,9 @@ mod tests {
             graph.get(Vec2::xy(2, 0)).unwrap(),
             graph.get(Vec2::xy(4, 2)).unwrap(),
         ]
-            .iter()
-            .map(|&cell| unwrap_atom(cell))
-            .collect::<Vec<Atom>>();
+        .iter()
+        .map(|&cell| cell.unwrap_atom())
+        .collect::<Vec<Atom>>();
 
         assert_eq!(a, b);
     }
@@ -403,9 +402,9 @@ mod tests {
             graph.get(Vec2::xy(0, 1)).unwrap(),
             graph.get(Vec2::xy(2, 1)).unwrap(),
         ]
-            .iter()
-            .map(|&cell| unwrap_atom(cell))
-            .collect::<Vec<Atom>>();
+        .iter()
+        .map(|&cell| cell.unwrap_atom())
+        .collect::<Vec<Atom>>();
 
         assert_eq!(a, b);
     }
@@ -424,9 +423,9 @@ mod tests {
             graph.get(Vec2::xy(0, 1)).unwrap(),
             graph.get(Vec2::xy(2, 0)).unwrap(),
         ]
-            .iter()
-            .map(|&cell| unwrap_atom(cell))
-            .collect::<Vec<Atom>>();
+        .iter()
+        .map(|&cell| cell.unwrap_atom())
+        .collect::<Vec<Atom>>();
 
         assert_eq!(bonded, expected);
     }
@@ -446,9 +445,9 @@ mod tests {
             graph.get(Vec2::xy(0, 1)).unwrap(),
             graph.get(Vec2::xy(2, 1)).unwrap(),
         ]
-            .iter()
-            .map(|&cell| unwrap_atom(cell))
-            .collect::<Vec<Atom>>();
+        .iter()
+        .map(|&cell| cell.unwrap_atom())
+        .collect::<Vec<Atom>>();
 
         assert_eq!(a, b);
     }

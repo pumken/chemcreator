@@ -252,7 +252,7 @@ impl Cell {
             Cell::None(_) => panic!("called Cell::unwrap_atom() on a Cell::None value"),
         }
     }
-    
+
     pub fn unwrap_bond(&self) -> Bond {
         match self {
             Cell::Atom(_) => panic!("called Cell::unwrap_bond() on a Cell::Atom value"),

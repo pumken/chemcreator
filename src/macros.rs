@@ -5,7 +5,7 @@
 
 use crate::molecule::BondOrder::{Double, Single};
 use crate::molecule::Element::{C, H, O};
-use crate::molecule::{Cell, ComponentType};
+use crate::molecule::{BondOrder, BondOrientation, Cell, ComponentType};
 use crate::pointer::Pointer;
 use crate::spatial::{EnumAll, GridState, ToVec2};
 use ruscii::spatial::{Direction, Vec2};
@@ -211,6 +211,33 @@ fn hydrogen_remove(graph: &mut GridState, pos: Vec2) -> bool {
         true
     } else {
         false
+    }
+}
+
+pub fn bond_conversion(
+    graph: &mut GridState,
+    pos: Vec2,
+    order: BondOrder,
+    orient: BondOrientation,
+) {
+    let directions = if orient == Horiz {
+        [Direction::Left, Direction::Right]
+    } else {
+        [Direction::Up, Direction::Down]
+    };
+
+    'outer: for direction in directions {
+        let mut pos = pos;
+
+        loop {
+            pos += direction.to_vec2();
+            let current_cell = graph.get_mut(pos).unwrap();
+
+            match current_cell {
+                Cell::Bond(it) if it.orient == orient => it.order = order,
+                _ => continue 'outer,
+            }
+        }
     }
 }
 

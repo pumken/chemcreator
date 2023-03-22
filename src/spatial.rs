@@ -3,6 +3,7 @@
 //! The `spatial` module provides functionality for the state and traversal of the grid with which
 //! the user interacts, including the [`GridState`] struct.
 
+use crate::macros::bond_conversion;
 use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::{Atom, Bond, BondOrder, Cell, ComponentType, Element};
 use crate::pointer::Pointer;
@@ -96,18 +97,20 @@ impl GridState {
     /// Sets the current [`Cell`] pointed to by the cursor to an [`Cell::Bond`] with the given
     /// [`BondOrder`].
     pub fn put_bond(&mut self, order: BondOrder) {
+        let orient = if self.atom_adjacent(self.cursor) {
+            Horiz
+        } else {
+            Vert
+        };
         let bond = Cell::Bond(Bond {
             pos: self.cursor,
             order,
-            orient: if self.atom_adjacent(self.cursor) {
-                Horiz
-            } else {
-                Vert
-            },
+            orient,
         });
         *self
             .current_cell_mut()
             .expect("cursor should be within bounds") = bond;
+        bond_conversion(self, self.cursor, order, orient);
     }
 
     /// Sets the current [`Cell`] pointed to by the cursor to [`Cell::None`].
@@ -121,11 +124,15 @@ impl GridState {
     pub fn put(&mut self, pos: Vec2, comp: ComponentType) {
         *self.get_mut(pos).unwrap() = match comp {
             ComponentType::Element(it) => Cell::Atom(Atom { element: it, pos }),
-            ComponentType::Order(it) => Cell::Bond(Bond {
-                pos,
-                order: it,
-                orient: if self.atom_adjacent(pos) { Horiz } else { Vert },
-            }),
+            ComponentType::Order(it) => {
+                let orient = if self.atom_adjacent(pos) { Horiz } else { Vert };
+                bond_conversion(self, self.cursor, it, orient);
+                Cell::Bond(Bond {
+                    pos,
+                    order: it,
+                    orient,
+                })
+            }
             ComponentType::None => Cell::None(pos),
         }
     }

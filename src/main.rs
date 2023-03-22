@@ -235,7 +235,7 @@ mod test_utils {
         ($width:expr, $height:expr) => {
             GridState::new($width, $height)
         };
-        ($width:expr, $height:expr, $([$x:expr, $y:expr; $val:expr]),*) => {{
+        ($width:expr, $height:expr, $([$x:expr, $y:expr; $val:expr],)*) => {{
             let mut graph = GridState::new($width, $height);
             $(
             graph.cursor = Vec2::xy($x, $y);
@@ -251,7 +251,7 @@ mod test_utils {
     #[test]
     fn unwrap_atom_returns_atom() {
         let graph = graph_with!(1, 1,
-            [0, 0; A(C)]
+            [0, 0; A(C)],
         );
         let cell = graph.get(Vec2::zero()).unwrap();
         let atom = unwrap_atom(cell);
@@ -296,7 +296,7 @@ mod test_utils {
             [0, 1; A(C)],
             [1, 1; B(Single)],
             [2, 1; A(O)],
-            [2, 0; A(H)]
+            [2, 0; A(H)],
         );
 
         assert_eq!(a, b)

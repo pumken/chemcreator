@@ -374,7 +374,7 @@ mod tests {
         let graph = graph_with!(2, 2,
             [0, 1; A(C)],
             [1, 0; A(O)],
-            [1, 1; B(Single)]
+            [1, 1; B(Single)],
         );
 
         assert_eq!(

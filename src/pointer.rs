@@ -238,7 +238,7 @@ impl<'a> Pointer<'a> {
     ///
     /// If the current cell is not a [`Cell::Atom`] a message describing the error and the position
     /// at which it occurred is returned.
-    pub(crate) fn bond_count(&self) -> Result<u8, String> {
+    pub(crate) fn bond_count(&self) -> Result<i32, String> {
         let mut out = 0;
 
         match self.borrow().unwrap() {
@@ -248,14 +248,14 @@ impl<'a> Pointer<'a> {
                     "Pointer cannot access bond count: atom was
             expected at ({}, {}) but bond was found",
                     self.pos.x, self.pos.y
-                ))
+                ));
             }
             Cell::None(_) => {
                 return Err(format!(
                     "Pointer cannot access bond count: atom was
             expected at ({}, {}) but none was found",
                     self.pos.x, self.pos.y
-                ))
+                ));
             }
         };
 
@@ -318,7 +318,7 @@ mod tests {
             [1, 0; A(H)],
             [0, 1; A(H)],
             [1, 1; A(C)],
-            [2, 1; B(Single)]
+            [2, 1; B(Single)],
         );
         let ptr = Pointer::new(&graph, Vec2::xy(1, 1));
         let a = ptr.connected();
@@ -336,7 +336,7 @@ mod tests {
         let graph = graph_with!(2, 2,
             [0, 0; A(C)],
             [1, 0; A(H)],
-            [0, 1; B(Triple)]
+            [0, 1; B(Triple)],
         );
         let ptr = Pointer::new(&graph, Vec2::zero());
         let a = ptr.connected();
@@ -352,7 +352,7 @@ mod tests {
     fn connected_returns_directions() {
         let graph = graph_with!(4, 4,
             [0, 1; A(C)],
-            [1, 0; A(H)], [1, 1; A(C)], [1, 2; B(Double)], [1, 3; A(O)]
+            [1, 0; A(H)], [1, 1; A(C)], [1, 2; B(Double)], [1, 3; A(O)],
         );
         let ptr = Pointer::new(&graph, Vec2::xy(1, 1));
         let directions = ptr.connected_directions();
@@ -372,7 +372,7 @@ mod tests {
             [3, 2; B(Single)],
             [4, 2; A(H)],
             [2, 3; B(Double)],
-            [2, 4; A(O)]
+            [2, 4; A(O)],
         );
         let ptr = Pointer::new(&graph, Vec2::xy(2, 2));
         let a = ptr.bonded().unwrap();
@@ -381,9 +381,9 @@ mod tests {
             graph.get(Vec2::xy(2, 0)).unwrap(),
             graph.get(Vec2::xy(4, 2)).unwrap(),
         ]
-        .iter()
-        .map(|&cell| unwrap_atom(cell))
-        .collect::<Vec<Atom>>();
+            .iter()
+            .map(|&cell| unwrap_atom(cell))
+            .collect::<Vec<Atom>>();
 
         assert_eq!(a, b);
     }
@@ -394,7 +394,7 @@ mod tests {
             [1, 0; A(H)],
             [0, 1; A(H)],
             [1, 1; A(C)],
-            [2, 1; A(H)]
+            [2, 1; A(H)],
         );
         let ptr = Pointer::new(&graph, Vec2::xy(1, 1));
         let a = ptr.bonded().unwrap();
@@ -403,9 +403,9 @@ mod tests {
             graph.get(Vec2::xy(0, 1)).unwrap(),
             graph.get(Vec2::xy(2, 1)).unwrap(),
         ]
-        .iter()
-        .map(|&cell| unwrap_atom(cell))
-        .collect::<Vec<Atom>>();
+            .iter()
+            .map(|&cell| unwrap_atom(cell))
+            .collect::<Vec<Atom>>();
 
         assert_eq!(a, b);
     }
@@ -416,7 +416,7 @@ mod tests {
             [0, 0; A(C)],
             [0, 1; A(H)],
             [1, 0; B(Single)],
-            [2, 0; A(H)]
+            [2, 0; A(H)],
         );
         let ptr = Pointer::new(&graph, Vec2::zero());
         let bonded = ptr.bonded().unwrap();
@@ -424,9 +424,9 @@ mod tests {
             graph.get(Vec2::xy(0, 1)).unwrap(),
             graph.get(Vec2::xy(2, 0)).unwrap(),
         ]
-        .iter()
-        .map(|&cell| unwrap_atom(cell))
-        .collect::<Vec<Atom>>();
+            .iter()
+            .map(|&cell| unwrap_atom(cell))
+            .collect::<Vec<Atom>>();
 
         assert_eq!(bonded, expected);
     }
@@ -438,7 +438,7 @@ mod tests {
             [0, 1; A(C)],
             [1, 1; A(C)],
             [2, 1; A(C)],
-            [1, 2; A(H)]
+            [1, 2; A(H)],
         );
         let ptr = Pointer::new(&graph, Vec2::xy(1, 1));
         let a = ptr.bonded_carbons().unwrap();
@@ -446,9 +446,9 @@ mod tests {
             graph.get(Vec2::xy(0, 1)).unwrap(),
             graph.get(Vec2::xy(2, 1)).unwrap(),
         ]
-        .iter()
-        .map(|&cell| unwrap_atom(cell))
-        .collect::<Vec<Atom>>();
+            .iter()
+            .map(|&cell| unwrap_atom(cell))
+            .collect::<Vec<Atom>>();
 
         assert_eq!(a, b);
     }
@@ -460,7 +460,7 @@ mod tests {
             [0, 1; A(C)],
             [1, 1; A(C)],
             [2, 1; A(C)],
-            [1, 2; A(H)]
+            [1, 2; A(H)],
         );
         let ptr = Pointer::new(&graph, Vec2::xy(1, 1));
         let carbons = ptr.bonded_carbon_count().unwrap();
@@ -473,7 +473,7 @@ mod tests {
         let graph = graph_with!(1, 3,
             [0, 0; A(C)],
             [0, 1; B(Single)],
-            [0, 2; A(H)]
+            [0, 2; A(H)],
         );
         let ptr = Pointer::new(&graph, Vec2::zero());
         let atom = ptr.traverse_bond(Direction::Up).unwrap();
@@ -482,7 +482,7 @@ mod tests {
             atom,
             Atom {
                 element: H,
-                pos: Vec2::y(2)
+                pos: Vec2::y(2),
             }
         );
     }
@@ -499,7 +499,7 @@ mod tests {
             [0, 6; B(Single)],
             [0, 7; B(Single)],
             [0, 8; B(Single)],
-            [0, 9; A(H)]
+            [0, 9; A(H)],
         );
         let ptr = Pointer::new(&graph, Vec2::zero());
         let atom = ptr.traverse_bond(Direction::Up).unwrap();
@@ -508,7 +508,7 @@ mod tests {
             atom,
             Atom {
                 element: H,
-                pos: Vec2::xy(0, 9)
+                pos: Vec2::xy(0, 9),
             }
         );
     }
@@ -517,7 +517,7 @@ mod tests {
     fn traverse_bond_implicit() {
         let graph = graph_with!(1, 2,
             [0, 0; A(C)],
-            [0, 1; A(H)]
+            [0, 1; A(H)],
         );
         let ptr = Pointer::new(&graph, Vec2::zero());
         let atom = ptr.traverse_bond(Direction::Up).unwrap();
@@ -526,7 +526,7 @@ mod tests {
             atom,
             Atom {
                 element: H,
-                pos: Vec2::y(1)
+                pos: Vec2::y(1),
             }
         );
     }
@@ -536,7 +536,7 @@ mod tests {
         let graph = graph_with!(3, 1,
             [0, 0; A(C)],
             [1, 0; B(Single)],
-            [2, 0; B(Single)]
+            [2, 0; B(Single)],
         );
         let ptr = Pointer::new(&graph, Vec2::zero());
         let err = ptr.traverse_bond(Direction::Right);
@@ -549,7 +549,7 @@ mod tests {
         let graph = graph_with!(2, 2,
             [0, 0; A(C)],
             [0, 1; B(Triple)],
-            [1, 0; B(Double)]
+            [1, 0; B(Double)],
         );
         let ptr = Pointer::new(&graph, Vec2::zero());
         let a = ptr.bond_order(Direction::Up).unwrap();
@@ -564,7 +564,7 @@ mod tests {
         let graph = graph_with!(2, 2,
             [0, 0; A(C)],
             [0, 1; A(O)],
-            [1, 0; A(H)]
+            [1, 0; A(H)],
         );
         let ptr = Pointer::new(&graph, Vec2::zero());
         let a = ptr.bond_order(Direction::Up).unwrap();
@@ -579,7 +579,7 @@ mod tests {
     #[test]
     fn bond_order_out_of_bounds() {
         let graph = graph_with!(1, 1,
-            [0, 0; A(C)]
+            [0, 0; A(C)],
         );
         let ptr = Pointer::new(&graph, Vec2::zero());
         let option = ptr.bond_order(Direction::Right);

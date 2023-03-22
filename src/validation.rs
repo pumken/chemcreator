@@ -126,7 +126,7 @@ mod tests {
             [1, 0; A(H)],
             [0, 1; A(H)],
             [2, 1; A(H)],
-            [1, 2; A(H)]
+            [1, 2; A(H)],
         );
         let ok = check_structure(&graph);
 
@@ -137,7 +137,7 @@ mod tests {
     fn check_structure_returns_discontinuity() {
         let graph = graph_with!(3, 1,
             [0, 0; A(C)],
-            [2, 0; A(C)]
+            [2, 0; A(C)],
         );
         let err = check_structure(&graph);
 
@@ -154,7 +154,7 @@ mod tests {
             [1, 0; B(Single)],
             [0, 1; B(Single)],
             [2, 1; B(Single)],
-            [1, 2; B(Single)]
+            [1, 2; B(Single)],
         );
         let err = check_structure(&graph);
 
@@ -169,7 +169,7 @@ mod tests {
             [5, 1; A(H)],
             [4, 1; B(Single)],
             [2, 1; B(Single)],
-            [0, 1; B(Triple)]
+            [0, 1; B(Triple)],
         );
         let input_atoms = vec![
             graph.get(Vec2::xy(1, 1)).unwrap(),
@@ -190,7 +190,7 @@ mod tests {
             [1, 1; A(C)],
             [0, 1; B(Single)],
             [2, 1; B(Single)],
-            [1, 2; B(Single)]
+            [1, 2; B(Single)],
         );
         let input_atom = unwrap_atom(graph.get(Vec2::xy(1, 1)).unwrap());
         let err = check_valence(vec![&input_atom], &graph);
@@ -204,7 +204,7 @@ mod tests {
             [1, 1; A(C)],
             [0, 1; B(Triple)],
             [2, 1; B(Triple)],
-            [1, 2; B(Triple)]
+            [1, 2; B(Triple)],
         );
         let input_atom = unwrap_atom(graph.get(Vec2::xy(1, 1)).unwrap());
         let err = check_valence(vec![&input_atom], &graph);

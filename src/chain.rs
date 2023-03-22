@@ -215,7 +215,6 @@ mod tests {
     use crate::graph_with;
     use crate::molecule::BondOrder::Single;
     use crate::molecule::Element::{C, H};
-    use crate::test_utils::unwrap_atom;
     use crate::test_utils::GW::{A, B};
 
     // Also checks accumulate_carbons
@@ -226,7 +225,7 @@ mod tests {
             [1, 0; A(C)],
             [2, 0; A(C)], [2, 1; A(C)], [2, 2; A(C)],
             [3, 0; A(C)],
-            [4, 0; A(C)]
+            [4, 0; A(C)],
         );
         let accumulator = endpoint_head_chains(
             Atom {
@@ -251,7 +250,7 @@ mod tests {
             [1, 0; A(C)],
             [2, 0; A(C)], [2, 1; A(C)], [2, 2; A(C)],
             [3, 0; A(C)],
-            [4, 0; A(C)]
+            [4, 0; A(C)],
         );
         let accumulator = endpoint_head_chains(
             Atom {
@@ -302,7 +301,7 @@ mod tests {
             [1, 0; A(H)],
             [1, 1; A(C)],
             [1, 2; A(C)],
-            [2, 1; A(C)]
+            [2, 1; A(C)],
         );
         let atoms = next_carbons(Vec2::xy(1, 1), None, &graph).unwrap();
         let expected = vec![
@@ -310,7 +309,7 @@ mod tests {
             graph.get(Vec2::xy(2, 1)).unwrap(),
         ]
         .iter()
-        .map(|&cell| unwrap_atom(cell))
+        .map(|&cell| cell.unwrap_atom())
         .collect::<Vec<Atom>>();
 
         assert_eq!(atoms, expected);
@@ -323,10 +322,10 @@ mod tests {
             [1, 0; A(H)],
             [1, 1; A(C)],
             [1, 2; A(C)],
-            [2, 1; A(C)]
+            [2, 1; A(C)],
         );
         let atom = next_carbons(Vec2::xy(1, 1), Some(Vec2::xy(1, 2)), &graph).unwrap();
-        let expected = vec![unwrap_atom(graph.get(Vec2::xy(2, 1)).unwrap())];
+        let expected = vec![graph.get(Vec2::xy(2, 1)).unwrap().unwrap_atom()];
 
         assert_eq!(atom, expected);
     }
@@ -340,7 +339,7 @@ mod tests {
             [3, 0; A(H)], [3, 1; A(C)], [3, 2; A(H)],
             [4, 1; B(Single)],
             [5, 0; A(H)], [5, 1; A(C)], [5, 2; A(H)],
-            [6, 1; A(H)]
+            [6, 1; A(H)],
         );
         let cells = endpoint_carbons(&graph).unwrap();
         let expected = vec![
@@ -356,7 +355,7 @@ mod tests {
         let graph = graph_with!(3, 3,
             [0, 1; A(H)],
             [1, 0; A(H)], [1, 1; A(C)], [1, 2; A(H)],
-            [2, 1; A(H)]
+            [2, 1; A(H)],
         );
         let cell = endpoint_carbons(&graph).unwrap();
         let expected = vec![graph.get(Vec2::xy(1, 1)).unwrap()];
@@ -370,7 +369,7 @@ mod tests {
             [0, 0; A(C)],
             [1, 0; A(C)],
             [2, 0; A(C)],
-            [0, 2; A(C)]
+            [0, 2; A(C)],
         );
         let network = get_connected_cells(Vec2::xy(0, 0), &graph).unwrap();
         let expected = vec![

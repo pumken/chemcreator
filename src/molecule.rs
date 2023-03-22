@@ -36,6 +36,7 @@ pub enum Group {
     Aldehyde,
     AcidHalide(Halogen),
     Carboxyl,
+    Amide,
     /* Chain groups */
     Ester,
     Ether,
@@ -53,14 +54,15 @@ impl Group {
     /// the main group_ (i.e., always a prefix).
     pub const fn priority(self) -> Option<i32> {
         let priority = match self {
-            Group::Carboxyl => 12,
-            Group::Ester => 11,
+            Group::Carboxyl => 13,
+            Group::Ester => 12,
             Group::AcidHalide(halogen) => match halogen {
-                Halogen::Fluorine => 10,
-                Halogen::Chlorine => 9,
-                Halogen::Bromine => 8,
-                Halogen::Iodine => 7,
+                Halogen::Fluorine => 11,
+                Halogen::Chlorine => 10,
+                Halogen::Bromine => 9,
+                Halogen::Iodine => 8,
             },
+            Group::Amide => 7,
             Group::Nitrile => 6,
             Group::Aldehyde => 5,
             Group::Carbonyl => 4,
@@ -102,6 +104,7 @@ impl Display for Group {
             Group::Ester => "ester",
             Group::Ether => "ether",
             Group::Amine => "amino",
+            Group::Amide => "carbamoyl",
             Group::Nitrile => "cyano",
         };
         write!(f, "{str}")
@@ -139,6 +142,7 @@ impl FromStr for Group {
             "ester" => Group::Ester,
             "ether" => Group::Ether,
             "amino" => Group::Amine,
+            "carbamoyl" => Group::Amide,
             "cyano" => Group::Nitrile,
             _ => return Err(()),
         };
@@ -240,6 +244,22 @@ impl Cell {
     pub fn is_empty(&self) -> bool {
         !matches!(self, Cell::None(_))
     }
+
+    pub fn unwrap_atom(&self) -> Atom {
+        match self {
+            Cell::Atom(atom) => atom.to_owned(),
+            Cell::Bond(_) => panic!("called Cell::unwrap_atom() on a Cell::Bond value"),
+            Cell::None(_) => panic!("called Cell::unwrap_atom() on a Cell::None value"),
+        }
+    }
+
+    pub fn unwrap_bond(&self) -> Bond {
+        match self {
+            Cell::Atom(_) => panic!("called Cell::unwrap_bond() on a Cell::Atom value"),
+            Cell::Bond(bond) => bond.to_owned(),
+            Cell::None(_) => panic!("called Cell::unwrap_bond() on a Cell::None value"),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -293,7 +313,7 @@ pub enum Element {
 
 impl Element {
     /// Returns the number of bonds the current [`Element`] should have.
-    pub const fn bond_number(&self) -> u8 {
+    pub const fn bond_number(&self) -> i32 {
         match *self {
             C => 4,
             N => 3,
@@ -364,7 +384,7 @@ pub enum BondOrder {
 }
 
 impl BondOrder {
-    pub const fn order(&self) -> u8 {
+    pub const fn order(&self) -> i32 {
         match self {
             Single => 1,
             Double => 2,
@@ -575,7 +595,7 @@ mod tests {
             [0, 0; A(C)],
             [1, 0; A(H)],
             [0, 1; A(O)],
-            [1, 1; B(Single)]
+            [1, 1; B(Single)],
         );
 
         assert_eq!(graph.get(Vec2::xy(0, 0)).unwrap().color(), LightGrey);
@@ -589,7 +609,7 @@ mod tests {
         let graph = graph_with!(2, 2,
             [1, 0; A(H)],
             [0, 1; A(O)],
-            [1, 1; B(Single)]
+            [1, 1; B(Single)],
         );
 
         assert_eq!(graph.cells[0][1].pos(), Vec2::xy(0, 1));
@@ -690,7 +710,7 @@ mod tests {
         let graph = graph_with!(1, 3,
             [0, 0; A(C)],
             [0, 1; A(O)],
-            [0, 2; A(H)]
+            [0, 2; A(H)],
         );
         let group_node = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up).unwrap();
 

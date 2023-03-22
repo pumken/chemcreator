@@ -116,7 +116,6 @@ mod tests {
     use crate::graph_with;
     use crate::molecule::BondOrder::{Single, Triple};
     use crate::molecule::Element::{C, H, O};
-    use crate::test_utils::unwrap_atom;
     use crate::test_utils::GW::{A, B};
 
     #[test]
@@ -126,7 +125,7 @@ mod tests {
             [1, 0; A(H)],
             [0, 1; A(H)],
             [2, 1; A(H)],
-            [1, 2; A(H)]
+            [1, 2; A(H)],
         );
         let ok = check_structure(&graph);
 
@@ -137,7 +136,7 @@ mod tests {
     fn check_structure_returns_discontinuity() {
         let graph = graph_with!(3, 1,
             [0, 0; A(C)],
-            [2, 0; A(C)]
+            [2, 0; A(C)],
         );
         let err = check_structure(&graph);
 
@@ -154,7 +153,7 @@ mod tests {
             [1, 0; B(Single)],
             [0, 1; B(Single)],
             [2, 1; B(Single)],
-            [1, 2; B(Single)]
+            [1, 2; B(Single)],
         );
         let err = check_structure(&graph);
 
@@ -169,7 +168,7 @@ mod tests {
             [5, 1; A(H)],
             [4, 1; B(Single)],
             [2, 1; B(Single)],
-            [0, 1; B(Triple)]
+            [0, 1; B(Triple)],
         );
         let input_atoms = vec![
             graph.get(Vec2::xy(1, 1)).unwrap(),
@@ -177,7 +176,7 @@ mod tests {
             graph.get(Vec2::xy(5, 1)).unwrap(),
         ]
         .iter()
-        .map(|&cell| unwrap_atom(cell))
+        .map(|&cell| cell.unwrap_atom())
         .collect::<Vec<Atom>>();
         let references = input_atoms.iter().collect::<Vec<&Atom>>();
 
@@ -190,9 +189,9 @@ mod tests {
             [1, 1; A(C)],
             [0, 1; B(Single)],
             [2, 1; B(Single)],
-            [1, 2; B(Single)]
+            [1, 2; B(Single)],
         );
-        let input_atom = unwrap_atom(graph.get(Vec2::xy(1, 1)).unwrap());
+        let input_atom = graph.get(Vec2::xy(1, 1)).unwrap().unwrap_atom();
         let err = check_valence(vec![&input_atom], &graph);
 
         assert_eq!(err, Err(InvalidGraphError::UnfilledValence(Vec2::xy(1, 1))));
@@ -204,9 +203,9 @@ mod tests {
             [1, 1; A(C)],
             [0, 1; B(Triple)],
             [2, 1; B(Triple)],
-            [1, 2; B(Triple)]
+            [1, 2; B(Triple)],
         );
-        let input_atom = unwrap_atom(graph.get(Vec2::xy(1, 1)).unwrap());
+        let input_atom = graph.get(Vec2::xy(1, 1)).unwrap().unwrap_atom();
         let err = check_valence(vec![&input_atom], &graph);
 
         assert_eq!(

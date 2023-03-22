@@ -7,7 +7,7 @@ use crate::chain::{endpoint_head_chains, longest_chain};
 use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::molecule::Group::{
-    AcidHalide, Aldehyde, Alkene, Alkyne, Amine, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro,
+    AcidHalide, Aldehyde, Alkene, Alkyne, Amide, Amine, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro,
     Hydrogen, Hydroxyl, Iodo, Nitrile,
 };
 use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
@@ -131,7 +131,8 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
             [Carbonyl, Chloro => AcidHalide(Chlorine)],
             [Carbonyl, Bromo => AcidHalide(Bromine)],
             [Carbonyl, Iodo => AcidHalide(Iodine)],
-            [Carbonyl, Hydrogen => Aldehyde]
+            [Carbonyl, Amine => Amide],
+            [Carbonyl, Hydrogen => Aldehyde],
         );
         groups.retain(|it| it != &Hydrogen);
         break;
@@ -150,7 +151,7 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
 /// groups to `out`.
 #[macro_export]
 macro_rules! compound {
-    ($groups:expr, $out:expr, $([$first:expr, $second:expr => $comp:expr]),*) => {
+    ($groups:expr, $out:expr, $([$first:expr, $second:expr => $comp:expr],)*) => {
         $(
         if $groups.contains(&$first) && $groups.contains(&$second) {
             $groups.retain(|it| it != &$first && it != &$second);
@@ -323,7 +324,7 @@ mod tests {
             [2, 1; B(Single)],
             [3, 0; A(H)], [3, 1; A(C)], [3, 2; A(H)],
             [4, 1; A(O)],
-            [5, 1; A(H)]
+            [5, 1; A(H)],
         );
         let chain = vec![
             Atom {
@@ -399,7 +400,7 @@ mod tests {
             [0, 1; B(Single)],
             [0, 2; A(O)],
             [0, 3; B(Single)],
-            [0, 4; A(H)]
+            [0, 4; A(H)],
         );
         let a = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up).unwrap();
         let b = GroupNode {
@@ -420,7 +421,7 @@ mod tests {
         let graph = graph_with!(1, 3,
             [0, 0; A(C)],
             [0, 1; A(O)],
-            [0, 2; A(H)]
+            [0, 2; A(H)],
         );
         let node = group_node_tree(&graph, Vec2::xy(0, 0), Direction::Up).unwrap();
         let expected = GroupNode {
@@ -441,7 +442,7 @@ mod tests {
         let graph = graph_with!(3, 3,
             [0, 0; A(H)], [0, 1; A(C)], [0, 2; A(H)],
             [1, 1; B(Double)],
-            [2, 0; A(H)], [2, 1; A(C)], [2, 2; A(H)]
+            [2, 0; A(H)], [2, 1; A(C)], [2, 2; A(H)],
         );
         let node = group_node_tree(&graph, Vec2::xy(0, 1), Direction::Right).unwrap();
         let expected = GroupNode {
@@ -458,7 +459,7 @@ mod tests {
         let graph = graph_with!(3, 3,
             [0, 1; A(C)],
             [1, 0; A(H)], [1, 1; A(C)],
-            [2, 1; A(C)]
+            [2, 1; A(C)],
         );
         let directions = next_directions(&graph, Vec2::xy(1, 1), Vec2::xy(0, 1)).unwrap();
         let expected = vec![Direction::Down, Direction::Right];
@@ -472,7 +473,7 @@ mod tests {
             [0, 1; A(C)],
             [1, 0; A(H)],
             [1, 1; A(C)],
-            [2, 1; A(C)]
+            [2, 1; A(C)],
         );
         let directions = next_directions(&graph, Vec2::xy(1, 1), Vec2::xy(0, 1)).unwrap();
         let expected = vec![Direction::Down, Direction::Right];
@@ -485,7 +486,7 @@ mod tests {
         let graph = graph_with!(5, 5,
             [0, 2; A(C)],
             [1, 2; B(Single)],
-            [2, 0; A(C)], [2, 1; B(Double)], [2, 2; A(C)], [2, 3; A(O)], [2, 4; A(H)]
+            [2, 0; A(C)], [2, 1; B(Double)], [2, 2; A(C)], [2, 3; A(O)], [2, 4; A(H)],
         );
         let branch = Branch {
             chain: vec![
@@ -514,7 +515,7 @@ mod tests {
             [1, 0; A(Br)],
             [1, 1; A(C)],
             [1, 2; A(I)],
-            [2, 1; A(F)]
+            [2, 1; A(F)],
         );
         let branch = Branch {
             chain: vec![Atom {

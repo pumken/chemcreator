@@ -9,10 +9,11 @@ use crate::molecule::Element::{C, H};
 use crate::pointer::Pointer;
 use crate::spatial::{EnumAll, GridState};
 use ruscii::spatial::{Direction, Vec2};
+use crate::molecule::BondOrder::Single;
 
 #[derive(Clone, Debug, PartialEq)]
 struct CellBlock<'a> {
-    pub cells: Vec<CellRow<'a>>,
+    pub cells: Vec<Vec<Vec2>>,
     pub direction: Direction,
     pub graph: &'a GridState,
 }
@@ -25,35 +26,19 @@ impl<'a> CellBlock<'a> {
             graph,
         }
     }
-}
 
-impl<'a> Index<usize> for CellBlock<'a> {
-    type Output = CellRow<'a>;
+    pub fn borrow(&self, group: usize, index: usize) -> Result<&'a Cell, String> {
+        let relative = self.cells[group][index];
+        let rotated = match self.direction {
+            Direction::Up => relative,
+            Direction::Down => -relative,
+            Direction::Right => Vec2::xy(relative.y, -relative.x),
+            Direction::Left => Vec2::xy(-relative.y, relative.x),
+            Direction::None => panic!("Direction::None passed to borrow")
+        };
+        let absolute = rotated + self.graph.cursor;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.cells[index]
-    }
-}
-
-impl<'a> IndexMut<usize> for CellBlock<'a> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.cells[index]
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct CellRow<'a> {
-    cells: Vec<Vec2>,
-    graph: &'a GridState,
-}
-
-impl<'a> CellRow<'a> {
-    pub fn new(graph: &'a GridState, cells: Vec<Vec2>) -> CellRow {
-        CellRow { cells, graph }
-    }
-
-    pub fn borrow(&self, index: usize) -> Result<&'a Cell, String> {
-        self.graph.get(self.cells[index])
+        self.graph.get(absolute)
     }
 }
 
@@ -64,7 +49,7 @@ macro_rules! block {
             $(
             {
                 let temp = vec![$(Vec2::xy($xi, $yi),)*];
-                block.cells.push(CellRow::new($graph, temp));
+                block.cells.push(temp);
             }
             )*
             block
@@ -74,7 +59,31 @@ macro_rules! block {
 
 pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: ComponentType) {
     match new {
-        ComponentType::Element(C) => hydrogen_extension(graph),
+        ComponentType::Element(C) => {
+            for direction in Direction::all() {
+                let mut block = block!(graph,
+                    [(0, 1), (0, 2)],
+                );
+                block.direction = direction;
+
+                let first = match block.borrow(0, 0) {
+                    Ok(it) => it,
+                    Err(_) => continue,
+                };
+                let first_pos = first.pos();
+                let second = match block.borrow(0, 1) {
+                    Ok(it) => it,
+                    Err(_) => continue,
+                };
+
+                let condition = second.is_atom() && second.unwrap_atom().element == C;
+
+                if condition {
+                    graph.put(first_pos, ComponentType::Order(Single));
+                }
+            }
+            hydrogen_extension(graph)
+        }
         ComponentType::None => {} // just to appease Clippy
         _ => {}
     }

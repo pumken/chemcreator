@@ -76,9 +76,9 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: Compone
                     Err(_) => continue,
                 };
 
-                let condition = second.is_atom() && second.unwrap_atom().element == C;
+                let carbon_ext = second.is_atom() && second.unwrap_atom().element == C;
 
-                if condition {
+                if carbon_ext {
                     graph.put(first_pos, ComponentType::Order(Single));
                 }
             }
@@ -87,7 +87,7 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: Compone
         ComponentType::Element(O) => {
             for direction in Direction::all() {
                 let mut block = block!(graph,
-                    [(0, 1), (0, 2)],
+                    [(0, 1), (0, 2), (0, -1)],
                 );
                 block.direction = direction;
 
@@ -100,11 +100,21 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: Compone
                     Ok(it) => it,
                     Err(_) => continue,
                 };
+                let third = match block.borrow(0, 2) {
+                    Ok(it) => it,
+                    Err(_) => continue,
+                };
+                let third_pos = third.pos();
 
-                let condition = second.is_atom() && second.unwrap_atom().element == C;
+                let carbonyl_ext = second.is_atom() && second.unwrap_atom().element == C;
+                let hydroxyl_ext = first.is_atom() && first.unwrap_atom().element == C;
 
-                if condition {
+                if carbonyl_ext {
                     graph.put(first_pos, ComponentType::Order(Double));
+                }
+
+                if hydroxyl_ext {
+                    graph.put(third_pos, ComponentType::Element(H));
                 }
             }
         }

@@ -11,6 +11,8 @@ use crate::spatial::{EnumAll, GridState, ToVec2};
 use ruscii::spatial::{Direction, Vec2};
 use std::cmp::Ordering;
 
+use crate::molecule::BondOrientation::Horiz;
+
 #[derive(Clone, Debug, PartialEq)]
 struct CellBlock<'a> {
     pub cells: Vec<Vec<Vec2>>,
@@ -115,6 +117,27 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, _previous: Compon
                     graph.put(third_pos, ComponentType::Element(H));
                     hydrogen_correction(graph, first_pos);
                 }
+            }
+        }
+        ComponentType::Order(_) => {
+            let dirs = if graph.current_cell().unwrap().unwrap_bond().orient == Horiz {
+                [Direction::Left, Direction::Right]
+            } else {
+                [Direction::Up, Direction::Down]
+            };
+            let ptr = Pointer::new(graph, graph.cursor);
+            let first = match ptr.traverse_bond(dirs[0]) {
+                Ok(it) => it,
+                Err(_) => return,
+            };
+            let second = match ptr.traverse_bond(dirs[1]) {
+                Ok(it) => it,
+                Err(_) => return,
+            };
+
+            if first.element == C && second.element == C {
+                hydrogen_correction(graph, first.pos);
+                hydrogen_correction(graph, second.pos)
             }
         }
         ComponentType::None => {} // just to appease Clippy

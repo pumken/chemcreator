@@ -231,7 +231,10 @@ pub fn bond_conversion(
 
         loop {
             pos += direction.to_vec2();
-            let current_cell = graph.get_mut(pos).unwrap();
+            let current_cell = match graph.get_mut(pos) {
+                Ok(it) => it,
+                Err(_) => continue 'outer,
+            };
 
             match current_cell {
                 Cell::Bond(it) if it.orient == orient => it.order = order,

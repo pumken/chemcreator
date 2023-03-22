@@ -88,10 +88,6 @@ fn main() {
                     .draw_text(
                         "     └────┘     ",
                         Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 2).inv(&graph),
-                    )
-                    .draw_text(
-                        "    Release 1   ",
-                        Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 3).inv(&graph),
                     );
             }
             _ => {

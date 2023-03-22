@@ -113,11 +113,17 @@ pub(crate) fn input_view_mode(app_state: &State, state: &mut AppState) {
     for key_event in app_state.keyboard().last_key_events() {
         match key_event {
             KeyEvent::Pressed(Key::Esc) => app_state.stop(),
-            KeyEvent::Pressed(Key::F8) => {
-                state.mode = Mode::Insert;
-                state.name = "".to_string()
-            }
+            KeyEvent::Pressed(Key::F8) => state.mode = Mode::Insert,
             _ => (),
+        }
+    }
+}
+
+pub(crate) fn start_mode(app_state: &State, state: &mut AppState) {
+    for key_event in app_state.keyboard().last_key_events() {
+        if let KeyEvent::Pressed(_) = key_event {
+            state.mode = Mode::Insert;
+            state.name = "".to_string();
         }
     }
 }

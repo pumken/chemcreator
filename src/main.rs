@@ -5,7 +5,7 @@
 
 #![warn(missing_docs)]
 
-use crate::input::{input_insert_mode, input_view_mode};
+use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Cell;
 use crate::spatial::{GridState, Invert};
@@ -60,7 +60,7 @@ fn main() {
                 state.err = "".to_string();
                 input_view_mode(app_state, &mut state)
             }
-            Mode::Start => input_view_mode(app_state, &mut state),
+            Mode::Start => start_mode(app_state, &mut state),
         }
 
         let mut pencil = Pencil::new(window.canvas_mut());
@@ -193,7 +193,7 @@ impl Default for AppState {
             mode: Mode::Start,
             name: "                ChemCreator                ".to_string(),
             pos: "      Written in Rust by Gavin Tran.       ".to_string(),
-            sym: "To start, enter insert mode by pressing F8.".to_string(),
+            sym: "          Press any key to start.          ".to_string(),
             key: "", // Overridden in Start mode to retain &str type
             err: "".to_string(),
             debug: "".to_string(),

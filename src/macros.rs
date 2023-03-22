@@ -72,12 +72,8 @@ macro_rules! block {
     };
 }
 
-pub fn invoke_macro(graph: &mut GridState) {
-    match graph
-        .current_cell()
-        .expect("cell should be within bounds")
-        .comp()
-    {
+pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: ComponentType) {
+    match new {
         ComponentType::Element(C) => hydrogen_extension(graph),
         ComponentType::None => {} // just to appease Clippy
         _ => {}

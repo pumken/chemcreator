@@ -5,62 +5,55 @@
 use crate::groups::debug_branches;
 use crate::macros::invoke_macro;
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::Element;
-use crate::molecule::Element::{C, H, N, O};
+use crate::molecule::{ComponentType, Element};
+use crate::molecule::Element::{C, Cl, H, I, N, O};
 use crate::naming::name_molecule;
 use crate::spatial::GridState;
 use crate::{AppState, Mode};
 use ruscii::app::State;
 use ruscii::keyboard::{Key, KeyEvent};
 use ruscii::spatial::Direction;
+use Element::{Br, F};
 
 pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: &mut GridState) {
     for key_event in app_state.keyboard().last_key_events() {
         match key_event {
             KeyEvent::Pressed(Key::B) => {
-                graph.put_atom(Element::Br);
                 state.key = "B";
-                update(state, graph);
+                update(state, graph, ComponentType::Element(Br));
             }
             KeyEvent::Pressed(Key::C) => {
-                graph.put_atom(C);
                 state.key = "C";
-                update(state, graph);
+                update(state, graph, ComponentType::Element(C));
             }
             KeyEvent::Pressed(Key::F) => {
-                graph.put_atom(Element::F);
                 state.key = "F";
-                update(state, graph);
+                update(state, graph, ComponentType::Element(F));
             }
             KeyEvent::Pressed(Key::H) => {
-                graph.put_atom(H);
                 state.key = "H";
-                update(state, graph);
+                update(state, graph, ComponentType::Element(H));
             }
             KeyEvent::Pressed(Key::I) => {
-                graph.put_atom(Element::I);
                 state.key = "I";
-                update(state, graph);
+                update(state, graph, ComponentType::Element(I));
             }
             KeyEvent::Pressed(Key::L) => {
-                graph.put_atom(Element::Cl);
                 state.key = "L";
-                update(state, graph);
+                update(state, graph, ComponentType::Element(Cl));
             }
             KeyEvent::Pressed(Key::N) => {
-                graph.put_atom(N);
                 state.key = "N";
-                update(state, graph);
+                update(state, graph, ComponentType::Element(N));
             }
             KeyEvent::Pressed(Key::O) => {
-                graph.put_atom(O);
                 state.key = "O";
-                update(state, graph);
+                update(state, graph, ComponentType::Element(O));
             }
             KeyEvent::Pressed(Key::F5) => {
                 graph.clear_all();
                 state.key = "F5";
-                update(state, graph);
+                update(state, graph, ComponentType::None);
             }
             KeyEvent::Pressed(Key::F7) => {
                 state.macros_enabled = !state.macros_enabled;
@@ -74,24 +67,20 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
                 state.key = "F12";
             }
             KeyEvent::Pressed(Key::Num1) => {
-                graph.put_bond(Single);
                 state.key = "1";
-                update(state, graph);
+                update(state, graph, ComponentType::Order(Single));
             }
             KeyEvent::Pressed(Key::Num2) => {
-                graph.put_bond(Double);
                 state.key = "2";
-                update(state, graph);
+                update(state, graph, ComponentType::Order(Double));
             }
             KeyEvent::Pressed(Key::Num3) => {
-                graph.put_bond(Triple);
                 state.key = "3";
-                update(state, graph);
+                update(state, graph, ComponentType::Order(Triple));
             }
             KeyEvent::Pressed(Key::Backspace) => {
-                graph.clear_cell();
                 state.key = "Backspace";
-                update(state, graph);
+                update(state, graph, ComponentType::None);
             }
             KeyEvent::Pressed(Key::Right) => {
                 graph.move_cursor(Direction::Right);
@@ -134,9 +123,17 @@ pub(crate) fn input_view_mode(app_state: &State, state: &mut AppState) {
 }
 
 //noinspection RsBorrowChecker
-pub(crate) fn update(state: &mut AppState, graph: &mut GridState) {
+pub(crate) fn update(state: &mut AppState, graph: &mut GridState, comp: ComponentType) {
+    let previous = graph.current_cell().expect("cell should be within bounds").comp();
+
+    match comp {
+        ComponentType::Element(it) => graph.put_atom(it),
+        ComponentType::Order(it) => graph.put_bond(it),
+        ComponentType::None => graph.clear_cell(),
+    }
+
     if state.macros_enabled {
-        invoke_macro(graph);
+        invoke_macro(graph, comp, previous);
     }
 
     (state.name, state.err) = match name_molecule(graph) {

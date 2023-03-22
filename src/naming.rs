@@ -110,6 +110,8 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
                 return Ok(format!("edioyl di{it}"));
             }
             Group::AcidHalide(it) => return Ok(format!("oyl {it}")),
+            Group::Amide if fragment.locants.len() == 2 => return Ok("ediamide".to_string()),
+            Group::Amide => return Ok("amide".to_string()),
             Group::Amine => "amine",
             _ => return Ok("e".to_string()),
         };
@@ -318,6 +320,7 @@ impl NamingError {
                 Group::Carbonyl => "carbonyl",
                 Group::Ester => "ester",
                 Group::Ether => "ether",
+                Group::Amide => "amide",
                 Group::Amine => "amine",
             }
             .to_string(),

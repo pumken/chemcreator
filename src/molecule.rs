@@ -36,6 +36,7 @@ pub enum Group {
     Aldehyde,
     AcidHalide(Halogen),
     Carboxyl,
+    Amide,
     /* Chain groups */
     Ester,
     Ether,
@@ -53,14 +54,15 @@ impl Group {
     /// the main group_ (i.e., always a prefix).
     pub const fn priority(self) -> Option<i32> {
         let priority = match self {
-            Group::Carboxyl => 12,
-            Group::Ester => 11,
+            Group::Carboxyl => 13,
+            Group::Ester => 12,
             Group::AcidHalide(halogen) => match halogen {
-                Halogen::Fluorine => 10,
-                Halogen::Chlorine => 9,
-                Halogen::Bromine => 8,
-                Halogen::Iodine => 7,
+                Halogen::Fluorine => 11,
+                Halogen::Chlorine => 10,
+                Halogen::Bromine => 9,
+                Halogen::Iodine => 8,
             },
+            Group::Amide => 7,
             Group::Nitrile => 6,
             Group::Aldehyde => 5,
             Group::Carbonyl => 4,
@@ -102,6 +104,7 @@ impl Display for Group {
             Group::Ester => "ester",
             Group::Ether => "ether",
             Group::Amine => "amino",
+            Group::Amide => "carbamoyl",
             Group::Nitrile => "cyano",
         };
         write!(f, "{str}")
@@ -139,6 +142,7 @@ impl FromStr for Group {
             "ester" => Group::Ester,
             "ether" => Group::Ether,
             "amino" => Group::Amine,
+            "carbamoyl" => Group::Amide,
             "cyano" => Group::Nitrile,
             _ => return Err(()),
         };

@@ -7,7 +7,7 @@ use crate::chain::{endpoint_head_chains, longest_chain};
 use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::molecule::Group::{
-    AcidHalide, Aldehyde, Alkene, Alkyne, Amine, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro,
+    AcidHalide, Aldehyde, Alkene, Alkyne, Amide, Amine, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro,
     Hydrogen, Hydroxyl, Iodo, Nitrile,
 };
 use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
@@ -131,6 +131,7 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
             [Carbonyl, Chloro => AcidHalide(Chlorine)],
             [Carbonyl, Bromo => AcidHalide(Bromine)],
             [Carbonyl, Iodo => AcidHalide(Iodine)],
+            [Carbonyl, Amine => Amide],
             [Carbonyl, Hydrogen => Aldehyde],
         );
         groups.retain(|it| it != &Hydrogen);

@@ -36,9 +36,11 @@ you try it out and find something named incorrectly, please open an issue!
 - [x] Alkenes
 - [x] Alkynes
 - [x] Alcohols
-- [ ] Aldehydes
+- [x] Aldehydes
+- [x] Amides
+- [x] Amines
 - [x] Carboxylic acids
 - [ ] Ethers
 - [x] Ketones
-- [ ] Halogenoalkanes
+- [x] Halogenoalkanes
 - [ ] Esters

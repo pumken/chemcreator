@@ -5,11 +5,11 @@
 
 use std::ops::{Index, IndexMut};
 use crate::molecule::{Cell, ComponentType};
-use crate::molecule::Element::{C, H};
+use crate::molecule::Element::{C, H, O};
 use crate::pointer::Pointer;
 use crate::spatial::{EnumAll, GridState};
 use ruscii::spatial::{Direction, Vec2};
-use crate::molecule::BondOrder::Single;
+use crate::molecule::BondOrder::{Double, Single};
 
 #[derive(Clone, Debug, PartialEq)]
 struct CellBlock<'a> {
@@ -83,6 +83,30 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, previous: Compone
                 }
             }
             hydrogen_extension(graph)
+        }
+        ComponentType::Element(O) => {
+            for direction in Direction::all() {
+                let mut block = block!(graph,
+                    [(0, 1), (0, 2)],
+                );
+                block.direction = direction;
+
+                let first = match block.borrow(0, 0) {
+                    Ok(it) => it,
+                    Err(_) => continue,
+                };
+                let first_pos = first.pos();
+                let second = match block.borrow(0, 1) {
+                    Ok(it) => it,
+                    Err(_) => continue,
+                };
+
+                let condition = second.is_atom() && second.unwrap_atom().element == C;
+
+                if condition {
+                    graph.put(first_pos, ComponentType::Order(Double));
+                }
+            }
         }
         ComponentType::None => {} // just to appease Clippy
         _ => {}

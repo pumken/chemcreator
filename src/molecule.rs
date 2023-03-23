@@ -13,7 +13,6 @@ use ruscii::terminal::Color::{Blue, Green, LightGrey, Magenta, Red, White, Xterm
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
-use std::path::Component;
 use std::str::FromStr;
 use Element::{Br, Cl, F, I};
 
@@ -234,6 +233,10 @@ impl Cell {
         matches!(self, Cell::Atom(_))
     }
 
+    pub fn is_bond(&self) -> bool {
+        matches!(self, Cell::Bond(_))
+    }
+
     pub fn is_empty(&self) -> bool {
         !matches!(self, Cell::None(_))
     }
@@ -403,6 +406,10 @@ pub struct Bond {
 }
 
 impl Bond {
+    pub fn new(pos: Vec2, order: BondOrder, orient: BondOrientation) -> Bond {
+        Bond { pos, order, orient }
+    }
+
     pub fn symbol(&self) -> &str {
         match (&self.order, &self.orient) {
             (Single, Horiz) => "———",

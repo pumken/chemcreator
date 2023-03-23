@@ -8,7 +8,7 @@
 use Color::Yellow;
 use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::{Cell, ComponentType, Element};
+use crate::molecule::{Bond, BondOrientation, Cell, ComponentType, Element};
 use crate::spatial::{EnumAll, GridState, Invert};
 use crate::Mode::Insert;
 use ruscii::app::{App, State};
@@ -93,26 +93,28 @@ fn main() {
             .draw_text(&state.debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8))
             .set_foreground(White);
 
-        let sym_type = match state.sym {
-            ComponentType::Element(_) => "Atom",
-            ComponentType::Order(_) => "Bond",
-            ComponentType::None => "",
-        };
-        let sym_sym = match state.sym {
-            ComponentType::Element(it) => it.symbol().to_string(),
-            ComponentType::Order(Single) => "1x".to_string(),
-            ComponentType::Order(Double) => "2x".to_string(),
-            ComponentType::Order(Triple) => "3x".to_string(),
-            ComponentType::None => "".to_string(),
-        };
-        pencil
-            .set_foreground(state.sym.color())
-            .draw_text(&sym_sym, Vec2::xy(graph.size.x * 3 - sym_sym.len() as i32, 1))
-            .set_foreground(White)
-            .draw_text(
-                sym_type,
-                Vec2::xy(graph.size.x * 3 - sym_type.len() as i32 - sym_sym.len() as i32 - 1, 1),
-            );
+        if matches!(state.mode, Insert) {
+            let sym_type = match state.sym {
+                ComponentType::Element(_) => "Atom",
+                ComponentType::Order(_) => "Bond",
+                ComponentType::None => "",
+            };
+            let sym_sym = match state.sym {
+                ComponentType::Element(it) => it.symbol().to_string(),
+                ComponentType::Order(Single) => "1x".to_string(),
+                ComponentType::Order(Double) => "2x".to_string(),
+                ComponentType::Order(Triple) => "3x".to_string(),
+                ComponentType::None => "".to_string(),
+            };
+            pencil
+                .set_foreground(state.sym.color())
+                .draw_text(&sym_sym, Vec2::xy(graph.size.x * 3 - sym_sym.len() as i32, 1))
+                .set_foreground(White)
+                .draw_text(
+                    sym_type,
+                    Vec2::xy(graph.size.x * 3 - sym_type.len() as i32 - sym_sym.len() as i32 - 1, 1),
+                );
+        }
 
         if state.macros_enabled && state.mode == Insert {
             pencil
@@ -122,6 +124,10 @@ fn main() {
         }
 
         // Statistics
+        if state.name.is_empty() {
+            return
+        }
+
         pencil
             .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
             .set_style(Style::Bold)
@@ -140,6 +146,7 @@ fn main() {
         let mut mass = 0.0;
 
         let mut missed = 0;
+        let mut final_index = 0;
         for (index, element) in Element::all().into_iter().enumerate() {
             let count = graph.count(|it| it.is_atom() && it.unwrap_atom().element == element);
 
@@ -155,9 +162,31 @@ fn main() {
                 .draw_text(element.symbol(), Vec2::y(2 + index - missed))
                 .set_foreground(White)
                 .draw_text(&format!("| {}", count), Vec2::xy(6, 2 + index - missed));
+
+            final_index = 2 + index - missed;
         }
 
-        pencil.draw_text(&format!("atomic weight | {:.3} amu", mass), Vec2::xy(15, 2));
+        let mut missed = 0;
+        for (index, order) in [Double, Triple].into_iter().enumerate() {
+            let count = graph.count(|it| it.is_bond() && it.unwrap_bond().order == order);
+
+            if count == 0 {
+                missed += 1;
+                continue
+            }
+
+            pencil
+                .draw_text(Bond::new(Vec2::zero(), order, BondOrientation::Horiz).symbol(), Vec2::y(2 + final_index + index - missed))
+                .draw_text(&format!("| {}", count), Vec2::xy(6, 2 + final_index + index - missed));
+        }
+
+        if state.err {
+            return
+        }
+
+        pencil
+            .draw_text(&format!("atomic weight | {:.3} amu", mass), Vec2::xy(15, 2))
+            .draw_text(&format!("name length   | {}", state.name.len()), Vec2::xy(15, 4));
     });
 }
 

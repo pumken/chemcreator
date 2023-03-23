@@ -192,6 +192,17 @@ impl GridState {
             .collect::<Vec<&Cell>>()
     }
 
+    pub fn count<F>(&self, predicate: F) -> i32
+    where
+        F: Fn(&Cell) -> bool,
+    {
+        self.cells
+            .iter()
+            .flatten()
+            .filter(|&cell| predicate(cell))
+            .count() as i32
+    }
+
     /// Determines if there are any [`Atom`]s that are horizontally adjacent to the current
     /// [`Cell`].
     fn atom_adjacent(&self, pos: Vec2) -> bool {

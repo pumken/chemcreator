@@ -35,6 +35,8 @@ fn main() {
     let mut state = AppState::default();
 
     app.run(|app_state: &mut State, window: &mut Window| {
+        let window_size = window.size();
+
         match state.mode {
             Insert => {
                 input_insert_mode(app_state, &mut state, &mut graph);
@@ -147,13 +149,28 @@ fn main() {
             return;
         }
 
-        pencil
-            .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
-            .set_style(Style::Bold)
-            .set_foreground(if state.err { Red } else { White })
-            .draw_text(&state.name.to_string(), Vec2::zero())
-            .set_foreground(White)
-            .set_style(Style::Plain);
+        let wrap_length = window_size.x - 14 - graph.size.x * 3;
+        if state.name.len() > wrap_length as usize {
+            let first_line = &state.name[0..wrap_length as usize];
+            let second_line = &state.name[wrap_length as usize..];
+            pencil
+                .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
+                .set_style(Style::Bold)
+                .set_foreground(if state.err { Red } else { White })
+                .draw_text(first_line, Vec2::zero())
+                .move_origin(Vec2::y(1))
+                .draw_text(second_line, Vec2::zero())
+                .set_foreground(White)
+                .set_style(Style::Plain);
+        } else {
+            pencil
+                .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
+                .set_style(Style::Bold)
+                .set_foreground(if state.err { Red } else { White })
+                .draw_text(&state.name.to_string(), Vec2::zero())
+                .set_foreground(White)
+                .set_style(Style::Plain);
+        }
 
         if !matches!(state.mode, Normal) {
             return;

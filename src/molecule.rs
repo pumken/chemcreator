@@ -13,6 +13,7 @@ use ruscii::terminal::Color::{Blue, Green, LightGrey, Magenta, Red, White, Xterm
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
+use std::path::Component;
 use std::str::FromStr;
 use Element::{Br, Cl, F, I};
 
@@ -184,8 +185,8 @@ impl Display for Halogen {
 
 impl EnumAll for Halogen {
     fn all() -> Vec<Self>
-    where
-        Self: Sized,
+        where
+            Self: Sized,
     {
         vec![
             Halogen::Fluorine,
@@ -254,11 +255,21 @@ impl Cell {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub enum ComponentType {
     Element(Element),
     Order(BondOrder),
+    #[default]
     None,
+}
+
+impl ComponentType {
+    pub fn color(&self) -> Color {
+        match &self {
+            ComponentType::Element(it) => it.color(),
+            _ => White,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

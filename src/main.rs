@@ -8,7 +8,7 @@
 use Color::Yellow;
 use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::{Cell, Element};
+use crate::molecule::{Cell, ComponentType, Element};
 use crate::spatial::{EnumAll, GridState, Invert};
 use crate::Mode::Insert;
 use ruscii::app::{App, State};
@@ -44,21 +44,13 @@ fn main() {
                     .current_cell()
                     .expect("current cell should be within bounds")
                 {
-                    Cell::Atom(it) => {
-                        format!("Atom {}", it.symbol())
-                    }
-                    Cell::Bond(it) => match it.order {
-                        Single => "Bond 1x".to_string(),
-                        Double => "Bond 2x".to_string(),
-                        Triple => "Bond 3x".to_string(),
-                    },
-                    Cell::None(_) => String::new(),
+                    Cell::Atom(it) => ComponentType::Element(it.element),
+                    Cell::Bond(it) => ComponentType::Order(it.order),
+                    Cell::None(_) => ComponentType::None,
                 };
             }
             Normal => {
                 state.pos = "".to_string();
-                state.sym = "".to_string();
-                state.err = "".to_string();
                 input_view_mode(app_state, &mut state)
             }
             Mode::Start => start_mode(app_state, &mut state),
@@ -97,14 +89,30 @@ fn main() {
                 &state.pos.to_string(),
                 Vec2::xy(0, 1),
             )
-            .draw_text(
-                &state.sym.to_string(),
-                Vec2::xy(graph.size.x * 3 - state.sym.len() as i32, 1),
-            )
             .set_foreground(Red)
-            .draw_text(&state.err.to_string(), Vec2::xy(graph.size.x * 3 + 3, 7))
             .draw_text(&state.debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8))
             .set_foreground(White);
+
+        let sym_type = match state.sym {
+            ComponentType::Element(_) => "Atom",
+            ComponentType::Order(_) => "Bond",
+            ComponentType::None => "",
+        };
+        let sym_sym = match state.sym {
+            ComponentType::Element(it) => it.symbol().to_string(),
+            ComponentType::Order(Single) => "1x".to_string(),
+            ComponentType::Order(Double) => "2x".to_string(),
+            ComponentType::Order(Triple) => "3x".to_string(),
+            ComponentType::None => "".to_string(),
+        };
+        pencil
+            .set_foreground(state.sym.color())
+            .draw_text(&sym_sym, Vec2::xy(graph.size.x * 3 - sym_sym.len() as i32, 1))
+            .set_foreground(White)
+            .draw_text(
+                sym_type,
+                Vec2::xy(graph.size.x * 3 - sym_type.len() as i32 - sym_sym.len() as i32 - 1, 1),
+            );
 
         if state.macros_enabled && state.mode == Insert {
             pencil
@@ -117,10 +125,12 @@ fn main() {
         pencil
             .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
             .set_style(Style::Bold)
+            .set_foreground(if state.err { Red } else { White })
             .draw_text(
                 &state.name.to_string(),
                 Vec2::zero(),
             )
+            .set_foreground(White)
             .set_style(Style::Plain);
 
         if !matches!(state.mode, Normal) {
@@ -217,8 +227,8 @@ struct AppState {
     mode: Mode,
     name: String,
     pos: String,
-    sym: String,
-    err: String,
+    sym: ComponentType,
+    err: bool,
     debug: String,
     macros_enabled: bool,
 }

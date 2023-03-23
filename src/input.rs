@@ -85,7 +85,7 @@ pub(crate) fn update(state: &mut AppState, graph: &mut GridState, comp: Componen
     }
 
     (state.name, state.err) = match name_molecule(graph) {
-        Ok(it) => (it, "".to_string()),
-        Err(it) => ("unidentified".to_string(), it.to_string()),
+        Ok(it) => (it, false),
+        Err(it) => (it.to_string(), true),
     };
 }

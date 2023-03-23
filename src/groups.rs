@@ -294,10 +294,10 @@ pub enum InvalidGraphError {
     Cycle,
     #[error("Bond at ({}, {}) has no inconsistent order.", .0.x, .0.y)]
     InconsistentBond(Vec2),
-    #[error("Cell at ({}, {}) is missing bonds.", .0.x, .0.y)]
-    UnfilledValence(Vec2),
-    #[error("Cell at ({}, {}) has too many bonds.", .0.x, .0.y)]
-    OverfilledValence(Vec2),
+    #[error("Atom at ({}, {}) is missing bonds ({} requires {}).", .0.x, .0.y, .1, .1.bond_number())]
+    UnfilledValence(Vec2, Element),
+    #[error("Atom at ({}, {}) has too many bonds ({} requires {}).", .0.x, .0.y, .1, .1.bond_number())]
+    OverfilledValence(Vec2, Element),
     #[error("Bond at ({}, {}) is incomplete.", .0.x, .0.y)]
     IncompleteBond(Vec2),
     #[error("Unrecognized group.")]

@@ -379,14 +379,14 @@ impl Display for Element {
             f,
             "{}",
             match self {
-                Br => "Bromine",
-                C => "Carbon",
-                Cl => "Chlorine",
-                F => "Fluorine",
-                H => "Hydrogen",
-                I => "Iodine",
-                N => "Nitrogen",
-                O => "Oxygen",
+                Br => "bromine",
+                C => "carbon",
+                Cl => "chlorine",
+                F => "fluorine",
+                H => "hydrogen",
+                I => "iodine",
+                N => "nitrogen",
+                O => "oxygen",
             }
         )
     }

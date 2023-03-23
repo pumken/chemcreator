@@ -223,11 +223,19 @@ fn main() {
             return;
         }
 
+        let carbon = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::C);
+        let nitrogen = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::N);
+        let hydrogen = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::H);
+        let halogens = graph.count(|it| it.is_atom() && matches!(it.unwrap_atom().element, Element::Br | Element::Cl | Element::F | Element::I));
+
+        let ihd = (2 * carbon + 2 + nitrogen - hydrogen - halogens) / 2;
+
         pencil
             .draw_text(&format!("atomic weight | {:.3} amu", mass), Vec2::xy(15, 2))
+            .draw_text(&format!("IHD           | {}", ihd), Vec2::xy(15, 3))
             .draw_text(
                 &format!("name length   | {}", state.name.len()),
-                Vec2::xy(15, 4),
+                Vec2::xy(15, 5),
             );
     });
 }
@@ -376,7 +384,7 @@ mod test_utils {
             atom,
             Atom {
                 element: C,
-                pos: Vec2::zero()
+                pos: Vec2::zero(),
             }
         );
     }

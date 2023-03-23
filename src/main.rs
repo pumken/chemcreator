@@ -61,7 +61,10 @@ fn main() {
         // Grid and startup screen
         pencil.set_origin(Vec2::xy(6, 0));
         match state.mode {
-            Mode::Start => draw_logo(&mut pencil, &graph, Vec2::y(2)),
+            Mode::Start => {
+                draw_logo(&mut pencil, &graph, Vec2::y(2));
+                draw_start_message(&mut pencil, Vec2::xy(graph.size.x * 3 + 5, 1), version);
+            },
             _ => draw_grid(&mut pencil, &mut graph, Vec2::y(2), state.mode),
         }
 
@@ -238,6 +241,17 @@ fn draw_cursor(pencil: &mut Pencil, graph: &GridState, pos: Vec2) {
             Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(graph),
         )
         .set_foreground(color)
+        .move_origin(-pos);
+}
+
+fn draw_start_message(pencil: &mut Pencil, pos: Vec2, version: &str) {
+    pencil
+        .move_origin(pos)
+        .draw_center_text("ChemCreator", Vec2::xy(20, 2))
+        .draw_center_text("A text-based tool for", Vec2::xy(20, 4))
+        .draw_center_text("identifying organic molecules.", Vec2::xy(20, 5))
+        .draw_center_text("Written in Rust by Gavin Tran.", Vec2::xy(20, 7))
+        .draw_center_text("Press any key to start.", Vec2::xy(20, 9))
         .move_origin(-pos);
 }
 

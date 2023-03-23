@@ -31,10 +31,12 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
                 update(state, graph, ComponentType::None);
             }
             KeyEvent::Pressed(Key::F7) => state.macros_enabled = !state.macros_enabled,
-            KeyEvent::Pressed(Key::F12) => state.debug = match debug_branches(graph) {
-                Ok(it) => it.to_string(),
-                Err(it) => it.to_string(),
-            },
+            KeyEvent::Pressed(Key::F12) => {
+                state.debug = match debug_branches(graph) {
+                    Ok(it) => it.to_string(),
+                    Err(it) => it.to_string(),
+                }
+            }
             KeyEvent::Pressed(Key::Num1) => update(state, graph, ComponentType::Order(Single)),
             KeyEvent::Pressed(Key::Num2) => update(state, graph, ComponentType::Order(Double)),
             KeyEvent::Pressed(Key::Num3) => update(state, graph, ComponentType::Order(Triple)),

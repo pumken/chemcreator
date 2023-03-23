@@ -5,7 +5,6 @@
 
 #![warn(missing_docs)]
 
-use Color::Yellow;
 use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::{Bond, BondOrientation, Cell, ComponentType, Element};
@@ -16,6 +15,7 @@ use ruscii::drawing::{Pencil, RectCharset};
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color::{Cyan, Red, White};
 use ruscii::terminal::{Color, Style, Window};
+use Color::Yellow;
 use Mode::Normal;
 
 mod chain;
@@ -63,8 +63,8 @@ fn main() {
         match state.mode {
             Mode::Start => {
                 draw_logo(&mut pencil, &graph, Vec2::y(2));
-                draw_start_message(&mut pencil, Vec2::xy(graph.size.x * 3 + 5, 1), version);
-            },
+                draw_start_message(&mut pencil, Vec2::xy(graph.size.x * 3 + 5, 1));
+            }
             _ => draw_grid(&mut pencil, &mut graph, Vec2::y(2), state.mode),
         }
 
@@ -73,9 +73,19 @@ fn main() {
             draw_insert_mode(&mut pencil, Vec2::xy(graph.size.x * 3 / 2, 1));
             draw_cursor(&mut pencil, &graph, Vec2::y(2));
         } else {
-            pencil.draw_rect(&RectCharset::simple_round_lines(), Vec2::xy(-1, 1), Vec2::xy(graph.size.x * 3 + 2, graph.size.y + 2));
+            pencil.draw_rect(
+                &RectCharset::simple_round_lines(),
+                Vec2::xy(-1, 1),
+                Vec2::xy(graph.size.x * 3 + 2, graph.size.y + 2),
+            );
             if let Mode::Start = state.mode {
-                pencil.draw_text(&format!(" {version} "), Vec2::xy(graph.size.x * 3 - version.len() as i32 - 3, graph.size.y + 2));
+                pencil.draw_text(
+                    &format!(" {version} "),
+                    Vec2::xy(
+                        graph.size.x * 3 - version.len() as i32 - 3,
+                        graph.size.y + 2,
+                    ),
+                );
             }
         }
 
@@ -86,12 +96,12 @@ fn main() {
                     Mode::Start => "",
                     _ => " ChemCreator ",
                 },
-                Vec2::xy(graph.size.x * 3 / 2, if state.mode == Normal { 1 } else { 0 }),
+                Vec2::xy(
+                    graph.size.x * 3 / 2,
+                    if state.mode == Normal { 1 } else { 0 },
+                ),
             )
-            .draw_text(
-                &state.pos.to_string(),
-                Vec2::xy(0, 1),
-            )
+            .draw_text(&state.pos.to_string(), Vec2::xy(0, 1))
             .set_foreground(Red)
             .draw_text(&state.debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8))
             .set_foreground(White);
@@ -111,11 +121,17 @@ fn main() {
             };
             pencil
                 .set_foreground(state.sym.color())
-                .draw_text(&sym_sym, Vec2::xy(graph.size.x * 3 - sym_sym.len() as i32, 1))
+                .draw_text(
+                    &sym_sym,
+                    Vec2::xy(graph.size.x * 3 - sym_sym.len() as i32, 1),
+                )
                 .set_foreground(White)
                 .draw_text(
                     sym_type,
-                    Vec2::xy(graph.size.x * 3 - sym_type.len() as i32 - sym_sym.len() as i32 - 1, 1),
+                    Vec2::xy(
+                        graph.size.x * 3 - sym_type.len() as i32 - sym_sym.len() as i32 - 1,
+                        1,
+                    ),
                 );
         }
 
@@ -128,22 +144,19 @@ fn main() {
 
         // Statistics
         if state.name.is_empty() {
-            return
+            return;
         }
 
         pencil
             .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
             .set_style(Style::Bold)
             .set_foreground(if state.err { Red } else { White })
-            .draw_text(
-                &state.name.to_string(),
-                Vec2::zero(),
-            )
+            .draw_text(&state.name.to_string(), Vec2::zero())
             .set_foreground(White)
             .set_style(Style::Plain);
 
         if !matches!(state.mode, Normal) {
-            return
+            return;
         }
 
         let mut mass = 0.0;
@@ -155,7 +168,7 @@ fn main() {
 
             if count == 0 {
                 missed += 1;
-                continue
+                continue;
             }
 
             mass += element.mass() * count as f32;
@@ -175,32 +188,56 @@ fn main() {
 
             if count == 0 {
                 missed += 1;
-                continue
+                continue;
             }
 
             pencil
-                .draw_text(Bond::new(Vec2::zero(), order, BondOrientation::Horiz).symbol(), Vec2::y(2 + final_index + index - missed))
-                .draw_text(&format!("| {}", count), Vec2::xy(6, 2 + final_index + index - missed));
+                .draw_text(
+                    Bond::new(Vec2::zero(), order, BondOrientation::Horiz).symbol(),
+                    Vec2::y(2 + final_index + index - missed),
+                )
+                .draw_text(
+                    &format!("| {}", count),
+                    Vec2::xy(6, 2 + final_index + index - missed),
+                );
         }
 
         if state.err {
-            return
+            return;
         }
 
         pencil
             .draw_text(&format!("atomic weight | {:.3} amu", mass), Vec2::xy(15, 2))
-            .draw_text(&format!("name length   | {}", state.name.len()), Vec2::xy(15, 4));
+            .draw_text(
+                &format!("name length   | {}", state.name.len()),
+                Vec2::xy(15, 4),
+            );
     });
 }
 
 fn draw_logo(pencil: &mut Pencil, graph: &GridState, pos: Vec2) {
     pencil
         .move_origin(pos)
-        .draw_text("┌────┐          ", Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 + 2).inv(graph),)
-        .draw_text("│  C │hem       ", Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 + 1).inv(graph),)
-        .draw_text("└────┼────┐     ", Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2).inv(graph),)
-        .draw_text("     │ Cr │eator", Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 - 1).inv(graph),)
-        .draw_text("     └────┘     ", Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 - 2).inv(graph),)
+        .draw_text(
+            "┌────┐          ",
+            Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 + 2).inv(graph),
+        )
+        .draw_text(
+            "│  C │hem       ",
+            Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 + 1).inv(graph),
+        )
+        .draw_text(
+            "└────┼────┐     ",
+            Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2).inv(graph),
+        )
+        .draw_text(
+            "     │ Cr │eator",
+            Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 - 1).inv(graph),
+        )
+        .draw_text(
+            "     └────┘     ",
+            Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 - 2).inv(graph),
+        )
         .move_origin(-pos);
 }
 
@@ -244,7 +281,7 @@ fn draw_cursor(pencil: &mut Pencil, graph: &GridState, pos: Vec2) {
         .move_origin(-pos);
 }
 
-fn draw_start_message(pencil: &mut Pencil, pos: Vec2, version: &str) {
+fn draw_start_message(pencil: &mut Pencil, pos: Vec2) {
     pencil
         .move_origin(pos)
         .draw_center_text("ChemCreator", Vec2::xy(20, 2))

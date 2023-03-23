@@ -194,7 +194,7 @@ impl GridState {
 
     pub fn count<F>(&self, predicate: F) -> i32
     where
-        F: Fn(&Cell) -> bool
+        F: Fn(&Cell) -> bool,
     {
         self.cells
             .iter()

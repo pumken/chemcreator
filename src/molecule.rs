@@ -184,8 +184,8 @@ impl Display for Halogen {
 
 impl EnumAll for Halogen {
     fn all() -> Vec<Self>
-        where
-            Self: Sized,
+    where
+        Self: Sized,
     {
         vec![
             Halogen::Fluorine,
@@ -393,7 +393,10 @@ impl Display for Element {
 }
 
 impl EnumAll for Element {
-    fn all() -> Vec<Self> where Self: Sized {
+    fn all() -> Vec<Self>
+    where
+        Self: Sized,
+    {
         vec![Br, C, Cl, F, H, I, N, O]
     }
 }

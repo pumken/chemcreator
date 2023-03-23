@@ -18,93 +18,33 @@ use Element::{Br, F};
 pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: &mut GridState) {
     for key_event in app_state.keyboard().last_key_events() {
         match key_event {
-            KeyEvent::Pressed(Key::B) => {
-                state.key = "B";
-                update(state, graph, ComponentType::Element(Br));
-            }
-            KeyEvent::Pressed(Key::C) => {
-                state.key = "C";
-                update(state, graph, ComponentType::Element(C));
-            }
-            KeyEvent::Pressed(Key::F) => {
-                state.key = "F";
-                update(state, graph, ComponentType::Element(F));
-            }
-            KeyEvent::Pressed(Key::H) => {
-                state.key = "H";
-                update(state, graph, ComponentType::Element(H));
-            }
-            KeyEvent::Pressed(Key::I) => {
-                state.key = "I";
-                update(state, graph, ComponentType::Element(I));
-            }
-            KeyEvent::Pressed(Key::L) => {
-                state.key = "L";
-                update(state, graph, ComponentType::Element(Cl));
-            }
-            KeyEvent::Pressed(Key::N) => {
-                state.key = "N";
-                update(state, graph, ComponentType::Element(N));
-            }
-            KeyEvent::Pressed(Key::O) => {
-                state.key = "O";
-                update(state, graph, ComponentType::Element(O));
-            }
+            KeyEvent::Pressed(Key::B) => update(state, graph, ComponentType::Element(Br)),
+            KeyEvent::Pressed(Key::C) => update(state, graph, ComponentType::Element(C)),
+            KeyEvent::Pressed(Key::F) => update(state, graph, ComponentType::Element(F)),
+            KeyEvent::Pressed(Key::H) => update(state, graph, ComponentType::Element(H)),
+            KeyEvent::Pressed(Key::I) => update(state, graph, ComponentType::Element(I)),
+            KeyEvent::Pressed(Key::L) => update(state, graph, ComponentType::Element(Cl)),
+            KeyEvent::Pressed(Key::N) => update(state, graph, ComponentType::Element(N)),
+            KeyEvent::Pressed(Key::O) => update(state, graph, ComponentType::Element(O)),
             KeyEvent::Pressed(Key::F5) => {
                 graph.clear_all();
-                state.key = "F5";
                 update(state, graph, ComponentType::None);
             }
-            KeyEvent::Pressed(Key::F7) => {
-                state.macros_enabled = !state.macros_enabled;
-                state.key = "F7";
-            }
-            KeyEvent::Pressed(Key::F12) => {
-                state.debug = match debug_branches(graph) {
-                    Ok(it) => it.to_string(),
-                    Err(it) => it.to_string(),
-                };
-                state.key = "F12";
-            }
-            KeyEvent::Pressed(Key::Num1) => {
-                state.key = "1";
-                update(state, graph, ComponentType::Order(Single));
-            }
-            KeyEvent::Pressed(Key::Num2) => {
-                state.key = "2";
-                update(state, graph, ComponentType::Order(Double));
-            }
-            KeyEvent::Pressed(Key::Num3) => {
-                state.key = "3";
-                update(state, graph, ComponentType::Order(Triple));
-            }
-            KeyEvent::Pressed(Key::Backspace) => {
-                state.key = "Backspace";
-                update(state, graph, ComponentType::None);
-            }
-            KeyEvent::Pressed(Key::Right) => {
-                graph.move_cursor(Direction::Right);
-                state.key = "→";
-            }
-            KeyEvent::Pressed(Key::Left) => {
-                graph.move_cursor(Direction::Left);
-                state.key = "←";
-            }
-            KeyEvent::Pressed(Key::Up) => {
-                graph.move_cursor(Direction::Up);
-                state.key = "↑";
-            }
-            KeyEvent::Pressed(Key::Down) => {
-                graph.move_cursor(Direction::Down);
-                state.key = "↓";
-            }
+            KeyEvent::Pressed(Key::F7) => state.macros_enabled = !state.macros_enabled,
+            KeyEvent::Pressed(Key::F12) => state.debug = match debug_branches(graph) {
+                Ok(it) => it.to_string(),
+                Err(it) => it.to_string(),
+            },
+            KeyEvent::Pressed(Key::Num1) => update(state, graph, ComponentType::Order(Single)),
+            KeyEvent::Pressed(Key::Num2) => update(state, graph, ComponentType::Order(Double)),
+            KeyEvent::Pressed(Key::Num3) => update(state, graph, ComponentType::Order(Triple)),
+            KeyEvent::Pressed(Key::Backspace) => update(state, graph, ComponentType::None),
+            KeyEvent::Pressed(Key::Right) => graph.move_cursor(Direction::Right),
+            KeyEvent::Pressed(Key::Left) => graph.move_cursor(Direction::Left),
+            KeyEvent::Pressed(Key::Up) => graph.move_cursor(Direction::Up),
+            KeyEvent::Pressed(Key::Down) => graph.move_cursor(Direction::Down),
             KeyEvent::Pressed(Key::Esc) => state.mode = Mode::Normal,
-            _ => {
-                state.key = match key_event {
-                    KeyEvent::Pressed(_) => "Pressed",
-                    KeyEvent::Released(_) => "",
-                }
-            }
+            _ => {}
         }
     }
 }
@@ -123,7 +63,6 @@ pub(crate) fn start_mode(app_state: &State, state: &mut AppState) {
     for key_event in app_state.keyboard().last_key_events() {
         if let KeyEvent::Pressed(_) = key_event {
             state.mode = Mode::Insert;
-            state.name = "".to_string();
         }
     }
 }

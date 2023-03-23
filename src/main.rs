@@ -11,10 +11,11 @@ use crate::molecule::Cell;
 use crate::spatial::{GridState, Invert};
 use crate::Mode::Insert;
 use ruscii::app::{App, State};
-use ruscii::drawing::Pencil;
+use ruscii::drawing::{Pencil, RectCharset};
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color::{Cyan, Red, White};
-use ruscii::terminal::{Color, Window};
+use ruscii::terminal::{Color, Style, Window};
+use Mode::Normal;
 
 mod chain;
 mod groups;
@@ -53,10 +54,9 @@ fn main() {
                     Cell::None(_) => String::new(),
                 };
             }
-            Mode::Normal => {
+            Normal => {
                 state.pos = "".to_string();
                 state.sym = "".to_string();
-                state.key = "";
                 state.err = "".to_string();
                 input_view_mode(app_state, &mut state)
             }
@@ -66,140 +66,130 @@ fn main() {
         let mut pencil = Pencil::new(window.canvas_mut());
 
         // Grid and startup screen
+        pencil.set_origin(Vec2::xy(6, 0));
         match state.mode {
-            Mode::Start => {
-                pencil
-                    .draw_text(
-                        "┌────┐          ",
-                        Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 2).inv(&graph),
-                    )
-                    .draw_text(
-                        "│  C │hem       ",
-                        Vec2::xy(graph.size.x + 2, graph.size.y / 2 + 1).inv(&graph),
-                    )
-                    .draw_text(
-                        "└────┼────┐     ",
-                        Vec2::xy(graph.size.x + 2, graph.size.y / 2).inv(&graph),
-                    )
-                    .draw_text(
-                        "     │ Cr │eator",
-                        Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 1).inv(&graph),
-                    )
-                    .draw_text(
-                        "     └────┘     ",
-                        Vec2::xy(graph.size.x + 2, graph.size.y / 2 - 2).inv(&graph),
-                    );
-            }
-            _ => {
-                for cell in graph.cells.iter().flatten() {
-                    pencil.set_foreground(cell.color()).draw_text(
-                        match &cell {
-                            Cell::Atom(it) => it.symbol(),
-                            Cell::Bond(it) => it.symbol(),
-                            Cell::None(_) => match state.mode {
-                                Mode::Insert => " • ",
-                                Mode::Normal => "   ",
-                                _ => "   ",
-                            },
-                        },
-                        Vec2::xy(cell.pos().x * 3, cell.pos().y).inv(&graph),
-                    );
-                }
-            }
+            Mode::Start => draw_logo(&mut pencil, &graph, Vec2::y(2)),
+            _ => draw_grid(&mut pencil, &mut graph, Vec2::y(2), state.mode),
         }
 
         // Insert mode and cursor
-        if let Mode::Insert = state.mode {
-            pencil
-                .draw_text("-- INSERT MODE --", Vec2::xy(graph.size.x * 3 + 3, 1))
-                .set_foreground(Cyan)
-                .draw_text(
-                    "<",
-                    Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y).inv(&graph),
-                )
-                .draw_text(
-                    ">",
-                    Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(&graph),
-                )
-                .set_foreground(White);
+        if let Insert = state.mode {
+            draw_insert_mode(&mut pencil, Vec2::xy(graph.size.x * 3 / 2, 1));
+            draw_cursor(&mut pencil, &graph, Vec2::y(2));
+        } else {
+            pencil.draw_rect(&RectCharset::simple_round_lines(), Vec2::xy(-1, 1), Vec2::xy(graph.size.x * 3 + 2, graph.size.y + 2));
         }
 
         // Menu
         pencil
-            .draw_text(
+            .draw_center_text(
                 match state.mode {
                     Mode::Start => "",
-                    _ => "ChemCreator",
+                    _ => " ChemCreator ",
                 },
-                Vec2::xy(graph.size.x * 3 + 3, 0),
+                Vec2::xy(graph.size.x * 3 / 2, if state.mode == Normal { 1 } else { 0 }),
             )
             .draw_text(
-                &format!("name | {}", state.name),
-                Vec2::xy(graph.size.x * 3 + 3, 2),
+                &state.pos.to_string(),
+                Vec2::xy(0, 1),
             )
             .draw_text(
-                &format!(" pos | {}", state.pos),
-                Vec2::xy(graph.size.x * 3 + 3, 3),
-            )
-            .draw_text(
-                &format!(" sym | {}", state.sym),
-                Vec2::xy(graph.size.x * 3 + 3, 4),
-            )
-            .draw_text(
-                &format!(
-                    " key | {}",
-                    match state.mode {
-                        Mode::Start => format!("        You're using version {version}.          "),
-                        _ => state.key.to_string(),
-                    }
-                ),
-                Vec2::xy(graph.size.x * 3 + 3, 5),
+                &state.sym.to_string(),
+                Vec2::xy(graph.size.x * 3 - state.sym.len() as i32, 1),
             )
             .set_foreground(Red)
             .draw_text(&state.err.to_string(), Vec2::xy(graph.size.x * 3 + 3, 7))
-            .draw_text(&state.debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8));
+            .draw_text(&state.debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8))
+            .set_foreground(White);
 
         if state.macros_enabled && state.mode == Insert {
             pencil
                 .set_foreground(Color::Yellow)
                 .draw_text("Macro mode enabled.", Vec2::xy(graph.size.x * 3 + 3, 8));
         }
+
+        // Statistics
+        pencil
+            .move_origin(Vec2::xy(graph.size.x * 3 + 3, 1))
+            .set_style(Style::Bold)
+            .draw_text(
+                &state.name.to_string(),
+                Vec2::zero(),
+            )
+            .set_style(Style::Plain);
     });
 }
 
+fn draw_logo(pencil: &mut Pencil, graph: &GridState, pos: Vec2) {
+    pencil
+        .move_origin(pos)
+        .draw_text("┌────┐          ", Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 + 2).inv(graph),)
+        .draw_text("│  C │hem       ", Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 + 1).inv(graph),)
+        .draw_text("└────┼────┐     ", Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2).inv(graph),)
+        .draw_text("     │ Cr │eator", Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 - 1).inv(graph),)
+        .draw_text("     └────┘     ", Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 - 2).inv(graph),)
+        .move_origin(-pos);
+}
+
+fn draw_grid(pencil: &mut Pencil, graph: &mut GridState, pos: Vec2, mode: Mode) {
+    pencil.move_origin(pos);
+    for cell in graph.cells.iter().flatten() {
+        pencil.set_foreground(cell.color()).draw_text(
+            match &cell {
+                Cell::Atom(it) => it.symbol(),
+                Cell::Bond(it) => it.symbol(),
+                Cell::None(_) => match mode {
+                    Insert => " • ",
+                    Normal => "   ",
+                    _ => "   ",
+                },
+            },
+            Vec2::xy(cell.pos().x * 3, cell.pos().y).inv(graph),
+        );
+    }
+    pencil.move_origin(-pos);
+}
+
+fn draw_insert_mode(pencil: &mut Pencil, center: Vec2) {
+    pencil.draw_center_text("-- INSERT MODE --", center);
+}
+
+fn draw_cursor(pencil: &mut Pencil, graph: &GridState, pos: Vec2) {
+    let color = *pencil.foreground();
+    pencil
+        .move_origin(pos)
+        .set_foreground(Cyan)
+        .draw_text(
+            "<",
+            Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y).inv(graph),
+        )
+        .draw_text(
+            ">",
+            Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(graph),
+        )
+        .set_foreground(color)
+        .move_origin(-pos);
+}
+
 /// Represents the mode the app is in at a given time.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Default, Debug, PartialEq)]
 enum Mode {
     Insert,
     Normal,
+    #[default]
     Start,
 }
 
 /// Contains the running state of the app not including the grid.
+#[derive(Default)]
 struct AppState {
     mode: Mode,
     name: String,
     pos: String,
     sym: String,
-    key: &'static str,
     err: String,
     debug: String,
     macros_enabled: bool,
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        AppState {
-            mode: Mode::Start,
-            name: "                ChemCreator                ".to_string(),
-            pos: "      Written in Rust by Gavin Tran.       ".to_string(),
-            sym: "          Press any key to start.          ".to_string(),
-            key: "", // Overridden in Start mode to retain &str type
-            err: "".to_string(),
-            debug: "".to_string(),
-            macros_enabled: false,
-        }
-    }
 }
 
 #[cfg(test)]

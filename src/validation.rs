@@ -198,7 +198,10 @@ mod tests {
         let input_atom = graph.get(Vec2::xy(1, 1)).unwrap().unwrap_atom();
         let err = check_valence(vec![&input_atom], &graph);
 
-        assert_eq!(err, Err(InvalidGraphError::UnfilledValence(Vec2::xy(1, 1))));
+        assert_eq!(
+            err,
+            Err(InvalidGraphError::UnfilledValence(Vec2::xy(1, 1), C))
+        );
     }
 
     #[test]
@@ -214,7 +217,7 @@ mod tests {
 
         assert_eq!(
             err,
-            Err(InvalidGraphError::OverfilledValence(Vec2::xy(1, 1)))
+            Err(InvalidGraphError::OverfilledValence(Vec2::xy(1, 1), C))
         );
     }
 }

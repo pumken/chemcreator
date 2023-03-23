@@ -98,7 +98,11 @@ fn main() {
 
         // Menu
         let pos_string = format!(" {} ", state.pos);
-        let pos = if state.mode == Insert { &pos_string } else { "" };
+        let pos = if state.mode == Insert {
+            &pos_string
+        } else {
+            ""
+        };
         pencil
             .draw_center_text(
                 match state.mode {

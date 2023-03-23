@@ -35,6 +35,8 @@ fn main() {
     let mut state = AppState::default();
 
     app.run(|app_state: &mut State, window: &mut Window| {
+        let window_size = window.size();
+
         match state.mode {
             Insert => {
                 input_insert_mode(app_state, &mut state, &mut graph);
@@ -70,6 +72,11 @@ fn main() {
 
         // Insert mode and cursor
         if let Insert = state.mode {
+            pencil.draw_rect(
+                &RectCharset::simple_round_lines(),
+                Vec2::xy(-1, 1),
+                Vec2::xy(graph.size.x * 3 + 2, graph.size.y + 2),
+            );
             draw_insert_mode(&mut pencil, Vec2::xy(graph.size.x * 3 / 2, 1));
             draw_cursor(&mut pencil, &graph, Vec2::y(2));
         } else {
@@ -90,6 +97,12 @@ fn main() {
         }
 
         // Menu
+        let pos_string = format!(" {} ", state.pos);
+        let pos = if state.mode == Insert {
+            &pos_string
+        } else {
+            ""
+        };
         pencil
             .draw_center_text(
                 match state.mode {
@@ -101,29 +114,29 @@ fn main() {
                     if state.mode == Normal { 1 } else { 0 },
                 ),
             )
-            .draw_text(&state.pos.to_string(), Vec2::xy(0, 1))
+            .draw_text(pos, Vec2::xy(0, 1))
             .set_foreground(Red)
             .draw_text(&state.debug.to_string(), Vec2::xy(graph.size.x * 3 + 3, 8))
             .set_foreground(White);
 
         if matches!(state.mode, Insert) {
             let sym_type = match state.sym {
-                ComponentType::Element(_) => "Atom",
-                ComponentType::Order(_) => "Bond",
+                ComponentType::Element(_) => " Atom ",
+                ComponentType::Order(_) => " Bond ",
                 ComponentType::None => "",
             };
             let sym_sym = match state.sym {
-                ComponentType::Element(it) => it.symbol().to_string(),
-                ComponentType::Order(Single) => "1x".to_string(),
-                ComponentType::Order(Double) => "2x".to_string(),
-                ComponentType::Order(Triple) => "3x".to_string(),
+                ComponentType::Element(it) => format!("{} ", it.symbol()),
+                ComponentType::Order(Single) => "1x ".to_string(),
+                ComponentType::Order(Double) => "2x ".to_string(),
+                ComponentType::Order(Triple) => "3x ".to_string(),
                 ComponentType::None => "".to_string(),
             };
             pencil
                 .set_foreground(state.sym.color())
                 .draw_text(
                     &sym_sym,
-                    Vec2::xy(graph.size.x * 3 - sym_sym.len() as i32, 1),
+                    Vec2::xy(graph.size.x * 3 - sym_sym.len() as i32 - 1, 1),
                 )
                 .set_foreground(White)
                 .draw_text(
@@ -138,7 +151,7 @@ fn main() {
         if state.macros_enabled && state.mode == Insert {
             pencil
                 .set_foreground(Yellow)
-                .draw_text("Macro mode enabled.", Vec2::y(graph.size.y + 2))
+                .draw_text(" macros enabled ", Vec2::y(graph.size.y + 2))
                 .set_foreground(White);
         }
 
@@ -147,13 +160,28 @@ fn main() {
             return;
         }
 
-        pencil
-            .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
-            .set_style(Style::Bold)
-            .set_foreground(if state.err { Red } else { White })
-            .draw_text(&state.name.to_string(), Vec2::zero())
-            .set_foreground(White)
-            .set_style(Style::Plain);
+        let wrap_length = window_size.x - 14 - graph.size.x * 3;
+        if state.name.len() > wrap_length as usize {
+            let first_line = &state.name[0..wrap_length as usize];
+            let second_line = &state.name[wrap_length as usize..];
+            pencil
+                .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
+                .set_style(Style::Bold)
+                .set_foreground(if state.err { Red } else { White })
+                .draw_text(first_line, Vec2::zero())
+                .move_origin(Vec2::y(1))
+                .draw_text(second_line, Vec2::zero())
+                .set_foreground(White)
+                .set_style(Style::Plain);
+        } else {
+            pencil
+                .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
+                .set_style(Style::Bold)
+                .set_foreground(if state.err { Red } else { White })
+                .draw_text(&state.name.to_string(), Vec2::zero())
+                .set_foreground(White)
+                .set_style(Style::Plain);
+        }
 
         if !matches!(state.mode, Normal) {
             return;
@@ -206,11 +234,25 @@ fn main() {
             return;
         }
 
+        let carbon = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::C);
+        let nitrogen = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::N);
+        let hydrogen = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::H);
+        let halogens = graph.count(|it| {
+            it.is_atom()
+                && matches!(
+                    it.unwrap_atom().element,
+                    Element::Br | Element::Cl | Element::F | Element::I
+                )
+        });
+
+        let ihd = (2 * carbon + 2 + nitrogen - hydrogen - halogens) / 2;
+
         pencil
             .draw_text(&format!("atomic weight | {:.3} amu", mass), Vec2::xy(15, 2))
+            .draw_text(&format!("IHD           | {}", ihd), Vec2::xy(15, 3))
             .draw_text(
                 &format!("name length   | {}", state.name.len()),
-                Vec2::xy(15, 4),
+                Vec2::xy(15, 5),
             );
     });
 }
@@ -261,7 +303,7 @@ fn draw_grid(pencil: &mut Pencil, graph: &mut GridState, pos: Vec2, mode: Mode) 
 }
 
 fn draw_insert_mode(pencil: &mut Pencil, center: Vec2) {
-    pencil.draw_center_text("-- INSERT MODE --", center);
+    pencil.draw_center_text(" INSERT MODE ", center);
 }
 
 fn draw_cursor(pencil: &mut Pencil, graph: &GridState, pos: Vec2) {
@@ -359,7 +401,7 @@ mod test_utils {
             atom,
             Atom {
                 element: C,
-                pos: Vec2::zero()
+                pos: Vec2::zero(),
             }
         );
     }

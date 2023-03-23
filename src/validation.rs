@@ -61,8 +61,12 @@ pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
             Err(it) => panic!("{}", it),
         };
         match bond_count.cmp(&atom.element.bond_number()) {
-            Ordering::Less => return Err(InvalidGraphError::UnfilledValence(atom.pos)),
-            Ordering::Greater => return Err(InvalidGraphError::OverfilledValence(atom.pos)),
+            Ordering::Less => {
+                return Err(InvalidGraphError::UnfilledValence(atom.pos, atom.element))
+            }
+            Ordering::Greater => {
+                return Err(InvalidGraphError::OverfilledValence(atom.pos, atom.element))
+            }
             _ => {}
         }
     }
@@ -194,7 +198,10 @@ mod tests {
         let input_atom = graph.get(Vec2::xy(1, 1)).unwrap().unwrap_atom();
         let err = check_valence(vec![&input_atom], &graph);
 
-        assert_eq!(err, Err(InvalidGraphError::UnfilledValence(Vec2::xy(1, 1))));
+        assert_eq!(
+            err,
+            Err(InvalidGraphError::UnfilledValence(Vec2::xy(1, 1), C))
+        );
     }
 
     #[test]
@@ -210,7 +217,7 @@ mod tests {
 
         assert_eq!(
             err,
-            Err(InvalidGraphError::OverfilledValence(Vec2::xy(1, 1)))
+            Err(InvalidGraphError::OverfilledValence(Vec2::xy(1, 1), C))
         );
     }
 }

@@ -14,6 +14,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
+use Element::{Br, Cl, F, I};
 
 /// Represents a type of functional group on a molecule.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -206,16 +207,7 @@ pub enum Cell {
 impl Cell {
     pub fn color(&self) -> Color {
         match &self {
-            Cell::Atom(it) => match it.element {
-                Element::Br => Xterm(1),
-                C => LightGrey,
-                Element::Cl => Green,
-                Element::F => Yellow,
-                Element::I => Magenta,
-                N => Blue,
-                O => Red,
-                _ => White,
-            },
+            Cell::Atom(it) => it.element.color(),
             _ => White,
         }
     }
@@ -277,16 +269,7 @@ pub struct Atom {
 
 impl Atom {
     pub const fn symbol(&self) -> &str {
-        match self.element {
-            Element::Br => "[Br]",
-            C => "[C]",
-            Element::Cl => "[Cl]",
-            Element::F => "[F]",
-            H => "[H]",
-            Element::I => "[I]",
-            N => "[N]",
-            O => "[O]",
-        }
+        self.element.symbol()
     }
 }
 
@@ -318,21 +301,60 @@ impl Element {
             C => 4,
             N => 3,
             O => 2,
-            H | Element::Br | Element::Cl | Element::F | Element::I => 1,
+            H | Br | Cl | F | I => 1,
         }
     }
 
     /// Returns the single-character identifier of the [`Element`].
     pub const fn id(&self) -> &str {
         match *self {
-            Element::Br => "B",
+            Br => "B",
             C => "C",
-            Element::Cl => "L",
-            Element::F => "F",
+            Cl => "L",
+            F => "F",
             H => "H",
-            Element::I => "I",
+            I => "I",
             N => "N",
             O => "O",
+        }
+    }
+
+    pub const fn symbol(&self) -> &str {
+        match self {
+            Br => "[Br]",
+            C => "[C]",
+            Cl => "[Cl]",
+            F => "[F]",
+            H => "[H]",
+            I => "[I]",
+            N => "[N]",
+            O => "[O]",
+        }
+    }
+
+    pub fn color(&self) -> Color {
+        match self {
+            Br => Xterm(1),
+            C => LightGrey,
+            Cl => Green,
+            F => Yellow,
+            I => Magenta,
+            N => Blue,
+            O => Red,
+            _ => White,
+        }
+    }
+
+    pub fn mass(&self) -> f32 {
+        match self {
+            Br => 79.904,
+            C => 12.011,
+            Cl => 35.450,
+            F => 18.998,
+            H => 1.008,
+            I => 126.90,
+            N => 14.007,
+            O => 15.999,
         }
     }
 }
@@ -343,16 +365,22 @@ impl Display for Element {
             f,
             "{}",
             match self {
-                Element::Br => "Bromine",
+                Br => "Bromine",
                 C => "Carbon",
-                Element::Cl => "Chlorine",
-                Element::F => "Fluorine",
+                Cl => "Chlorine",
+                F => "Fluorine",
                 H => "Hydrogen",
-                Element::I => "Iodine",
+                I => "Iodine",
                 N => "Nitrogen",
                 O => "Oxygen",
             }
         )
+    }
+}
+
+impl EnumAll for Element {
+    fn all() -> Vec<Self> where Self: Sized {
+        vec![Br, C, Cl, F, H, I, N, O]
     }
 }
 

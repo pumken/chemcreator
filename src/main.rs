@@ -5,10 +5,11 @@
 
 #![warn(missing_docs)]
 
+use Color::Yellow;
 use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::Cell;
-use crate::spatial::{GridState, Invert};
+use crate::molecule::{Cell, Element};
+use crate::spatial::{EnumAll, GridState, Invert};
 use crate::Mode::Insert;
 use ruscii::app::{App, State};
 use ruscii::drawing::{Pencil, RectCharset};
@@ -78,6 +79,9 @@ fn main() {
             draw_cursor(&mut pencil, &graph, Vec2::y(2));
         } else {
             pencil.draw_rect(&RectCharset::simple_round_lines(), Vec2::xy(-1, 1), Vec2::xy(graph.size.x * 3 + 2, graph.size.y + 2));
+            if let Mode::Start = state.mode {
+                pencil.draw_text(&format!(" {version} "), Vec2::xy(graph.size.x * 3 - version.len() as i32 - 3, graph.size.y + 2));
+            }
         }
 
         // Menu
@@ -104,19 +108,46 @@ fn main() {
 
         if state.macros_enabled && state.mode == Insert {
             pencil
-                .set_foreground(Color::Yellow)
-                .draw_text("Macro mode enabled.", Vec2::xy(graph.size.x * 3 + 3, 8));
+                .set_foreground(Yellow)
+                .draw_text("Macro mode enabled.", Vec2::y(graph.size.y + 2))
+                .set_foreground(White);
         }
 
         // Statistics
         pencil
-            .move_origin(Vec2::xy(graph.size.x * 3 + 3, 1))
+            .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
             .set_style(Style::Bold)
             .draw_text(
                 &state.name.to_string(),
                 Vec2::zero(),
             )
             .set_style(Style::Plain);
+
+        if !matches!(state.mode, Normal) {
+            return
+        }
+
+        let mut mass = 0.0;
+
+        let mut missed = 0;
+        for (index, element) in Element::all().into_iter().enumerate() {
+            let count = graph.count(|it| it.is_atom() && it.unwrap_atom().element == element);
+
+            if count == 0 {
+                missed += 1;
+                continue
+            }
+
+            mass += element.mass() * count as f32;
+
+            pencil
+                .set_foreground(element.color())
+                .draw_text(element.symbol(), Vec2::y(2 + index - missed))
+                .set_foreground(White)
+                .draw_text(&format!("| {}", count), Vec2::xy(6, 2 + index - missed));
+        }
+
+        pencil.draw_text(&format!("atomic weight | {:.3} amu", mass), Vec2::xy(15, 2));
     });
 }
 

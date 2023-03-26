@@ -78,11 +78,25 @@ pub(crate) fn prefix(mut fragments: Vec<SubFragment>) -> Result<String, NamingEr
     let mut out = vec![];
 
     for fragment in fragments.into_iter() {
-        let locants = NamingError::add_substituent(locants(fragment.locants), &fragment.subst)?;
+        let locants = if matches!(&fragment.subst, Substituent::Branch(branch) if has_number(&branch.to_string()))
+        {
+            NamingError::add_substituent(complex_branch_locants(fragment.locants), &fragment.subst)?
+        } else {
+            NamingError::add_substituent(locants(fragment.locants), &fragment.subst)?
+        };
         out.push(format!("{}{}", locants, fragment.subst))
     }
 
     Ok(out.join("-"))
+}
+
+fn has_number(s: &str) -> bool {
+    for c in s.chars() {
+        if c.is_ascii_digit() {
+            return true;
+        }
+    }
+    false
 }
 
 fn bonding(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
@@ -147,6 +161,17 @@ pub fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
         .collect::<Vec<String>>()
         .join(",");
     let out = format!("{numbers}-{}", minor_numeric(locations.len() as i32)?,);
+    Ok(out)
+}
+
+pub fn complex_branch_locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
+    locations.sort();
+    let numbers = locations
+        .iter()
+        .map(|&it| (it + 1).to_string())
+        .collect::<Vec<String>>()
+        .join(",");
+    let out = format!("{numbers}-{}", branch_numeric(locations.len() as i32)?,);
     Ok(out)
 }
 

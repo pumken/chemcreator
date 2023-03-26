@@ -592,7 +592,15 @@ impl Display for Branch {
 }
 
 fn substitute_common_name(name: &str) -> Option<String> {
-    isoalkyl(name)
+    if let Some(it) = isoalkyl(name) {
+        Some(it)
+    } else if name == "1-methylpropane" {
+        Some("sec-butyl".to_string())
+    } else if name == "1,1-dimethylethane" {
+        Some("tert-butyl".to_string())
+    } else {
+        None
+    }
 }
 
 fn isoalkyl(name: &str) -> Option<String> {

@@ -591,6 +591,11 @@ impl Display for Branch {
     }
 }
 
+/// Checks the given branch name against several cases with common names, e.g., '1-methylpropane'
+/// is shortened to 'sec-butyl'.
+///
+/// Isoalkyl groups are generated programmatically while the rest are hard-coded according to
+/// [this list](http://www.acdlabs.com/iupac/nomenclature/79/r79_36.htm).
 fn substitute_common_name(name: &str) -> Option<String> {
     if let Some(it) = isoalkyl(name) {
         Some(it)
@@ -598,6 +603,10 @@ fn substitute_common_name(name: &str) -> Option<String> {
         Some("sec-butyl".to_string())
     } else if name == "1,1-dimethylethane" {
         Some("tert-butyl".to_string())
+    } else if name == "2,2-dimethylpropane" {
+        Some("neopentyl".to_string())
+    } else if name == "1,1-dimethylpropane" {
+        Some("tert-pentyl".to_string())
     } else {
         None
     }

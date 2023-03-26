@@ -9,10 +9,10 @@ use crate::molecule::Group::Alkane;
 use crate::molecule::{Branch, Cell, Group, Substituent};
 use crate::spatial::GridState;
 use crate::{chain, groups, validation};
-use std::fmt::{Display, Formatter};
-use thiserror::Error;
 use chain::{get_all_chains, longest_chain};
 use groups::link_groups;
+use std::fmt::{Display, Formatter};
+use thiserror::Error;
 use validation::{check_structure, check_valence};
 
 /// Determines the name of the molecule on the given `graph`.

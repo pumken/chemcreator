@@ -4,11 +4,11 @@
 //! structures: discontinuities, cycles, and atoms with unfilled or overfilled valence shells.
 
 use crate::chain;
-use crate::groups::InvalidGraphError::{Discontinuity, Other};
+use crate::groups::InvalidGraphError::Discontinuity;
 use crate::groups::{Fallible, InvalidGraphError};
-use crate::molecule::Group::Alkene;
-use crate::molecule::{Atom, Branch, Cell, Group, Substituent};
-use crate::naming::{locants, GroupCollection, SubFragment};
+use crate::molecule::Group::{Alkene, Alkyne};
+use crate::molecule::{Atom, Branch, Cell, Substituent};
+use crate::naming::{GroupCollection, SubFragment};
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
@@ -102,11 +102,21 @@ impl Branch {
             .find(|&sub| matches!(sub.subst, Substituent::Group(Alkene)));
 
         if let (Some(org), Some(rev)) = (original_alkenes, reversed_alkenes) {
-            let original_alkenes_locants =
-                locants(org.to_owned().locants).map_err(|e| Other(e.to_string()))?;
-            let reversed_alkenes_locants =
-                locants(rev.to_owned().locants).map_err(|e| Other(e.to_string()))?;
+            match cmp(org.to_owned(), rev.to_owned()) {
+                Ordering::Less => return Ok(original),
+                Ordering::Equal => return Ok(reversed),
+                Ordering::Greater => {}
+            }
+        }
 
+        let original_alkynes = original_multiple_bonds
+            .iter()
+            .find(|&sub| matches!(sub.subst, Substituent::Group(Alkyne)));
+        let reversed_alkynes = reversed_multiple_bonds
+            .iter()
+            .find(|&sub| matches!(sub.subst, Substituent::Group(Alkyne)));
+
+        if let (Some(org), Some(rev)) = (original_alkynes, reversed_alkynes) {
             match cmp(org.to_owned(), rev.to_owned()) {
                 Ordering::Less => return Ok(original),
                 Ordering::Equal => return Ok(reversed),
@@ -115,7 +125,6 @@ impl Branch {
         }
 
         // TODO add more cases:
-        //  lowest-numbered locants for multiple bonds
         //  lowest-numbered locants for prefixes
 
         Ok(original)
@@ -144,6 +153,7 @@ mod tests {
     use crate::graph_with;
     use crate::molecule::BondOrder::{Single, Triple};
     use crate::molecule::Element::{C, H, O};
+    use crate::molecule::Group::Alkane;
     use crate::test_utils::GW::{A, B};
 
     #[test]
@@ -243,5 +253,18 @@ mod tests {
             err,
             Err(InvalidGraphError::OverfilledValence(Vec2::xy(1, 1), C))
         );
+    }
+
+    #[test]
+    fn cmp_locants() {
+        let a = SubFragment::new(vec![1, 1, 3], Substituent::Group(Alkane));
+        let b = SubFragment::new(vec![2, 3, 4], Substituent::Group(Alkane));
+        let c = SubFragment::new(vec![1, 2, 2], Substituent::Group(Alkane));
+        let d = SubFragment::new(vec![1, 2, 2], Substituent::Group(Alkane));
+
+        assert_eq!(cmp(a.clone(), b.clone()), Ordering::Less);
+        assert_eq!(cmp(b, c.clone()), Ordering::Greater);
+        assert_eq!(cmp(a, c.clone()), Ordering::Less);
+        assert_eq!(cmp(c, d), Ordering::Equal);
     }
 }

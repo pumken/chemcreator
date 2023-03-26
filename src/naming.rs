@@ -12,6 +12,7 @@ use crate::spatial::GridState;
 use crate::{chain, groups, validation};
 use chain::{get_all_chains, longest_chain};
 use groups::link_groups;
+use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 use validation::{check_structure, check_valence};

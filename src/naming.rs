@@ -134,7 +134,7 @@ fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
     Ok(out)
 }
 
-fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
+pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "",
         2 => "di",
@@ -151,7 +151,7 @@ fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
     Ok(out)
 }
 
-fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
+pub fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "meth",
         2 => "eth",

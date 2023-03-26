@@ -5,7 +5,7 @@
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Element::{C, H, N, O};
-use crate::naming::process_name;
+use crate::naming::{major_numeric, process_name};
 use crate::spatial::EnumAll;
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
@@ -568,8 +568,47 @@ impl Display for Branch {
             Ok(it) => it,
             Err(_) => panic!("unable to process {:?}", self),
         };
+
+        if let Some(it) = substitute_common_name(&name) {
+            return write!(f, "{it}");
+        }
+
         name.truncate(name.len() - 3);
-        write!(f, "{name}yl")
+
+        let formatted = if self
+            .groups
+            .iter()
+            .flatten()
+            .collect::<Vec<&Substituent>>()
+            .is_empty()
+        {
+            format!("{name}yl")
+        } else {
+            format!("({name}yl)")
+        };
+
+        write!(f, "{formatted}")
+    }
+}
+
+fn substitute_common_name(name: &str) -> Option<String> {
+    isoalkyl(name)
+}
+
+fn isoalkyl(name: &str) -> Option<String> {
+    let locant_str = name
+        .chars()
+        .take_while(|c| c.is_numeric())
+        .collect::<String>();
+    let locant = match locant_str.parse::<i32>() {
+        Ok(it) => it,
+        Err(_) => return None,
+    };
+
+    if format!("{locant}-methyl{}ane", major_numeric(locant + 1).ok()?) == name {
+        Some(format!("iso{}yl", major_numeric(locant + 2).ok()?))
+    } else {
+        None
     }
 }
 
@@ -705,6 +744,15 @@ mod tests {
         let expected = Branch::from_str("0: hydroxy, oxo; 1: bromo").unwrap();
 
         assert_eq!(branch, expected);
+    }
+
+    #[test]
+    fn isoalkyl_converts_branch_name() {
+        assert_eq!(isoalkyl("1-methylethane").unwrap(), "isopropyl".to_string());
+        assert_eq!(isoalkyl("2-methylpropane").unwrap(), "isobutyl".to_string());
+        assert_eq!(isoalkyl("3-methylbutane").unwrap(), "isopentyl".to_string());
+        assert_eq!(isoalkyl("4-methylpentane").unwrap(), "isohexyl".to_string());
+        assert!(matches!(isoalkyl(""), None))
     }
 
     #[test]

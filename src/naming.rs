@@ -11,6 +11,9 @@ use crate::spatial::GridState;
 use crate::{chain, groups, validation};
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
+use chain::{get_all_chains, longest_chain};
+use groups::link_groups;
+use validation::{check_structure, check_valence};
 
 /// Determines the name of the molecule on the given `graph`.
 ///
@@ -35,15 +38,15 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
     if graph.is_empty() {
         return Ok("".to_string());
     }
-    validation::check_structure(graph)?;
-    validation::check_valence(cells, graph)?;
+    check_structure(graph)?;
+    check_valence(cells, graph)?;
 
     // Preliminary chain
-    let all_chains = chain::get_all_chains(graph)?;
-    let chain = chain::longest_chain(all_chains)?;
+    let all_chains = get_all_chains(graph)?;
+    let chain = longest_chain(all_chains)?;
 
     // Group-linked branch
-    let mut branch = groups::link_groups(graph, chain, None)?;
+    let mut branch = link_groups(graph, chain, None)?;
     branch = branch.index_corrected();
 
     process_name(branch).map_err(|e| Other(e.to_string()))

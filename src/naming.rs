@@ -3,6 +3,7 @@
 //! The `naming` module contains functions that makes final validations and finds the name of
 //! an organic molecule as a [`Branch`].
 
+use crate::chain::primary_chain;
 use crate::groups::Fallible;
 use crate::groups::InvalidGraphError::Other;
 use crate::molecule::Group::Alkane;
@@ -43,11 +44,11 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
 
     // Preliminary chain
     let all_chains = get_all_chains(graph)?;
-    let chain = longest_chain(all_chains)?;
+    let chain = primary_chain(graph, all_chains, None)?;
 
     // Group-linked branch
     let mut branch = link_groups(graph, chain, None)?;
-    branch = branch.index_corrected();
+    branch = branch.index_corrected(graph)?;
 
     process_name(branch).map_err(|e| Other(e.to_string()))
 }
@@ -126,7 +127,7 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
 }
 
 /// Returns a [`String`] containing a locant prefix with a minor numeric prefix appended.
-fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
+pub fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
     locations.sort();
     let numbers = locations
         .iter()

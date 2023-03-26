@@ -4,10 +4,11 @@
 //! structures: discontinuities, cycles, and atoms with unfilled or overfilled valence shells.
 
 use crate::chain;
-use crate::groups::InvalidGraphError::Discontinuity;
+use crate::groups::InvalidGraphError::{Discontinuity, Other};
 use crate::groups::{Fallible, InvalidGraphError};
-use crate::molecule::{Atom, Branch, Cell};
-use crate::naming::{GroupCollection, SubFragment};
+use crate::molecule::Group::Alkene;
+use crate::molecule::{Atom, Branch, Cell, Group, Substituent};
+use crate::naming::{locants, GroupCollection, SubFragment};
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
@@ -62,10 +63,10 @@ pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
         };
         match bond_count.cmp(&atom.element.bond_number()) {
             Ordering::Less => {
-                return Err(InvalidGraphError::UnfilledValence(atom.pos, atom.element))
+                return Err(InvalidGraphError::UnfilledValence(atom.pos, atom.element));
             }
             Ordering::Greater => {
-                return Err(InvalidGraphError::OverfilledValence(atom.pos, atom.element))
+                return Err(InvalidGraphError::OverfilledValence(atom.pos, atom.element));
             }
             _ => {}
         }
@@ -75,7 +76,7 @@ pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
 
 impl Branch {
     /// Checks if chain indexes are in the correct direction.
-    pub fn index_corrected(self) -> Branch {
+    pub fn index_corrected(self, graph: &GridState) -> Fallible<Branch> {
         let original = self.clone();
         let reversed = self.reversed();
         let original_collection = GroupCollection::new(original.clone());
@@ -85,16 +86,39 @@ impl Branch {
             original_collection.primary_group_fragment(),
             reversed_collection.primary_group_fragment(),
         ) {
-            Ordering::Less => return original,
-            Ordering::Greater => return reversed,
+            Ordering::Less => return Ok(original),
+            Ordering::Greater => return Ok(reversed),
             Ordering::Equal => {}
+        }
+
+        let original_multiple_bonds = original_collection.chain_group_fragments();
+        let reversed_multiple_bonds = reversed_collection.chain_group_fragments();
+
+        let original_alkenes = original_multiple_bonds
+            .iter()
+            .find(|&sub| matches!(sub.subst, Substituent::Group(Alkene)));
+        let reversed_alkenes = reversed_multiple_bonds
+            .iter()
+            .find(|&sub| matches!(sub.subst, Substituent::Group(Alkene)));
+
+        if let (Some(org), Some(rev)) = (original_alkenes, reversed_alkenes) {
+            let original_alkenes_locants =
+                locants(org.to_owned().locants).map_err(|e| Other(e.to_string()))?;
+            let reversed_alkenes_locants =
+                locants(rev.to_owned().locants).map_err(|e| Other(e.to_string()))?;
+
+            match cmp(org.to_owned(), rev.to_owned()) {
+                Ordering::Less => return Ok(original),
+                Ordering::Equal => return Ok(reversed),
+                Ordering::Greater => {}
+            }
         }
 
         // TODO add more cases:
         //  lowest-numbered locants for multiple bonds
         //  lowest-numbered locants for prefixes
 
-        original
+        Ok(original)
     }
 }
 

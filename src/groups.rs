@@ -3,7 +3,7 @@
 //! The `groups` module provides functionality for identifying functional groups on a branch.
 
 use crate::chain;
-use crate::chain::{endpoint_head_chains, longest_chain};
+use crate::chain::{endpoint_head_chains, longest_chain, primary_chain};
 use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::molecule::Group::{
@@ -18,7 +18,7 @@ use ruscii::spatial::{Direction, Vec2};
 use thiserror::Error;
 
 /// Generates a [`Branch`] from the given `chain` containing all functional groups attached
-/// to it.
+/// to it, except for the group starting at the given `parent`.
 pub(crate) fn link_groups(
     graph: &GridState,
     chain: Vec<Atom>,
@@ -75,7 +75,7 @@ pub(crate) fn link_groups(
 
 pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
     let all_chains = chain::get_all_chains(graph)?;
-    let chain = longest_chain(all_chains)?;
+    let chain = primary_chain(graph, all_chains, None)?;
     link_groups(graph, chain, None)
 }
 
@@ -204,7 +204,16 @@ pub(crate) fn branch_node_tree(
 ) -> Fallible<Vec<Atom>> {
     let atom = Pointer::new(graph, pos).traverse_bond(direction)?;
     let chains = endpoint_head_chains(atom, graph, Some(pos))?;
-    longest_chain(chains)
+    primary_chain(
+        graph,
+        chains,
+        Some(
+            graph
+                .get(pos)
+                .map_err(|_| Other("An unexpected error occurred.".to_string()))?
+                .unwrap_atom(),
+        ),
+    )
 }
 
 /// Returns a [`Vec`] of [`Direction`] from the [`Atom`] at the given `pos` to bonded atoms

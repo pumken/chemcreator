@@ -3,25 +3,115 @@
 //! The `chain` module contains functions that allow for identifying the parent chain of an
 //! organic molecule.
 
-use crate::groups::Fallible;
 use crate::groups::InvalidGraphError::{Cycle, Other};
-use crate::molecule::{Atom, Cell, Element};
+use crate::groups::{link_groups, Fallible};
+use crate::molecule::{Atom, Branch, Cell, Element, Substituent};
 use crate::nested_vec;
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
+use std::cmp::max;
 
-/// Gets the longest of the given [`Vec`] of chains, assuming that it is non-empty.
+/// Gets the primary chain of the given [`Vec`] of chains according to
+/// [IUPAC rules](http://www.acdlabs.com/iupac/nomenclature/79/r79_36.htm). The primary chain
+/// is, in order of precedence, that which:
+/// 1. has the greatest number of side chains.
+/// 2. has side chains with the lowest-numbered locants.
+/// 3. has the greatest number of carbon atoms in the side chains.
+/// 4. has the fewest branched side chains.
+pub fn primary_chain(
+    graph: &GridState,
+    chains: Vec<Vec<Atom>>,
+    parent: Option<Atom>,
+) -> Fallible<Vec<Atom>> {
+    // TODO convert to into_iter when done
+    let branches = chains
+        .iter()
+        .map(|chain| link_groups(graph, chain.to_owned(), parent.clone()))
+        .collect::<Fallible<Vec<Branch>>>()?;
+
+    let mut unique_branches = vec![];
+
+    for branch in branches.into_iter() {
+        if !unique_branches.contains(&branch.reversed()) {
+            unique_branches.push(branch);
+        }
+    }
+
+    let longest = longest_chain(
+        unique_branches
+            .iter()
+            .map(|branch| branch.chain.to_owned())
+            .collect::<Vec<Vec<Atom>>>(),
+    )?;
+    if let Some(it) = longest {
+        return Ok(it);
+    }
+
+    let max_side_chains = unique_branches
+        .iter()
+        .map(|branch| {
+            branch
+                .groups
+                .iter()
+                .flatten()
+                .filter(|&subst| matches!(subst, Substituent::Branch(_)))
+                .count()
+        })
+        .max()
+        .ok_or(Other("No carbon chain found.".to_string()))?;
+    let primary_by_side_chains = unique_branches
+        .iter()
+        .map(|branch| {
+            (
+                branch.to_owned(),
+                branch
+                    .groups
+                    .iter()
+                    .flatten()
+                    .map(Substituent::to_owned)
+                    .collect::<Vec<Substituent>>(),
+            )
+        })
+        .filter(|subst_vec| {
+            subst_vec
+                .1
+                .iter()
+                .filter(|&subst| matches!(subst, Substituent::Branch(_)))
+                .count()
+                == max_side_chains
+        })
+        .collect::<Vec<(Branch, Vec<Substituent>)>>();
+
+    if primary_by_side_chains.len() == 1 {
+        Ok(primary_by_side_chains[0].0.chain.to_owned())
+    } else {
+        panic!("Wow how did you find this")
+    }
+}
+
+/// Gets the longest of the given [`Vec`] of chains, assuming that it is non-empty. If there
+/// are multiple chains of the greatest length, [`None`] is returned.
 ///
 /// ## Errors
 ///
 /// If there are no `chains`, this function will return an `Err`.
-pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Fallible<Vec<Atom>> {
-    Ok(match chains.iter().max_by(|&a, &b| a.len().cmp(&b.len())) {
-        None => return Err(Other("No carbon chain found.".to_string())), // FIXME this is returned when a bond is placed at the edge
-        Some(it) => it,
+pub(crate) fn longest_chain(chains: Vec<Vec<Atom>>) -> Fallible<Option<Vec<Atom>>> {
+    let max_length = chains
+        .iter()
+        .map(|chain| chain.len())
+        .max()
+        .ok_or(Other("No carbon chain found.".to_string()))?;
+    let longest_chains = chains
+        .into_iter()
+        .filter(|chain| chain.len() == max_length)
+        .collect::<Vec<Vec<Atom>>>();
+
+    if longest_chains.len() > 1 {
+        Ok(None)
+    } else {
+        Ok(Some(longest_chains[0].to_owned()))
     }
-    .to_owned())
 }
 
 pub(crate) fn get_all_chains(graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {

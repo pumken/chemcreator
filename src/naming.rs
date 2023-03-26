@@ -154,6 +154,23 @@ pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
     Ok(out)
 }
 
+pub fn branch_numeric(value: i32) -> Result<&'static str, NamingError> {
+    let out = match value {
+        1 => "",
+        2 => "bis",
+        3 => "tris",
+        4 => "tetrakis",
+        5 => "pentakis",
+        6 => "hexakis",
+        7 => "heptakis",
+        8 => "octakis",
+        9 => "nonakis",
+        10 => "decakis",
+        _ => return Err(NamingError::GroupOccurrence(None, value)),
+    };
+    Ok(out)
+}
+
 pub fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "meth",

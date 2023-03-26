@@ -4,11 +4,11 @@
 //! structures: discontinuities, cycles, and atoms with unfilled or overfilled valence shells.
 
 use crate::chain;
-use crate::groups::InvalidGraphError::Discontinuity;
+use crate::groups::InvalidGraphError::{Discontinuity, Other};
 use crate::groups::{Fallible, InvalidGraphError};
 use crate::molecule::Group::{Alkene, Alkyne};
 use crate::molecule::{Atom, Branch, Cell, Substituent};
-use crate::naming::{GroupCollection, SubFragment};
+use crate::naming::{prefix, GroupCollection, SubFragment};
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
@@ -76,7 +76,7 @@ pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
 
 impl Branch {
     /// Checks if chain indexes are in the correct direction.
-    pub fn index_corrected(self, graph: &GridState) -> Fallible<Branch> {
+    pub fn index_corrected(self) -> Fallible<Branch> {
         let original = self.clone();
         let reversed = self.reversed();
         let original_collection = GroupCollection::new(original.clone());
@@ -104,8 +104,8 @@ impl Branch {
         if let (Some(org), Some(rev)) = (original_alkenes, reversed_alkenes) {
             match cmp(org.to_owned(), rev.to_owned()) {
                 Ordering::Less => return Ok(original),
-                Ordering::Equal => return Ok(reversed),
-                Ordering::Greater => {}
+                Ordering::Greater => return Ok(reversed),
+                Ordering::Equal => {}
             }
         }
 
@@ -119,15 +119,20 @@ impl Branch {
         if let (Some(org), Some(rev)) = (original_alkynes, reversed_alkynes) {
             match cmp(org.to_owned(), rev.to_owned()) {
                 Ordering::Less => return Ok(original),
-                Ordering::Equal => return Ok(reversed),
-                Ordering::Greater => {}
+                Ordering::Greater => return Ok(reversed),
+                Ordering::Equal => {}
             }
         }
 
-        // TODO add more cases:
-        //  lowest-numbered locants for prefixes
+        let original_prefixes_str = prefix(original_collection.secondary_group_fragments())
+            .map_err(|e| Other(e.to_string()))?;
+        let reversed_prefixes_str = prefix(reversed_collection.secondary_group_fragments())
+            .map_err(|e| Other(e.to_string()))?;
 
-        Ok(original)
+        match original_prefixes_str.cmp(&reversed_prefixes_str) {
+            Ordering::Equal | Ordering::Less => Ok(original),
+            Ordering::Greater => Ok(reversed),
+        }
     }
 }
 

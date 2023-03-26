@@ -10,7 +10,7 @@ use crate::nested_vec;
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
-use std::cmp::max;
+
 
 /// Gets the primary chain of the given [`Vec`] of chains according to
 /// [IUPAC rules](http://www.acdlabs.com/iupac/nomenclature/79/r79_36.htm). The primary chain

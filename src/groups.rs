@@ -3,7 +3,7 @@
 //! The `groups` module provides functionality for identifying functional groups on a branch.
 
 use crate::chain;
-use crate::chain::{endpoint_head_chains, longest_chain, primary_chain};
+use crate::chain::{endpoint_head_chains, primary_chain};
 use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::molecule::Group::{

@@ -10,9 +10,8 @@ use crate::molecule::Group::Alkane;
 use crate::molecule::{Branch, Cell, Group, Substituent};
 use crate::spatial::GridState;
 use crate::{chain, groups, validation};
-use chain::{get_all_chains, longest_chain};
+use chain::get_all_chains;
 use groups::link_groups;
-use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
 use validation::{check_structure, check_valence};
@@ -49,11 +48,12 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
 
     // Group-linked branch
     let mut branch = link_groups(graph, chain, None)?;
-    branch = branch.index_corrected(graph)?;
+    branch = branch.index_corrected()?;
 
     process_name(branch).map_err(|e| Other(e.to_string()))
 }
 
+/// Generates the name of the organic molecule by the given `branch`.
 pub(crate) fn process_name(branch: Branch) -> Result<String, NamingError> {
     let len = branch.chain.len() as i32;
     let collection = GroupCollection::new(branch);
@@ -67,7 +67,13 @@ pub(crate) fn process_name(branch: Branch) -> Result<String, NamingError> {
     ))
 }
 
-fn prefix(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
+/// Returns the prefix sequence string of the given `fragments`.
+///
+/// ## Errors
+///
+/// If the occurrences of one of the `fragments` exceeds the limit of [`minor_numeric`], a
+/// [`NamingError::GroupOccurrence`] is returned.
+pub(crate) fn prefix(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
     fragments.sort_by_key(|fragment| fragment.subst.to_string());
     let mut out = vec![];
 
@@ -128,6 +134,11 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
 }
 
 /// Returns a [`String`] containing a locant prefix with a minor numeric prefix appended.
+///
+/// ## Errors
+///
+/// If the number of `locations` given exceeds the limit of [`minor_numeric`], a
+/// [`NamingError::GroupOccurrence`] without a group is returned.
 pub fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
     locations.sort();
     let numbers = locations
@@ -139,6 +150,11 @@ pub fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
     Ok(out)
 }
 
+/// Returns the numeric prefix for group prefixes for the given `value`.
+///
+/// ## Errors
+///
+/// If `value` exceeds 10, a [`NamingError::GroupOccurrence`] without a group is returned.
 pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "",
@@ -156,6 +172,11 @@ pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
     Ok(out)
 }
 
+/// Returns the numeric prefix for branch prefixes for the given `value`.
+///
+/// ## Errors
+///
+/// If `value` exceeds 10, a [`NamingError::GroupOccurrence`] without a group is returned.
 pub fn branch_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "",
@@ -173,6 +194,11 @@ pub fn branch_numeric(value: i32) -> Result<&'static str, NamingError> {
     Ok(out)
 }
 
+/// Returns the numeric prefix for suffixes for the given `value`.
+///
+/// ## Errors
+///
+/// If `value` exceeds 32, a [`NamingError::CarbonCount`] is returned.
 pub fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "meth",

@@ -272,13 +272,13 @@ impl ToVec2 for Direction {
 /// A trait made specifically for [`Vec2`] and [`Direction`] to invert the graph so that the origin
 /// is in the bottom-left corner rather than the top left corner.
 pub(crate) trait Invert {
-    fn inv(self, graph: &GridState) -> Vec2;
+    fn inv(self, graph_height: i32) -> Vec2;
 }
 
 impl Invert for Vec2 {
     /// Inverts the `y` of this [Vec2]. For *why* this exists, see [Invert].
-    fn inv(mut self, graph: &GridState) -> Vec2 {
-        self.y = graph.size.y - self.y - 1;
+    fn inv(mut self, graph_height: i32) -> Vec2 {
+        self.y = graph_height - self.y - 1;
         self
     }
 }

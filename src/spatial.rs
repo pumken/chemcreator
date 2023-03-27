@@ -121,6 +121,7 @@ impl GridState {
             .expect("cursor should be within bounds") = empty_cell;
     }
 
+    /// Sets the [`Cell`] at the given `pos` to the given `comp`.
     pub fn put(&mut self, pos: Vec2, comp: ComponentType) {
         *self.get_mut(pos).unwrap() = match comp {
             ComponentType::Element(it) => Cell::Atom(Atom { element: it, pos }),

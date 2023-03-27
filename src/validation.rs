@@ -8,7 +8,7 @@ use crate::groups::InvalidGraphError::{Discontinuity, Other};
 use crate::groups::{Fallible, InvalidGraphError};
 use crate::molecule::Group::{Alkene, Alkyne};
 use crate::molecule::{Atom, Branch, Cell, Substituent};
-use crate::naming::{prefix, GroupCollection, SubFragment};
+use crate::naming::{prefix, SubFragment, SubFragmentCollection};
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
@@ -79,8 +79,8 @@ impl Branch {
     pub fn index_corrected(self) -> Fallible<Branch> {
         let original = self.clone();
         let reversed = self.reversed();
-        let original_collection = GroupCollection::new(original.clone());
-        let reversed_collection = GroupCollection::new(reversed.clone());
+        let original_collection = SubFragmentCollection::new(original.clone());
+        let reversed_collection = SubFragmentCollection::new(reversed.clone());
 
         match cmp(
             original_collection.primary_group_fragment(),
@@ -91,8 +91,8 @@ impl Branch {
             Ordering::Equal => {}
         }
 
-        let original_multiple_bonds = original_collection.chain_group_fragments();
-        let reversed_multiple_bonds = reversed_collection.chain_group_fragments();
+        let original_multiple_bonds = original_collection.unsaturated_group_fragments();
+        let reversed_multiple_bonds = reversed_collection.unsaturated_group_fragments();
 
         let original_alkenes = original_multiple_bonds
             .iter()

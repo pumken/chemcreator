@@ -56,15 +56,33 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
 /// Generates the name of the organic molecule by the given `branch`.
 pub(crate) fn process_name(branch: Branch) -> Result<String, NamingError> {
     let len = branch.chain.len() as i32;
-    let collection = GroupCollection::new(branch);
+    let collection = SubFragmentCollection::new(branch);
 
-    Ok(format!(
+    let name = format!(
         "{}{}{}{}",
         prefix(collection.secondary_group_fragments())?,
         major_numeric(len)?,
-        bonding(collection.chain_group_fragments())?,
+        bonding(collection.unsaturated_group_fragments())?,
         suffix(collection.primary_group_fragment())?,
-    ))
+    );
+
+    if let Some(sub) = substitute_names(&name) {
+        Ok(sub.to_string())
+    } else {
+        Ok(name)
+    }
+}
+
+/// Returns a corrected name for rules that are not worth it to add in.
+pub(crate) fn substitute_names(name: &str) -> Option<&str> {
+    let out = match name {
+        "1-fluoromethanoyl fluoride" => "methanoyl difluoride",
+        "1-chloromethanoyl chloride" => "methanoyl dichloride",
+        "1-bromomethanoyl bromide" => "methanoyl dibromide",
+        "1-iodomethanoyl iodide" => "methanoyl diiodide",
+        _ => return None,
+    };
+    Some(out)
 }
 
 /// Returns the prefix sequence string of the given `fragments`.
@@ -263,14 +281,16 @@ pub fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
     Ok(out)
 }
 
+/// A collection of [`SubFragment`]s representing the [`Substituents`] attached to a [`Branch`]
+/// and the locations of their occurrences.
 #[derive(Clone, Debug, PartialEq)]
-pub struct GroupCollection {
+pub struct SubFragmentCollection {
     pub collection: Vec<SubFragment>,
 }
 
-impl GroupCollection {
-    pub fn new(branch: Branch) -> GroupCollection {
-        let mut out = GroupCollection { collection: vec![] };
+impl SubFragmentCollection {
+    pub fn new(branch: Branch) -> SubFragmentCollection {
+        let mut out = SubFragmentCollection { collection: vec![] };
 
         branch
             .groups
@@ -278,29 +298,39 @@ impl GroupCollection {
             .enumerate()
             .for_each(|(index, link)| {
                 link.into_iter().for_each(|it| {
-                    out.push_fragment(it, index as i32);
+                    out.push(it, index as i32);
                 })
             });
 
         out
     }
 
-    fn push_fragment(&mut self, subst: Substituent, index: i32) {
-        let item = self.collection.iter_mut().find(|it| it.subst == subst);
+    /// Adds an occurrence of the given `substituent` to the collection. If this is not the first
+    /// occurrence of the `substituent`, the location is simply added to its corresponding
+    /// [`SubFragment`].
+    fn push(&mut self, substituent: Substituent, index: i32) {
+        let item = self
+            .collection
+            .iter_mut()
+            .find(|it| it.subst == substituent);
 
         match item {
             Some(it) => it.locants.push(index),
-            None => self.collection.push(SubFragment::new(vec![index], subst)),
+            None => self
+                .collection
+                .push(SubFragment::new(vec![index], substituent)),
         }
     }
 
+    /// Returns the primary [`Group`] of the collection, i.e., that which should be used as a suffix.
+    /// If no primary groups exist, [`Alkane`] is returned.
     pub fn primary_group(&self) -> Group {
         let primary = self
             .collection
             .iter()
             .map(|fragment| fragment.subst.to_owned())
-            .filter(|group| group.priority().is_some())
-            .max_by_key(|group| group.priority());
+            .filter(|group| group.seniority().is_some())
+            .max_by_key(|group| group.seniority());
 
         match primary {
             Some(Substituent::Group(it)) => it,
@@ -308,6 +338,7 @@ impl GroupCollection {
         }
     }
 
+    /// Returns the [`SubFragment`] for the primary group.
     pub fn primary_group_fragment(&self) -> SubFragment {
         self.collection
             .iter()
@@ -315,19 +346,20 @@ impl GroupCollection {
             .map_or_else(SubFragment::default, SubFragment::to_owned)
     }
 
+    /// Returns all non-primary groups not including
     pub fn secondary_group_fragments(&self) -> Vec<SubFragment> {
         self.collection
             .iter()
             .filter(|&fragment| fragment.subst != Substituent::Group(self.primary_group()))
-            .filter(|&fragment| !fragment.subst.is_chain_group())
+            .filter(|&fragment| !fragment.subst.is_cxc_group())
             .map(SubFragment::to_owned)
             .collect::<Vec<SubFragment>>()
     }
 
-    pub fn chain_group_fragments(&self) -> Vec<SubFragment> {
+    pub fn unsaturated_group_fragments(&self) -> Vec<SubFragment> {
         self.collection
             .iter()
-            .filter(|&fragment| fragment.subst.is_chain_group())
+            .filter(|&fragment| fragment.subst.is_cxc_group())
             .map(SubFragment::to_owned)
             .collect::<Vec<SubFragment>>()
     }
@@ -424,7 +456,7 @@ mod tests {
     fn prefix_creates_correct_strings() {
         let branch =
             Branch::from_str("0: bromo, iodo; 1: oxo, hydroxy; 2: bromo, hydroxy").unwrap();
-        let collection = GroupCollection::new(branch);
+        let collection = SubFragmentCollection::new(branch);
         let str = prefix(collection.secondary_group_fragments()).unwrap();
 
         assert_eq!(str, "1,3-dibromo-2,3-dihydroxy-1-iodo")
@@ -434,7 +466,7 @@ mod tests {
     fn collect_groups_aggregates_correctly() {
         let branch =
             Branch::from_str("0: bromo, iodo; 1: oxo, hydroxy; 2: bromo, hydroxy").unwrap();
-        let groups = GroupCollection::new(branch);
+        let groups = SubFragmentCollection::new(branch);
         let expected = vec![
             SubFragment::new(vec![0, 2], Substituent::Group(Bromo)),
             SubFragment::new(vec![0], Substituent::Group(Iodo)),
@@ -447,7 +479,7 @@ mod tests {
 
     #[test]
     fn primary_group_doesnt_ignore_halogens() {
-        let collection = GroupCollection {
+        let collection = SubFragmentCollection {
             collection: vec![
                 SubFragment::new(vec![0], Substituent::Group(Bromo)),
                 SubFragment::new(vec![0], Substituent::Group(Chloro)),

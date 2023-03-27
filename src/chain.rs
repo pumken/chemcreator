@@ -58,7 +58,7 @@ pub fn primary_chain(
                 panic!("call to filter() failed")
             }
         })
-        .max_by_key(|it| it.priority());
+        .max_by_key(|it| it.seniority());
 
     let mut filtration = unique_branches.to_owned();
 
@@ -86,9 +86,9 @@ pub fn primary_chain(
             .flatten()
             .filter(|&subst| {
                 matches!(
-                        subst,
-                        Substituent::Group(Alkene) | Substituent::Group(Alkyne)
-                    )
+                    subst,
+                    Substituent::Group(Alkene) | Substituent::Group(Alkyne)
+                )
             })
             .count()
     });
@@ -130,14 +130,19 @@ pub fn primary_chain(
     Ok(filtration[0].chain.to_owned())
 }
 
+/// Returns the maximum of the given `branches` based on the values yielded by given `f` or filters
+/// them.
+///
+/// ## Errors
+///
+/// If a maximum cannot be attained (e.g., if there are no branches), an [`Err`] containing all
+/// original [`Branch`]es is returned. If there are multiple branches matching the maximum, an
+/// [`Err`] containing matching [`Branch`]es is returned.
 pub(crate) fn chain_max_by<F>(branches: Vec<Branch>, f: F) -> Result<Vec<Atom>, Vec<Branch>>
-    where F: Fn(&Branch) -> usize
+where
+    F: Fn(&Branch) -> usize,
 {
-    let max: usize = branches
-        .iter()
-        .map(&f)
-        .max()
-        .ok_or(branches.to_owned())?;
+    let max: usize = branches.iter().map(&f).max().ok_or(branches.to_owned())?;
 
     let primary_by_max = branches
         .into_iter()
@@ -151,6 +156,12 @@ pub(crate) fn chain_max_by<F>(branches: Vec<Branch>, f: F) -> Result<Vec<Atom>, 
     }
 }
 
+/// Returns a [`Vec`] of chains between every endpoint on the graph, thereby yielding every
+/// possible candidate for the primary chain.
+///
+/// ## Errors
+///
+/// Returns [`InvalidGraphError`] if any invalid structures are found while traversing the graph.
 pub(crate) fn get_all_chains(graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {
     let endpoints = endpoint_carbons(graph)?
         .iter()

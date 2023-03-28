@@ -5,21 +5,23 @@
 
 #![warn(missing_docs)]
 
+use crate::gui::draw_grid_box;
 use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::{Bond, BondOrientation, Cell, ComponentType, Element};
-use crate::spatial::{EnumAll, GridState, Invert};
+use crate::spatial::{EnumAll, GridState};
 use crate::Mode::Insert;
 use ruscii::app::{App, State};
-use ruscii::drawing::{Pencil, RectCharset};
+use ruscii::drawing::Pencil;
 use ruscii::spatial::Vec2;
-use ruscii::terminal::Color::{Cyan, Red, White};
+use ruscii::terminal::Color::{Red, White};
 use ruscii::terminal::{Color, Style, Window};
 use Color::Yellow;
 use Mode::Normal;
 
 mod chain;
 mod groups;
+mod gui;
 mod input;
 mod macros;
 mod molecule;
@@ -31,7 +33,7 @@ mod validation;
 fn main() {
     let mut app = App::new();
     let version = env!("CARGO_PKG_VERSION");
-    let mut graph = GridState::new(21, 11);
+    let mut graph = GridState::new(27, 11);
     let mut state = AppState::default();
 
     app.run(|app_state: &mut State, window: &mut Window| {
@@ -64,36 +66,26 @@ fn main() {
         pencil.set_origin(Vec2::xy(6, 0));
         match state.mode {
             Mode::Start => {
-                draw_logo(&mut pencil, &graph, Vec2::y(2));
-                draw_start_message(&mut pencil, Vec2::xy(graph.size.x * 3 + 5, 1));
+                gui::draw_logo(&mut pencil, graph.size, Vec2::y(2));
+                gui::draw_start_message(&mut pencil, Vec2::xy(graph.size.x * 3 + 5, 1));
             }
-            _ => draw_grid(&mut pencil, &mut graph, Vec2::y(2), state.mode),
+            _ => gui::draw_grid(&mut pencil, &mut graph, Vec2::y(2), state.mode),
         }
+
+        draw_grid_box(&mut pencil, graph.size, Vec2::xy(-1, 1));
 
         // Insert mode and cursor
         if let Insert = state.mode {
-            pencil.draw_rect(
-                &RectCharset::simple_round_lines(),
-                Vec2::xy(-1, 1),
-                Vec2::xy(graph.size.x * 3 + 2, graph.size.y + 2),
+            gui::draw_insert_mode(&mut pencil, Vec2::xy(graph.size.x * 3 / 2, 1));
+            gui::draw_cursor(&mut pencil, &graph, Vec2::y(2));
+        } else if let Mode::Start = state.mode {
+            pencil.draw_text(
+                &format!(" {version} "),
+                Vec2::xy(
+                    graph.size.x * 3 - version.len() as i32 - 3,
+                    graph.size.y + 2,
+                ),
             );
-            draw_insert_mode(&mut pencil, Vec2::xy(graph.size.x * 3 / 2, 1));
-            draw_cursor(&mut pencil, &graph, Vec2::y(2));
-        } else {
-            pencil.draw_rect(
-                &RectCharset::simple_round_lines(),
-                Vec2::xy(-1, 1),
-                Vec2::xy(graph.size.x * 3 + 2, graph.size.y + 2),
-            );
-            if let Mode::Start = state.mode {
-                pencil.draw_text(
-                    &format!(" {version} "),
-                    Vec2::xy(
-                        graph.size.x * 3 - version.len() as i32 - 3,
-                        graph.size.y + 2,
-                    ),
-                );
-            }
         }
 
         // Menu
@@ -255,83 +247,6 @@ fn main() {
                 Vec2::xy(15, 5),
             );
     });
-}
-
-fn draw_logo(pencil: &mut Pencil, graph: &GridState, pos: Vec2) {
-    pencil
-        .move_origin(pos)
-        .draw_text(
-            "┌────┐          ",
-            Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 + 2).inv(graph),
-        )
-        .draw_text(
-            "│  C │hem       ",
-            Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 + 1).inv(graph),
-        )
-        .draw_text(
-            "└────┼────┐     ",
-            Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2).inv(graph),
-        )
-        .draw_text(
-            "     │ Cr │eator",
-            Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 - 1).inv(graph),
-        )
-        .draw_text(
-            "     └────┘     ",
-            Vec2::xy(graph.size.x * 3 / 2 - 8, graph.size.y / 2 - 2).inv(graph),
-        )
-        .move_origin(-pos);
-}
-
-fn draw_grid(pencil: &mut Pencil, graph: &mut GridState, pos: Vec2, mode: Mode) {
-    pencil.move_origin(pos);
-    for cell in graph.cells.iter().flatten() {
-        pencil.set_foreground(cell.color()).draw_text(
-            match &cell {
-                Cell::Atom(it) => it.symbol(),
-                Cell::Bond(it) => it.symbol(),
-                Cell::None(_) => match mode {
-                    Insert => " • ",
-                    Normal => "   ",
-                    _ => "   ",
-                },
-            },
-            Vec2::xy(cell.pos().x * 3, cell.pos().y).inv(graph),
-        );
-    }
-    pencil.move_origin(-pos);
-}
-
-fn draw_insert_mode(pencil: &mut Pencil, center: Vec2) {
-    pencil.draw_center_text(" INSERT MODE ", center);
-}
-
-fn draw_cursor(pencil: &mut Pencil, graph: &GridState, pos: Vec2) {
-    let color = *pencil.foreground();
-    pencil
-        .move_origin(pos)
-        .set_foreground(Cyan)
-        .draw_text(
-            "<",
-            Vec2::xy(graph.cursor.x * 3 - 1, graph.cursor.y).inv(graph),
-        )
-        .draw_text(
-            ">",
-            Vec2::xy(graph.cursor.x * 3 + 3, graph.cursor.y).inv(graph),
-        )
-        .set_foreground(color)
-        .move_origin(-pos);
-}
-
-fn draw_start_message(pencil: &mut Pencil, pos: Vec2) {
-    pencil
-        .move_origin(pos)
-        .draw_center_text("ChemCreator", Vec2::xy(20, 2))
-        .draw_center_text("A text-based tool for", Vec2::xy(20, 4))
-        .draw_center_text("identifying organic molecules.", Vec2::xy(20, 5))
-        .draw_center_text("Written in Rust by Gavin Tran.", Vec2::xy(20, 7))
-        .draw_center_text("Press any key to start.", Vec2::xy(20, 9))
-        .move_origin(-pos);
 }
 
 /// Represents the mode the app is in at a given time.

@@ -10,7 +10,7 @@ use crate::pointer::Pointer;
 use ruscii::spatial::{Direction, Vec2};
 use std::cmp::Ordering;
 
-/// Represents the state of a grid, including all its [Cell]s and the position of the cursor.
+/// Represents the state of a grid, including all its [`Cell`]s and the position of the cursor.
 #[derive(Clone, Debug)]
 pub struct GridState {
     pub cells: Vec<Vec<Cell>>,
@@ -121,6 +121,7 @@ impl GridState {
             .expect("cursor should be within bounds") = empty_cell;
     }
 
+    /// Sets the [`Cell`] at the given `pos` to the given `comp`.
     pub fn put(&mut self, pos: Vec2, comp: ComponentType) {
         *self.get_mut(pos).unwrap() = match comp {
             ComponentType::Element(it) => Cell::Atom(Atom { element: it, pos }),
@@ -271,13 +272,13 @@ impl ToVec2 for Direction {
 /// A trait made specifically for [`Vec2`] and [`Direction`] to invert the graph so that the origin
 /// is in the bottom-left corner rather than the top left corner.
 pub(crate) trait Invert {
-    fn inv(self, graph: &GridState) -> Vec2;
+    fn inv(self, graph_height: i32) -> Vec2;
 }
 
 impl Invert for Vec2 {
     /// Inverts the `y` of this [Vec2]. For *why* this exists, see [Invert].
-    fn inv(mut self, graph: &GridState) -> Vec2 {
-        self.y = graph.size.y - self.y - 1;
+    fn inv(mut self, graph_height: i32) -> Vec2 {
+        self.y = graph_height - self.y - 1;
         self
     }
 }

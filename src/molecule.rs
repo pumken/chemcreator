@@ -21,7 +21,7 @@ use Element::{Br, Cl, F, I};
 pub enum Group {
     /* Not a group, but useful */
     Hydrogen,
-    /* Multiple bond groups */
+    /* CXC groups */
     Alkane,
     Alkene,
     Alkyne,
@@ -53,7 +53,7 @@ impl Group {
     /// A higher priority is indicated by a higher number. The lowest
     /// priority group is assigned zero. A value of [`None`] indicates that the group is _never
     /// the main group_ (i.e., always a prefix).
-    pub const fn priority(self) -> Option<i32> {
+    pub const fn seniority(self) -> Option<i32> {
         let priority = match self {
             Group::Carboxyl => 13,
             Group::Ester => 12,
@@ -80,7 +80,9 @@ impl Group {
         Some(priority)
     }
 
-    pub const fn is_chain_group(self) -> bool {
+    /// Checks if the group is a CXC group, i.e., a group that solely consists of a carbon-carbon
+    /// bond.
+    pub const fn is_cxc_group(self) -> bool {
         matches!(self, Group::Alkane | Group::Alkene | Group::Alkyne)
     }
 }
@@ -114,7 +116,7 @@ impl Display for Group {
 
 impl PartialOrd<Self> for Group {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let out = match (self.priority(), other.priority()) {
+        let out = match (self.seniority(), other.seniority()) {
             (Some(a), Some(b)) => a.cmp(&b),
             (Some(_), None) => Ordering::Greater,
             (None, Some(_)) => Ordering::Less,
@@ -151,6 +153,7 @@ impl FromStr for Group {
     }
 }
 
+/// Represents the elements of group 17 on the periodic table, the halogens.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Halogen {
     Fluorine,
@@ -196,7 +199,7 @@ impl EnumAll for Halogen {
     }
 }
 
-/// Represents a molecular component.
+/// Represents a cell on a [`GridState`].
 #[derive(Clone, Debug, PartialEq)]
 pub enum Cell {
     Atom(Atom),
@@ -296,6 +299,7 @@ impl Default for Atom {
     }
 }
 
+/// Represents an element on the periodic table that is commonly used in organic chemistry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Element {
     Br,
@@ -333,6 +337,7 @@ impl Element {
         }
     }
 
+    /// Returns the drawn symbol of this [`Element`].
     pub const fn symbol(&self) -> &str {
         match self {
             Br => "[Br]",
@@ -346,6 +351,7 @@ impl Element {
         }
     }
 
+    /// Returns the color associated with this [`Element`].
     pub fn color(&self) -> Color {
         match self {
             Br => Xterm(1),
@@ -359,6 +365,7 @@ impl Element {
         }
     }
 
+    /// Returns the atomic weight of this [`Element`] in amu (atomic mass units).
     pub fn mass(&self) -> f32 {
         match self {
             Br => 79.904,
@@ -420,11 +427,13 @@ impl Bond {
             (Double, Horiz) => "===",
             (Double, Vert) => " ‖ ",
             (Triple, Horiz) => "≡≡≡",
-            (Triple, Vert) => " T ",
+            (Triple, Vert) => "|||",
         }
     }
 }
 
+/// Represents the bond order (since all bonds are covalent, bond order is an integer equal to
+/// the number of bonds between the atoms).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BondOrder {
     Single,
@@ -467,6 +476,7 @@ impl From<Direction> for BondOrientation {
     }
 }
 
+/// Represents a group of atoms replacing a hydrogen on a saturated alkane.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Substituent {
     Branch(Branch),
@@ -474,16 +484,20 @@ pub enum Substituent {
 }
 
 impl Substituent {
-    pub fn priority(&self) -> Option<i32> {
+    /// Returns the seniority of this [`Substituent`]. [`Substituent::Branch`]es are never the
+    /// primary group and thus return [`None`].
+    pub fn seniority(&self) -> Option<i32> {
         match self {
-            Substituent::Group(it) => it.priority(),
+            Substituent::Group(it) => it.seniority(),
             Substituent::Branch(_) => None,
         }
     }
 
-    pub fn is_chain_group(&self) -> bool {
+    /// Checks if this [`Substituent`] is a CXC group, i.e., one that solely consists of a
+    /// carbon-carbon bond.
+    pub fn is_cxc_group(&self) -> bool {
         match self {
-            Substituent::Group(it) => it.is_chain_group(),
+            Substituent::Group(it) => it.is_cxc_group(),
             Substituent::Branch(_) => false,
         }
     }
@@ -502,6 +516,7 @@ impl Display for Substituent {
     }
 }
 
+/// Represents a chain and the [`Substituents`] attached to it.
 #[derive(Clone, Debug)]
 pub struct Branch {
     pub chain: Vec<Atom>,
@@ -521,6 +536,8 @@ impl Branch {
         }
     }
 
+    /// Reverses the `chain` and `groups` but not the `parent_alpha`. CXC groups are shifted by one
+    /// before reversal as their alpha carbon is dependent on carbon chain indexing.
     pub fn reversed(&self) -> Branch {
         let (mut chain, mut groups, parent_alpha) = {
             let clone = self.clone();
@@ -528,7 +545,7 @@ impl Branch {
         };
         chain.reverse();
 
-        groups = Branch::shift_chain_groups(groups);
+        groups = Branch::shift_cxc_groups(groups);
         groups.reverse();
 
         Branch {
@@ -538,13 +555,14 @@ impl Branch {
         }
     }
 
-    fn shift_chain_groups(mut groups: Vec<Vec<Substituent>>) -> Vec<Vec<Substituent>> {
+    /// Shifts every CXC group by one index toward the end.
+    fn shift_cxc_groups(mut groups: Vec<Vec<Substituent>>) -> Vec<Vec<Substituent>> {
         for outer in (1..groups.len()).rev() {
             let link = &mut groups[outer - 1];
             let mut cache = vec![];
 
             for index in (0..link.len()).rev() {
-                if link[index].is_chain_group() {
+                if link[index].is_cxc_group() {
                     let element = link.remove(index);
                     cache.push(element);
                 }
@@ -612,6 +630,8 @@ fn substitute_common_name(name: &str) -> Option<String> {
     }
 }
 
+/// Determines if the given `name` is an isoalkyl group. If it is, the full and proper isoalkyl
+/// group name is returned. If it isn't, [`None`] is returned.
 fn isoalkyl(name: &str) -> Option<String> {
     let locant_str = name
         .chars()
@@ -658,6 +678,7 @@ impl FromStr for Branch {
     }
 }
 
+/// Represents the basic structure of a [`Group`].
 #[derive(Clone, Debug, PartialEq)]
 pub struct GroupNode {
     pub bond: BondOrder,
@@ -742,7 +763,7 @@ mod tests {
     #[test]
     fn branch_shift_chain_groups() {
         let mut groups = vec![vec![Substituent::Group(Alkene)], vec![]];
-        groups = Branch::shift_chain_groups(groups);
+        groups = Branch::shift_cxc_groups(groups);
         let expected = vec![vec![], vec![Substituent::Group(Alkene)]];
 
         assert_eq!(groups, expected);

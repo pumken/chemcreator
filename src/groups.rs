@@ -134,9 +134,9 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
             [Carbonyl, Amine => Amide],
             [Carbonyl, Hydrogen => Aldehyde],
         );
-        groups.retain(|it| it != &Hydrogen);
         break;
     }
+    groups.retain(|it| it != &Hydrogen);
 
     let mut rest = groups
         .into_iter()
@@ -154,7 +154,12 @@ macro_rules! compound {
     ($groups:expr, $out:expr, $([$first:expr, $second:expr => $comp:expr],)*) => {
         $(
         if $groups.contains(&$first) && $groups.contains(&$second) {
-            $groups.retain(|it| it != &$first && it != &$second);
+            if let Some(index) = $groups.iter().position(|&x| x == $first) {
+                $groups.remove(index);
+            }
+            if let Some(index) = $groups.iter().position(|&x| x == $second) {
+                $groups.remove(index);
+            }
             $out.push(Substituent::Group($comp));
             continue;
         }
@@ -292,6 +297,7 @@ fn group_directions(
     Ok(directions)
 }
 
+/// A type that is only available when the [`GridState`] is valid.
 pub(crate) type Fallible<T> = Result<T, InvalidGraphError>;
 
 /// The group of invalid structures that can appear on the [`GridState`].

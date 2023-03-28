@@ -46,29 +46,80 @@ pub fn primary_chain(
         panic!("unique_branches is empty!")
     }
 
+    let primary_group = &unique_branches
+        .iter()
+        .flat_map(|it| it.groups.to_owned())
+        .flatten()
+        .filter(|it| matches!(it, Substituent::Group(_)))
+        .map(|it| {
+            if let Substituent::Group(group) = it {
+                group
+            } else {
+                panic!("call to filter() failed")
+            }
+        })
+        .max_by_key(|it| it.seniority());
+
+    let mut filtration = unique_branches.to_owned();
+
     // 1
-    let most_primary_groups = chain_with_most_primary_groups(unique_branches);
-    if let Ok(it) = most_primary_groups {
-        return Ok(it);
+    if let Some(it) = &primary_group {
+        let most_primary_groups = chain_max_by(unique_branches, |branch| {
+            branch
+                .groups
+                .iter()
+                .flatten()
+                .filter(|&subst| matches!(subst, Substituent::Group(group) if group == it))
+                .count()
+        });
+        if let Ok(it) = most_primary_groups {
+            return Ok(it);
+        }
+        filtration = most_primary_groups.unwrap_err();
     }
-    let filtration = most_primary_groups.unwrap_err();
 
     // 2
-    let most_multiple_bonds = chain_with_most_multiple_bonds(filtration);
+    let most_multiple_bonds = chain_max_by(filtration, |branch| {
+        branch
+            .groups
+            .iter()
+            .flatten()
+            .filter(|&subst| {
+                matches!(
+                    subst,
+                    Substituent::Group(Alkene) | Substituent::Group(Alkyne)
+                )
+            })
+            .count()
+    });
     if let Ok(it) = most_multiple_bonds {
         return Ok(it);
     }
     let filtration = most_multiple_bonds.unwrap_err();
 
     // 3
-    let longest = longest_chain(filtration);
+    let longest = chain_max_by(filtration, |branch| branch.chain.len());
     if let Ok(it) = longest {
         return Ok(it);
     }
     let filtration = longest.unwrap_err();
 
     // 4
-    let most_prefix_subst = chain_with_most_prefix_subst(filtration);
+    let most_prefix_subst = chain_max_by(filtration, |branch| {
+        branch
+            .groups
+            .iter()
+            .flatten()
+            .filter(|&subst| {
+                if let Some(it) = primary_group {
+                    matches!(subst, Substituent::Group(group) if group != it)
+                        || matches!(subst, Substituent::Branch(_))
+                } else {
+                    true
+                }
+            })
+            .count()
+    });
     if let Ok(it) = most_prefix_subst {
         return Ok(it);
     }
@@ -79,177 +130,23 @@ pub fn primary_chain(
     Ok(filtration[0].chain.to_owned())
 }
 
-pub(crate) fn chain_with_most_primary_groups(
-    branches: Vec<Branch>,
-) -> Result<Vec<Atom>, Vec<Branch>> {
-    let primary_group = &branches
-        .iter()
-        .flat_map(|it| it.groups.to_owned())
-        .flatten()
-        .filter(|it| matches!(it, Substituent::Group(_)))
-        .map(|it| {
-            if let Substituent::Group(group) = it {
-                group
-            } else {
-                panic!("call to filter() failed")
-            }
-        })
-        .max_by_key(|it| it.priority())
-        .ok_or(branches.to_owned())?;
-
-    let max_occurrences =
-        &branches
-            .iter()
-            .map(|branch| {
-                branch
-            .groups
-            .iter()
-            .flatten()
-            .filter(|&subst| matches!(subst, Substituent::Group(group) if group == primary_group))
-            .count()
-            })
-            .max()
-            .ok_or(branches.to_owned())?;
-
-    let primary_by_max =
-        branches
-            .iter()
-            .filter(|&branch| {
-                branch
-            .groups
-            .iter()
-            .flatten()
-            .filter(|&subst| matches!(subst, Substituent::Group(group) if group == primary_group))
-            .count() == *max_occurrences
-            })
-            .map(Branch::to_owned)
-            .collect::<Vec<Branch>>();
-
-    if primary_by_max.len() == 1 {
-        Ok(primary_by_max[0].to_owned().chain)
-    } else {
-        Err(primary_by_max)
-    }
-}
-
-fn chain_with_most_multiple_bonds(branches: Vec<Branch>) -> Result<Vec<Atom>, Vec<Branch>> {
-    let max_occurrences = branches
-        .iter()
-        .map(|branch| {
-            branch
-                .groups
-                .iter()
-                .flatten()
-                .filter(|&subst| {
-                    matches!(
-                        subst,
-                        Substituent::Group(Alkene) | Substituent::Group(Alkyne)
-                    )
-                })
-                .count()
-        })
-        .max()
-        .ok_or(branches.to_owned())?;
-
-    let primary_by_max = branches
-        .iter()
-        .filter(|&branch| {
-            branch
-                .groups
-                .iter()
-                .flatten()
-                .filter(|&subst| {
-                    matches!(
-                        subst,
-                        Substituent::Group(Alkene) | Substituent::Group(Alkyne)
-                    )
-                })
-                .count()
-                == max_occurrences
-        })
-        .map(Branch::to_owned)
-        .collect::<Vec<Branch>>();
-
-    if primary_by_max.len() == 1 {
-        Ok(primary_by_max[0].to_owned().chain)
-    } else {
-        Err(primary_by_max)
-    }
-}
-
-/// Gets the longest of the given [`Vec`] of chains, assuming that it is non-empty. If there
-/// are multiple chains of the greatest length, [`None`] is returned.
+/// Returns the maximum of the given `branches` based on the values yielded by given `f` or filters
+/// them.
 ///
 /// ## Errors
 ///
-/// If there are no `chains`, this function will return an `Err`.
-pub(crate) fn longest_chain(branches: Vec<Branch>) -> Result<Vec<Atom>, Vec<Branch>> {
-    let max_length = branches
-        .iter()
-        .map(|chain| chain.chain.len())
-        .max()
-        .ok_or(branches.to_owned())?;
-    let longest_chains = branches
-        .into_iter()
-        .filter(|chain| chain.chain.len() == max_length)
-        .collect::<Vec<Branch>>();
-
-    if longest_chains.len() == 1 {
-        Ok(longest_chains[0].chain.to_owned())
-    } else {
-        Err(longest_chains)
-    }
-}
-
-pub(crate) fn chain_with_most_prefix_subst(
-    branches: Vec<Branch>,
-) -> Result<Vec<Atom>, Vec<Branch>> {
-    let primary_group = branches
-        .iter()
-        .flat_map(|it| it.groups.to_owned())
-        .flatten()
-        .filter(|it| matches!(it, Substituent::Group(_)))
-        .map(|it| {
-            if let Substituent::Group(group) = it {
-                group
-            } else {
-                panic!("call to filter() failed")
-            }
-        })
-        .max_by_key(|it| it.priority())
-        .ok_or(branches.to_owned())?;
-
-    let max_occurrences = branches
-        .iter()
-        .map(|branch| {
-            branch
-                .groups
-                .iter()
-                .flatten()
-                .filter(|&subst| {
-                    matches!(subst, Substituent::Group(group) if *group != primary_group)
-                        || matches!(subst, Substituent::Branch(_))
-                })
-                .count()
-        })
-        .max()
-        .ok_or(branches.to_owned())?;
+/// If a maximum cannot be attained (e.g., if there are no branches), an [`Err`] containing all
+/// original [`Branch`]es is returned. If there are multiple branches matching the maximum, an
+/// [`Err`] containing matching [`Branch`]es is returned.
+pub(crate) fn chain_max_by<F>(branches: Vec<Branch>, f: F) -> Result<Vec<Atom>, Vec<Branch>>
+where
+    F: Fn(&Branch) -> usize,
+{
+    let max: usize = branches.iter().map(&f).max().ok_or(branches.to_owned())?;
 
     let primary_by_max = branches
-        .iter()
-        .filter(|&branch| {
-            branch
-                .groups
-                .iter()
-                .flatten()
-                .filter(|&subst| {
-                    matches!(subst, Substituent::Group(group) if *group != primary_group)
-                        || matches!(subst, Substituent::Branch(_))
-                })
-                .count()
-                == max_occurrences
-        })
-        .map(Branch::to_owned)
+        .into_iter()
+        .filter(|it| f(it) == max)
         .collect::<Vec<Branch>>();
 
     if primary_by_max.len() == 1 {
@@ -259,6 +156,12 @@ pub(crate) fn chain_with_most_prefix_subst(
     }
 }
 
+/// Returns a [`Vec`] of chains between every endpoint on the graph, thereby yielding every
+/// possible candidate for the primary chain.
+///
+/// ## Errors
+///
+/// Returns [`InvalidGraphError`] if any invalid structures are found while traversing the graph.
 pub(crate) fn get_all_chains(graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {
     let endpoints = endpoint_carbons(graph)?
         .iter()

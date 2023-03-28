@@ -8,7 +8,7 @@ use crate::groups::InvalidGraphError::{Discontinuity, Other};
 use crate::groups::{Fallible, InvalidGraphError};
 use crate::molecule::Group::{Alkene, Alkyne};
 use crate::molecule::{Atom, Branch, Cell, Substituent};
-use crate::naming::{prefix, GroupCollection, SubFragment};
+use crate::naming::{prefix, SubFragment, SubFragmentCollection};
 use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
@@ -53,7 +53,7 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
 ///
 /// Returns an [`InvalidGraphError::OverfilledValence`] or [`InvalidGraphError::UnfilledValence`]
 /// for the first cell for which its valence shell is not correctly filled.
-pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
+pub fn check_valence(atoms: Vec<Atom>, graph: &GridState) -> Fallible<()> {
     for atom in atoms {
         // this function eventually could be removed and incorporated into bonded() ?
         let ptr = Pointer::new(graph, atom.pos);
@@ -79,8 +79,8 @@ impl Branch {
     pub fn index_corrected(self) -> Fallible<Branch> {
         let original = self.clone();
         let reversed = self.reversed();
-        let original_collection = GroupCollection::new(original.clone());
-        let reversed_collection = GroupCollection::new(reversed.clone());
+        let original_collection = SubFragmentCollection::new(original.clone());
+        let reversed_collection = SubFragmentCollection::new(reversed.clone());
 
         match cmp(
             original_collection.primary_group_fragment(),
@@ -91,8 +91,8 @@ impl Branch {
             Ordering::Equal => {}
         }
 
-        let original_multiple_bonds = original_collection.chain_group_fragments();
-        let reversed_multiple_bonds = reversed_collection.chain_group_fragments();
+        let original_multiple_bonds = original_collection.unsaturated_group_fragments();
+        let reversed_multiple_bonds = reversed_collection.unsaturated_group_fragments();
 
         let original_alkenes = original_multiple_bonds
             .iter()
@@ -221,9 +221,8 @@ mod tests {
         .iter()
         .map(|&cell| cell.unwrap_atom())
         .collect::<Vec<Atom>>();
-        let references = input_atoms.iter().collect::<Vec<&Atom>>();
 
-        assert!(matches!(check_valence(references, &graph), Ok(_)));
+        assert!(matches!(check_valence(input_atoms, &graph), Ok(_)));
     }
 
     #[test]
@@ -235,7 +234,7 @@ mod tests {
             [1, 2; B(Single)],
         );
         let input_atom = graph.get(Vec2::xy(1, 1)).unwrap().unwrap_atom();
-        let err = check_valence(vec![&input_atom], &graph);
+        let err = check_valence(vec![input_atom], &graph);
 
         assert_eq!(
             err,
@@ -252,7 +251,7 @@ mod tests {
             [1, 2; B(Triple)],
         );
         let input_atom = graph.get(Vec2::xy(1, 1)).unwrap().unwrap_atom();
-        let err = check_valence(vec![&input_atom], &graph);
+        let err = check_valence(vec![input_atom], &graph);
 
         assert_eq!(
             err,

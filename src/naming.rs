@@ -26,13 +26,7 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
     let cells = graph
         .find_all(|cell| cell.is_atom())
         .iter()
-        .map(|&cell| {
-            if let Cell::Atom(it) = cell {
-                it.to_owned()
-            } else {
-                panic!("is_atom check failed in name_molecule")
-            }
-        })
+        .map(|&cell| cell.unwrap_atom())
         .collect::<Vec<Atom>>();
 
     // Initial checks

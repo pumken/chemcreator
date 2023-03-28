@@ -47,7 +47,9 @@ pub(crate) fn link_groups(
         let mut chain_nodes = directions
             .1
             .into_iter()
-            .map(|dir| branch_node_tree(graph, accumulator.chain[index].pos, dir).unwrap())
+            .map(|dir| branch_node_tree(graph, accumulator.chain[index].pos, dir))
+            .collect::<Fallible<Vec<Vec<Atom>>>>()?
+            .into_iter()
             .map(|chain| {
                 link_groups(
                     graph,
@@ -57,8 +59,9 @@ pub(crate) fn link_groups(
                         pos: accumulator.chain[index].pos,
                     }),
                 )
-                .unwrap()
             })
+            .collect::<Fallible<Vec<Branch>>>()?
+            .into_iter()
             .map(Substituent::Branch)
             .collect::<Vec<Substituent>>();
 

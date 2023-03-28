@@ -202,7 +202,7 @@ pub fn complex_branch_locants(mut locations: Vec<i32>) -> Result<String, NamingE
 ///
 /// ## Errors
 ///
-/// If `value` exceeds 10, a [`NamingError::GroupOccurrence`] without a group is returned.
+/// If `value` exceeds 20, a [`NamingError::GroupOccurrence`] without a group is returned.
 pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "",
@@ -215,6 +215,16 @@ pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
         8 => "octa",
         9 => "nona",
         10 => "deca",
+        11 => "undeca",
+        12 => "dodeca",
+        13 => "trideca",
+        14 => "tetradeca",
+        15 => "pentadeca",
+        16 => "hexadeca",
+        17 => "heptadeca",
+        18 => "octadeca",
+        19 => "nonadeca",
+        20 => "icosa",
         _ => return Err(NamingError::GroupOccurrence(None, value)),
     };
     Ok(out)
@@ -224,7 +234,7 @@ pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
 ///
 /// ## Errors
 ///
-/// If `value` exceeds 10, a [`NamingError::GroupOccurrence`] without a group is returned.
+/// If `value` exceeds 20, a [`NamingError::GroupOccurrence`] without a group is returned.
 pub fn branch_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "",
@@ -237,6 +247,16 @@ pub fn branch_numeric(value: i32) -> Result<&'static str, NamingError> {
         8 => "octakis",
         9 => "nonakis",
         10 => "decakis",
+        11 => "undecakis",
+        12 => "dodecakis",
+        13 => "tridecakis",
+        14 => "tetradecakis",
+        15 => "pentadecakis",
+        16 => "hexadecakis",
+        17 => "heptadecakis",
+        18 => "octadecakis",
+        19 => "nonadecakis",
+        20 => "icosakis",
         _ => return Err(NamingError::GroupOccurrence(None, value)),
     };
     Ok(out)
@@ -246,7 +266,7 @@ pub fn branch_numeric(value: i32) -> Result<&'static str, NamingError> {
 ///
 /// ## Errors
 ///
-/// If `value` exceeds 32, a [`NamingError::CarbonCount`] is returned.
+/// If `value` exceeds 42, a [`NamingError::CarbonCount`] is returned.
 pub fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "meth",
@@ -280,7 +300,17 @@ pub fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
         29 => "nonacos",
         30 => "triacont",
         31 => "untriacont",
-        32 => "duotriacont",
+        32 => "dotriacont",
+        33 => "tritriacont",
+        34 => "tetratriacont",
+        35 => "pentatriacont",
+        36 => "hexatriacont",
+        37 => "heptatriacont",
+        38 => "octatriacont",
+        39 => "nonatriacont",
+        40 => "tetracont",
+        41 => "hentetracont",
+        42 => "dotetracont",
         _ => return Err(NamingError::CarbonCount(value)),
     };
     Ok(out)

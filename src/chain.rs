@@ -50,12 +50,15 @@ pub fn primary_chain(
         .iter()
         .flat_map(|it| it.groups.to_owned())
         .flatten()
-        .filter(|it| matches!(it, Substituent::Group(_)))
-        .map(|it| {
+        .filter_map(|it| {
             if let Substituent::Group(group) = it {
-                group
+                if group.seniority().is_some() {
+                    Some(group)
+                } else {
+                    None
+                }
             } else {
-                panic!("call to filter() failed")
+                None
             }
         })
         .max_by_key(|it| it.seniority());

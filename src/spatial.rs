@@ -10,7 +10,7 @@ use crate::pointer::Pointer;
 use ruscii::spatial::{Direction, Vec2};
 use std::cmp::Ordering;
 
-/// Represents the state of a grid, including all its [Cell]s and the position of the cursor.
+/// Represents the state of a grid, including all its [`Cell`]s and the position of the cursor.
 #[derive(Clone, Debug)]
 pub struct GridState {
     pub cells: Vec<Vec<Cell>>,

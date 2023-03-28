@@ -39,21 +39,11 @@ impl<'a> Pointer<'a> {
     /// Returns a [`Vec`] of references to the non-empty [`Cell`]s adjacent (or bonded if it is a
     /// bond) to the [`Cell`] currently pointed to.
     pub fn connected(&self) -> Vec<&Cell> {
-        let mut out = vec![];
-
-        for direction in Direction::all() {
-            if let Ok(result) = self.graph.get(self.pos + direction.to_vec2()) {
-                match result {
-                    Cell::Atom(_) => out.push(result),
-                    Cell::Bond(it) if it.orient == BondOrientation::from(direction) => {
-                        out.push(result)
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        out
+        self.connected_directions()
+            .into_iter()
+            .map(|direction| self.graph.get(self.pos + direction.to_vec2()))
+            .filter_map(|result| result.ok())
+            .collect()
     }
 
     /// Returns a [`Vec`] of [`Directions`] to the non-empty [`Cell`]s adjacent to the [`Cell`]
@@ -137,7 +127,7 @@ impl<'a> Pointer<'a> {
             .iter()
             .filter(|&atom| atom.element == C)
             .map(|it| it.to_owned())
-            .collect::<Vec<Atom>>())
+            .collect())
     }
 
     /// Returns the number of carbon atoms bonded to the current cell.

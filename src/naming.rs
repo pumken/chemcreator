@@ -7,7 +7,7 @@ use crate::chain::primary_chain;
 use crate::groups::Fallible;
 use crate::groups::InvalidGraphError::Other;
 use crate::molecule::Group::Alkane;
-use crate::molecule::{Branch, Cell, Group, Substituent};
+use crate::molecule::{Atom, Branch, Cell, Group, Substituent};
 use crate::spatial::GridState;
 use crate::{chain, groups, validation};
 use chain::get_all_chains;
@@ -28,12 +28,12 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
         .iter()
         .map(|&cell| {
             if let Cell::Atom(it) = cell {
-                it
+                it.to_owned()
             } else {
                 panic!("is_atom check failed in name_molecule")
             }
         })
-        .collect();
+        .collect::<Vec<Atom>>();
 
     // Initial checks
     if graph.is_empty() {
@@ -140,6 +140,7 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
     if let Substituent::Group(group) = fragment.subst {
         let locants =
             NamingError::add_substituent(locants(fragment.locants.clone()), &fragment.subst)?;
+
         let suffix = match group {
             Group::Carboxyl if fragment.locants.len() == 2 => return Ok("edioic acid".to_string()),
             Group::Carboxyl => return Ok("oic acid".to_string()),
@@ -173,22 +174,26 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
 /// [`NamingError::GroupOccurrence`] without a group is returned.
 pub fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
     locations.sort();
+
     let numbers = locations
         .iter()
         .map(|&it| (it + 1).to_string())
         .collect::<Vec<String>>()
         .join(",");
+
     let out = format!("{numbers}-{}", minor_numeric(locations.len() as i32)?,);
     Ok(out)
 }
 
 pub fn complex_branch_locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
     locations.sort();
+
     let numbers = locations
         .iter()
         .map(|&it| (it + 1).to_string())
         .collect::<Vec<String>>()
         .join(",");
+
     let out = format!("{numbers}-{}", branch_numeric(locations.len() as i32)?,);
     Ok(out)
 }
@@ -401,12 +406,12 @@ impl Display for SubFragment {
 pub enum NamingError {
     #[error("A branch was found with too many carbons ({}).", .0)]
     CarbonCount(i32),
-    #[error("Found too many occurrences of {} ({}).", NamingError::process(.0), .1)]
+    #[error("Found too many occurrences of {} ({}).", NamingError::format(.0), .1)]
     GroupOccurrence(Option<Substituent>, i32),
 }
 
 impl NamingError {
-    fn process(subst: &Option<Substituent>) -> String {
+    fn format(subst: &Option<Substituent>) -> String {
         let unwrapped = subst.as_ref().expect("substituent should be provided");
         match unwrapped {
             Substituent::Branch(it) => format!("the {} branch", it),
@@ -417,10 +422,10 @@ impl NamingError {
                 }
                 Group::Alkene => "double bonds",
                 Group::Alkyne => "triple bonds",
-                Group::Bromo => "bromide",
-                Group::Chloro => "chloride",
-                Group::Fluoro => "fluoride",
-                Group::Iodo => "iodide",
+                Group::Bromo => "bromine",
+                Group::Chloro => "chlorine",
+                Group::Fluoro => "fluorine",
+                Group::Iodo => "iodine",
                 Group::Hydroxyl => "hydroxyl",
                 Group::Carbonyl => "carbonyl",
                 Group::Ester => "ester",

@@ -53,7 +53,7 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
 ///
 /// Returns an [`InvalidGraphError::OverfilledValence`] or [`InvalidGraphError::UnfilledValence`]
 /// for the first cell for which its valence shell is not correctly filled.
-pub fn check_valence(atoms: Vec<&Atom>, graph: &GridState) -> Fallible<()> {
+pub fn check_valence(atoms: Vec<Atom>, graph: &GridState) -> Fallible<()> {
     for atom in atoms {
         // this function eventually could be removed and incorporated into bonded() ?
         let ptr = Pointer::new(graph, atom.pos);
@@ -221,9 +221,8 @@ mod tests {
         .iter()
         .map(|&cell| cell.unwrap_atom())
         .collect::<Vec<Atom>>();
-        let references = input_atoms.iter().collect::<Vec<&Atom>>();
 
-        assert!(matches!(check_valence(references, &graph), Ok(_)));
+        assert!(matches!(check_valence(input_atoms, &graph), Ok(_)));
     }
 
     #[test]
@@ -235,7 +234,7 @@ mod tests {
             [1, 2; B(Single)],
         );
         let input_atom = graph.get(Vec2::xy(1, 1)).unwrap().unwrap_atom();
-        let err = check_valence(vec![&input_atom], &graph);
+        let err = check_valence(vec![input_atom], &graph);
 
         assert_eq!(
             err,
@@ -252,7 +251,7 @@ mod tests {
             [1, 2; B(Triple)],
         );
         let input_atom = graph.get(Vec2::xy(1, 1)).unwrap().unwrap_atom();
-        let err = check_valence(vec![&input_atom], &graph);
+        let err = check_valence(vec![input_atom], &graph);
 
         assert_eq!(
             err,

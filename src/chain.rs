@@ -12,15 +12,15 @@ use crate::pointer::Pointer;
 use crate::spatial::GridState;
 use ruscii::spatial::Vec2;
 
-/// Gets the primary chain of the given [`Vec`] of chains according to
+/// Gets the parent chain of the given [`Vec`] of chains according to
 /// [IUPAC rules](https://en.wikipedia.org/wiki/IUPAC_nomenclature_of_organic_chemistry) on
-/// Wikipedia, accessed 26 Mar 2023. The primary chain is, in order of precedence, that which:
+/// Wikipedia, accessed 26 Mar 2023. The parent chain is, in order of precedence, that which:
 /// 1. has the greatest number of occurrences of the primary functional group.
 /// 2. has the greatest number of multiple bonds.
 /// 3. is the longest.
 /// 3. has the greatest number of occurrences of prefix substituents.
 /// 4. has the greatest number of single bonds.
-pub fn primary_chain(
+pub fn parent_chain(
     graph: &GridState,
     chains: Vec<Vec<Atom>>,
     parent: Option<Atom>,

@@ -3,7 +3,7 @@
 //! The `groups` module provides functionality for identifying functional groups on a branch.
 
 use crate::chain;
-use crate::chain::{endpoint_head_chains, primary_chain};
+use crate::chain::{endpoint_head_chains, parent_chain};
 use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::molecule::Group::{
@@ -75,7 +75,7 @@ pub(crate) fn link_groups(
 
 pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
     let all_chains = chain::get_all_chains(graph)?;
-    let chain = primary_chain(graph, all_chains, None)?;
+    let chain = parent_chain(graph, all_chains, None)?;
     link_groups(graph, chain, None)
 }
 
@@ -209,7 +209,7 @@ pub(crate) fn branch_node_tree(
 ) -> Fallible<Vec<Atom>> {
     let atom = Pointer::new(graph, pos).traverse_bond(direction)?;
     let chains = endpoint_head_chains(atom, graph, Some(pos))?;
-    primary_chain(
+    parent_chain(
         graph,
         chains,
         Some(

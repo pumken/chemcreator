@@ -3,7 +3,7 @@
 //! The `naming` module contains functions that makes final validations and finds the name of
 //! an organic molecule as a [`Branch`].
 
-use crate::chain::primary_chain;
+use crate::chain::parent_chain;
 use crate::groups::Fallible;
 use crate::groups::InvalidGraphError::Other;
 use crate::molecule::Group::Alkane;
@@ -44,7 +44,7 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
 
     // Preliminary chain
     let all_chains = get_all_chains(graph)?;
-    let chain = primary_chain(graph, all_chains, None)?;
+    let chain = parent_chain(graph, all_chains, None)?;
 
     // Group-linked branch
     let mut branch = link_groups(graph, chain, None)?;

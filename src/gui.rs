@@ -8,7 +8,9 @@ use crate::Mode;
 use crate::Mode::{Insert, Normal};
 use ruscii::drawing::{Pencil, RectCharset};
 use ruscii::spatial::Vec2;
+use ruscii::terminal::Color;
 use ruscii::terminal::Color::Cyan;
+use Color::Red;
 
 pub(crate) fn draw_grid_box(pencil: &mut Pencil, graph_size: Vec2, pos: Vec2) {
     pencil.draw_rect(
@@ -44,11 +46,29 @@ pub(crate) fn draw_logo(pencil: &mut Pencil, graph_size: Vec2, pos: Vec2) {
         .move_origin(-pos);
 }
 
-pub(crate) fn draw_grid(pencil: &mut Pencil, graph: &mut GridState, pos: Vec2, mode: Mode) {
+pub(crate) fn draw_grid(
+    pencil: &mut Pencil,
+    graph: &mut GridState,
+    chain_highlighting: &Option<Vec<Vec2>>,
+    pos: Vec2,
+    mode: Mode,
+) {
     pencil.move_origin(pos);
 
     for cell in graph.cells.iter().flatten() {
-        pencil.set_foreground(cell.color()).draw_text(
+        let color = if let Some(it) = chain_highlighting {
+            if cell.pos() == it[0] {
+                Cyan
+            } else if it.contains(&cell.pos()) {
+                Red
+            } else {
+                cell.color()
+            }
+        } else {
+            cell.color()
+        };
+
+        pencil.set_foreground(color).draw_text(
             match &cell {
                 Cell::Atom(it) => it.symbol(),
                 Cell::Bond(it) => it.symbol(),

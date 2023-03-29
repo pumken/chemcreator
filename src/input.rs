@@ -6,13 +6,14 @@ use crate::groups::debug_branches;
 use crate::macros::invoke_macro;
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::Element::{Cl, C, H, I, N, O};
-use crate::molecule::{ComponentType, Element};
+use crate::molecule::{Atom, ComponentType, Element};
 use crate::naming::name_molecule;
-use crate::spatial::GridState;
+use crate::pointer::Pointer;
+use crate::spatial::{FromVec2, GridState};
 use crate::{AppState, Mode};
 use ruscii::app::State;
 use ruscii::keyboard::{Key, KeyEvent};
-use ruscii::spatial::Direction;
+use ruscii::spatial::{Direction, Vec2};
 use Element::{Br, F};
 
 pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: &mut GridState) {
@@ -40,6 +41,9 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
             KeyEvent::Pressed(Key::Num1) => update(state, graph, ComponentType::Order(Single)),
             KeyEvent::Pressed(Key::Num2) => update(state, graph, ComponentType::Order(Double)),
             KeyEvent::Pressed(Key::Num3) => update(state, graph, ComponentType::Order(Triple)),
+            KeyEvent::Pressed(Key::Num0) => {
+                state.parent_chain_enabled = !state.parent_chain_enabled
+            }
             KeyEvent::Pressed(Key::Backspace) => update(state, graph, ComponentType::None),
             KeyEvent::Pressed(Key::Right) => graph.move_cursor(Direction::Right),
             KeyEvent::Pressed(Key::Left) => graph.move_cursor(Direction::Left),
@@ -56,6 +60,9 @@ pub(crate) fn input_view_mode(app_state: &State, state: &mut AppState) {
         match key_event {
             KeyEvent::Pressed(Key::Esc) => app_state.stop(),
             KeyEvent::Pressed(Key::F8) => state.mode = Mode::Insert,
+            KeyEvent::Pressed(Key::Num0) => {
+                state.parent_chain_enabled = !state.parent_chain_enabled
+            }
             _ => (),
         }
     }
@@ -86,8 +93,35 @@ pub(crate) fn update(state: &mut AppState, graph: &mut GridState, comp: Componen
         invoke_macro(graph, comp, previous);
     }
 
-    (state.name, state.err) = match name_molecule(graph) {
+    let mut chain = None;
+
+    (state.name, state.err) = match name_molecule(graph, &mut chain) {
         Ok(it) => (it, false),
         Err(it) => (it.to_string(), true),
     };
+
+    if let Some(it) = chain {
+        state.parent_chain = Some(get_chain_path(graph, it))
+    }
+}
+
+fn get_chain_path(graph: &GridState, chain: Vec<Atom>) -> Vec<Vec2> {
+    let mut out = vec![];
+
+    for atoms in chain.windows(2) {
+        let direction = Direction::from_points(atoms[0].pos, atoms[1].pos).unwrap();
+        let mut ptr = Pointer::new(graph, atoms[0].pos);
+
+        'inner: loop {
+            out.push(ptr.borrow().unwrap().pos());
+            ptr.move_ptr(direction);
+
+            if ptr.pos == atoms[1].pos {
+                break 'inner;
+            }
+        }
+    }
+
+    out.push(chain.last().unwrap().pos);
+    out
 }

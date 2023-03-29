@@ -8,14 +8,14 @@
 use crate::gui::draw_grid_box;
 use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::{Bond, BondOrientation, Cell, ComponentType, Element};
-use crate::spatial::{EnumAll, GridState};
+use crate::molecule::{Cell, ComponentType};
+use crate::spatial::GridState;
 use crate::Mode::Insert;
 use ruscii::app::{App, State};
 use ruscii::drawing::Pencil;
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color::{Red, White};
-use ruscii::terminal::{Color, Style, Window};
+use ruscii::terminal::{Color, Window};
 use Color::Yellow;
 use Mode::Normal;
 
@@ -162,100 +162,12 @@ fn main() {
             return;
         }
 
-        let wrap_length = window_size.x - 14 - graph.size.x * 3;
-        if state.name.len() > wrap_length as usize {
-            let first_line = &state.name[0..wrap_length as usize];
-            let second_line = &state.name[wrap_length as usize..];
-            pencil
-                .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
-                .set_style(Style::Bold)
-                .set_foreground(if state.err { Red } else { White })
-                .draw_text(first_line, Vec2::zero())
-                .move_origin(Vec2::y(1))
-                .draw_text(second_line, Vec2::zero())
-                .set_foreground(White)
-                .set_style(Style::Plain);
-        } else {
-            pencil
-                .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
-                .set_style(Style::Bold)
-                .set_foreground(if state.err { Red } else { White })
-                .draw_text(&state.name.to_string(), Vec2::zero())
-                .set_foreground(White)
-                .set_style(Style::Plain);
+        pencil.move_origin(Vec2::xy(graph.size.x * 3 + 5, 1));
+        gui::draw_wrapped_name(&mut graph, &mut state, window_size, &mut pencil);
+
+        if matches!(state.mode, Normal) {
+            gui::draw_statistics(&graph, &mut state, &mut pencil);
         }
-
-        if !matches!(state.mode, Normal) {
-            return;
-        }
-
-        let mut mass = 0.0;
-
-        let mut missed = 0;
-        let mut final_index = 0;
-        for (index, element) in Element::all().into_iter().enumerate() {
-            let count = graph.count(|it| it.is_atom() && it.unwrap_atom().element == element);
-
-            if count == 0 {
-                missed += 1;
-                continue;
-            }
-
-            mass += element.mass() * count as f32;
-
-            pencil
-                .set_foreground(element.color())
-                .draw_text(element.symbol(), Vec2::y(2 + index - missed))
-                .set_foreground(White)
-                .draw_text(&format!("| {}", count), Vec2::xy(6, 2 + index - missed));
-
-            final_index = 2 + index - missed;
-        }
-
-        let mut missed = 0;
-        for (index, order) in [Double, Triple].into_iter().enumerate() {
-            let count = graph.count(|it| it.is_bond() && it.unwrap_bond().order == order);
-
-            if count == 0 {
-                missed += 1;
-                continue;
-            }
-
-            pencil
-                .draw_text(
-                    Bond::new(Vec2::zero(), order, BondOrientation::Horiz).symbol(),
-                    Vec2::y(2 + final_index + index - missed),
-                )
-                .draw_text(
-                    &format!("| {}", count),
-                    Vec2::xy(6, 2 + final_index + index - missed),
-                );
-        }
-
-        if state.err {
-            return;
-        }
-
-        let carbon = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::C);
-        let nitrogen = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::N);
-        let hydrogen = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::H);
-        let halogens = graph.count(|it| {
-            it.is_atom()
-                && matches!(
-                    it.unwrap_atom().element,
-                    Element::Br | Element::Cl | Element::F | Element::I
-                )
-        });
-
-        let ihd = (2 * carbon + 2 + nitrogen - hydrogen - halogens) / 2;
-
-        pencil
-            .draw_text(&format!("atomic weight | {:.3} amu", mass), Vec2::xy(15, 2))
-            .draw_text(&format!("IHD           | {}", ihd), Vec2::xy(15, 3))
-            .draw_text(
-                &format!("name length   | {}", state.name.len()),
-                Vec2::xy(15, 5),
-            );
     });
 }
 

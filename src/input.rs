@@ -102,6 +102,8 @@ pub(crate) fn update(state: &mut AppState, graph: &mut GridState, comp: Componen
 
     if let Some(it) = chain {
         state.parent_chain = Some(get_chain_path(graph, it))
+    } else {
+        state.parent_chain = None
     }
 }
 

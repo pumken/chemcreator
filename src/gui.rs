@@ -2,16 +2,16 @@
 //!
 //! The `gui` module provides functions for drawing various UI elements.
 
+use crate::molecule::BondOrder::{Double, Triple};
 use crate::molecule::{Bond, BondOrientation, Cell, Element};
 use crate::spatial::{EnumAll, GridState, Invert};
-use crate::{AppState, Mode};
 use crate::Mode::{Insert, Normal};
+use crate::{AppState, Mode};
 use ruscii::drawing::{Pencil, RectCharset};
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::{Cyan, DarkGrey, White};
 use Color::Red;
-use crate::molecule::BondOrder::{Double, Triple};
 
 pub(crate) fn draw_grid_box(pencil: &mut Pencil, graph_size: Vec2, pos: Vec2) {
     pencil.draw_rect(
@@ -174,9 +174,9 @@ pub(crate) fn draw_statistics(graph: &GridState, state: &mut AppState, pencil: &
     let halogens = graph.count(|it| {
         it.is_atom()
             && matches!(
-                    it.unwrap_atom().element,
-                    Element::Br | Element::Cl | Element::F | Element::I
-                )
+                it.unwrap_atom().element,
+                Element::Br | Element::Cl | Element::F | Element::I
+            )
     });
 
     let ihd = (2 * carbon + 2 + nitrogen - hydrogen - halogens) / 2;
@@ -188,4 +188,28 @@ pub(crate) fn draw_statistics(graph: &GridState, state: &mut AppState, pencil: &
             &format!("name length   | {}", state.name.len()),
             Vec2::xy(15, 5),
         );
+}
+
+pub(crate) fn draw_wrapped_name(
+    graph: &mut GridState,
+    state: &mut AppState,
+    window_size: Vec2,
+    pencil: &mut Pencil,
+) {
+    let wrap_length = window_size.x - 14 - graph.size.x * 3;
+    let lines = state
+        .name
+        .chars()
+        .collect::<Vec<char>>()
+        .chunks(wrap_length as usize)
+        .map(|chunk| chunk.iter().collect())
+        .collect::<Vec<String>>();
+    pencil.set_foreground(if state.err { Red } else { White });
+
+    for line in lines {
+        pencil
+            .draw_text(&line, Vec2::zero())
+            .move_origin(Vec2::y(1));
+    }
+    pencil.move_origin(Vec2::y(-1)).set_foreground(White);
 }

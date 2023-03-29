@@ -8,14 +8,14 @@
 use crate::gui::draw_grid_box;
 use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::{Bond, BondOrientation, Cell, ComponentType, Element};
-use crate::spatial::{EnumAll, GridState};
+use crate::molecule::{Cell, ComponentType};
+use crate::spatial::GridState;
 use crate::Mode::Insert;
 use ruscii::app::{App, State};
 use ruscii::drawing::Pencil;
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color::{Red, White};
-use ruscii::terminal::{Color, Style, Window};
+use ruscii::terminal::{Color, Window};
 use Color::Yellow;
 use Mode::Normal;
 
@@ -163,22 +163,7 @@ fn main() {
         }
 
         pencil.move_origin(Vec2::xy(graph.size.x * 3 + 5, 1));
-
-        let wrap_length = window_size.x - 14 - graph.size.x * 3;
-        let lines = state.name.chars()
-            .collect::<Vec<char>>()
-            .chunks(wrap_length as usize)
-            .map(|chunk| chunk.iter().collect())
-            .collect::<Vec<String>>();
-        pencil.set_foreground(if state.err { Red } else { White });
-
-        for line in lines {
-            pencil.draw_text(&line, Vec2::zero())
-                .move_origin(Vec2::y(1));
-        }
-        pencil
-            .move_origin(Vec2::y(-1))
-            .set_foreground(White);
+        gui::draw_wrapped_name(&mut graph, &mut state, window_size, &mut pencil);
 
         if matches!(state.mode, Normal) {
             gui::draw_statistics(&graph, &mut state, &mut pencil);

@@ -8,7 +8,7 @@
 use crate::gui::draw_grid_box;
 use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::{Atom, Bond, BondOrientation, Cell, ComponentType, Element};
+use crate::molecule::{Bond, BondOrientation, Cell, ComponentType, Element};
 use crate::spatial::{EnumAll, GridState};
 use crate::Mode::Insert;
 use ruscii::app::{App, State};
@@ -72,9 +72,13 @@ fn main() {
             _ => gui::draw_grid(
                 &mut pencil,
                 &mut graph,
-                if state.parent_chain_enabled { &state.parent_chain } else { &None },
+                if state.parent_chain_enabled {
+                    &state.parent_chain
+                } else {
+                    &None
+                },
                 Vec2::y(2),
-                state.mode
+                state.mode,
             ),
         }
 

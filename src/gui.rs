@@ -2,7 +2,6 @@
 //!
 //! The `gui` module provides functions for drawing various UI elements.
 
-use Color::Red;
 use crate::molecule::Cell;
 use crate::spatial::{GridState, Invert};
 use crate::Mode;
@@ -11,6 +10,7 @@ use ruscii::drawing::{Pencil, RectCharset};
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color;
 use ruscii::terminal::Color::Cyan;
+use Color::Red;
 
 pub(crate) fn draw_grid_box(pencil: &mut Pencil, graph_size: Vec2, pos: Vec2) {
     pencil.draw_rect(
@@ -51,7 +51,7 @@ pub(crate) fn draw_grid(
     graph: &mut GridState,
     chain_highlighting: &Option<Vec<Vec2>>,
     pos: Vec2,
-    mode: Mode
+    mode: Mode,
 ) {
     pencil.move_origin(pos);
 

@@ -26,6 +26,7 @@ pub fn name_molecule(
     graph: &GridState,
     parent_chain_out: &mut Option<Vec<Atom>>,
 ) -> Fallible<String> {
+    *parent_chain_out = None;
     let cells = graph
         .find_all(|cell| cell.is_atom())
         .iter()

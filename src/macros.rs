@@ -62,7 +62,7 @@ macro_rules! block {
 pub fn invoke_macro(graph: &mut GridState, new: ComponentType, _previous: ComponentType) {
     match new {
         ComponentType::Element(C) => {
-            carbon_extension(graph);
+            let _ = carbon_extension(graph) || methane_creation(graph) || carbon_extension_alt(graph);
         }
         ComponentType::Element(O) => {
             let _ = carbonyl_extension(graph) || hydroxyl_extension(graph);
@@ -121,7 +121,47 @@ fn carbon_extension(graph: &mut GridState) -> bool {
         }
     }
 
-    hydrogen_correction(graph, graph.cursor);
+    false
+}
+
+fn carbon_extension_alt(graph: &mut GridState) -> bool {
+    let mut block = block!(graph, [(0, -1), (0, 1)],);
+
+    for direction in Direction::all() {
+        block.direction = direction;
+
+        let first = match block.borrow(0, 0) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let second = match block.borrow(0, 1) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let second_pos = second.pos();
+
+        let condition = first.is_atom() && first.unwrap_atom().element == C &&
+            (second.is_empty() || (second.is_atom() && second.unwrap_atom().element == C));
+
+        if condition {
+            graph.put(second_pos, ComponentType::Element(C));
+            graph.put(graph.cursor, ComponentType::Order(Single));
+            hydrogen_correction(graph, second_pos);
+            return true;
+        }
+    }
+
+    false
+}
+
+fn methane_creation(graph: &mut GridState) -> bool {
+    let ptr = Pointer::new(graph, graph.cursor);
+
+    if ptr.connected_directions().is_empty() {
+        hydrogen_correction(graph, graph.cursor);
+        return true;
+    }
+
     false
 }
 
@@ -185,7 +225,7 @@ fn carbonyl_extension(graph: &mut GridState) -> bool {
 
 fn hydrogen_fill(graph: &mut GridState, pos: Vec2) -> bool {
     let ptr = Pointer::new(graph, pos);
-    let first_neighbor = !match ptr.borrow() {
+    let first_neighbor = match ptr.borrow() {
         Ok(it) => it.is_empty(),
         Err(_) => return false,
     };

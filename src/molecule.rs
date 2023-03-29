@@ -241,7 +241,7 @@ impl Cell {
     }
 
     pub fn is_empty(&self) -> bool {
-        !matches!(self, Cell::None(_))
+        matches!(self, Cell::None(_))
     }
 
     pub fn unwrap_atom(&self) -> Atom {

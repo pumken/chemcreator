@@ -22,7 +22,7 @@ use validation::{check_structure, check_valence};
 ///
 /// If the molecule on the given `graph` is discontinuous, cyclic, or contains invalid bonding,
 /// an [`InvalidGraphError`] will be returned.
-pub fn name_molecule(graph: &GridState) -> Fallible<String> {
+pub fn name_molecule(graph: &GridState, parent_chain_out: &mut Option<Vec<Atom>>) -> Fallible<String> {
     let cells = graph
         .find_all(|cell| cell.is_atom())
         .iter()
@@ -39,11 +39,13 @@ pub fn name_molecule(graph: &GridState) -> Fallible<String> {
     // Preliminary chain
     let all_chains = get_all_chains(graph)?;
     let chain = parent_chain(graph, all_chains, None)?;
-
+    
     // Group-linked branch
     let mut branch = link_groups(graph, chain, None)?;
     branch = branch.index_corrected()?;
 
+    *parent_chain_out = Some(branch.chain.clone());
+    
     process_name(branch).map_err(|e| Other(e.to_string()))
 }
 

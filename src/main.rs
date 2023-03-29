@@ -162,100 +162,27 @@ fn main() {
             return;
         }
 
+        pencil.move_origin(Vec2::xy(graph.size.x * 3 + 5, 1));
+
         let wrap_length = window_size.x - 14 - graph.size.x * 3;
-        if state.name.len() > wrap_length as usize {
-            let first_line = &state.name[0..wrap_length as usize];
-            let second_line = &state.name[wrap_length as usize..];
-            pencil
-                .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
-                .set_style(Style::Bold)
-                .set_foreground(if state.err { Red } else { White })
-                .draw_text(first_line, Vec2::zero())
-                .move_origin(Vec2::y(1))
-                .draw_text(second_line, Vec2::zero())
-                .set_foreground(White)
-                .set_style(Style::Plain);
-        } else {
-            pencil
-                .move_origin(Vec2::xy(graph.size.x * 3 + 5, 1))
-                .set_style(Style::Bold)
-                .set_foreground(if state.err { Red } else { White })
-                .draw_text(&state.name.to_string(), Vec2::zero())
-                .set_foreground(White)
-                .set_style(Style::Plain);
+        let lines = state.name.chars()
+            .collect::<Vec<char>>()
+            .chunks(wrap_length as usize)
+            .map(|chunk| chunk.iter().collect())
+            .collect::<Vec<String>>();
+        pencil.set_foreground(if state.err { Red } else { White });
+
+        for line in lines {
+            pencil.draw_text(&line, Vec2::zero())
+                .move_origin(Vec2::y(1));
         }
-
-        if !matches!(state.mode, Normal) {
-            return;
-        }
-
-        let mut mass = 0.0;
-
-        let mut missed = 0;
-        let mut final_index = 0;
-        for (index, element) in Element::all().into_iter().enumerate() {
-            let count = graph.count(|it| it.is_atom() && it.unwrap_atom().element == element);
-
-            if count == 0 {
-                missed += 1;
-                continue;
-            }
-
-            mass += element.mass() * count as f32;
-
-            pencil
-                .set_foreground(element.color())
-                .draw_text(element.symbol(), Vec2::y(2 + index - missed))
-                .set_foreground(White)
-                .draw_text(&format!("| {}", count), Vec2::xy(6, 2 + index - missed));
-
-            final_index = 2 + index - missed;
-        }
-
-        let mut missed = 0;
-        for (index, order) in [Double, Triple].into_iter().enumerate() {
-            let count = graph.count(|it| it.is_bond() && it.unwrap_bond().order == order);
-
-            if count == 0 {
-                missed += 1;
-                continue;
-            }
-
-            pencil
-                .draw_text(
-                    Bond::new(Vec2::zero(), order, BondOrientation::Horiz).symbol(),
-                    Vec2::y(2 + final_index + index - missed),
-                )
-                .draw_text(
-                    &format!("| {}", count),
-                    Vec2::xy(6, 2 + final_index + index - missed),
-                );
-        }
-
-        if state.err {
-            return;
-        }
-
-        let carbon = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::C);
-        let nitrogen = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::N);
-        let hydrogen = graph.count(|it| it.is_atom() && it.unwrap_atom().element == Element::H);
-        let halogens = graph.count(|it| {
-            it.is_atom()
-                && matches!(
-                    it.unwrap_atom().element,
-                    Element::Br | Element::Cl | Element::F | Element::I
-                )
-        });
-
-        let ihd = (2 * carbon + 2 + nitrogen - hydrogen - halogens) / 2;
-
         pencil
-            .draw_text(&format!("atomic weight | {:.3} amu", mass), Vec2::xy(15, 2))
-            .draw_text(&format!("IHD           | {}", ihd), Vec2::xy(15, 3))
-            .draw_text(
-                &format!("name length   | {}", state.name.len()),
-                Vec2::xy(15, 5),
-            );
+            .move_origin(Vec2::y(-1))
+            .set_foreground(White);
+
+        if matches!(state.mode, Normal) {
+            gui::draw_statistics(&graph, &mut state, &mut pencil);
+        }
     });
 }
 

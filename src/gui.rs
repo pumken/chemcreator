@@ -9,7 +9,7 @@ use crate::Mode::{Insert, Normal};
 use ruscii::drawing::{Pencil, RectCharset};
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color;
-use ruscii::terminal::Color::Cyan;
+use ruscii::terminal::Color::{Cyan, DarkGrey};
 use Color::Red;
 
 pub(crate) fn draw_grid_box(pencil: &mut Pencil, graph_size: Vec2, pos: Vec2) {
@@ -54,6 +54,7 @@ pub(crate) fn draw_grid(
     mode: Mode,
 ) {
     pencil.move_origin(pos);
+    let previous_color = pencil.foreground().to_owned();
 
     for cell in graph.cells.iter().flatten() {
         let color = if let Some(it) = chain_highlighting {
@@ -62,7 +63,7 @@ pub(crate) fn draw_grid(
             } else if it.contains(&cell.pos()) {
                 Red
             } else {
-                cell.color()
+                DarkGrey
             }
         } else {
             cell.color()
@@ -82,6 +83,7 @@ pub(crate) fn draw_grid(
         );
     }
 
+    pencil.set_foreground(previous_color);
     pencil.move_origin(-pos);
 }
 

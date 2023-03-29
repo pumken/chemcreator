@@ -116,7 +116,7 @@ fn carbon_extension(graph: &mut GridState) -> bool {
 
         if condition {
             graph.put(first_pos, ComponentType::Order(Single));
-            hydrogen_extension(graph);
+            hydrogen_correction(graph, graph.cursor);
             return true;
         }
     }
@@ -181,26 +181,6 @@ fn carbonyl_extension(graph: &mut GridState) -> bool {
     }
 
     false
-}
-
-pub fn hydrogen_extension(graph: &mut GridState) {
-    let bond_count = Pointer::new(graph, graph.cursor).bond_count().unwrap();
-    let mut bonds_needed = graph
-        .current_cell()
-        .unwrap()
-        .unwrap_atom()
-        .element
-        .bond_number()
-        - bond_count;
-
-    for direction in Direction::all() {
-        if bonds_needed <= 0 {
-            return;
-        }
-        if hydrogen_fill(graph, graph.cursor + direction.to_vec2()) {
-            bonds_needed -= 1;
-        }
-    }
 }
 
 fn hydrogen_fill(graph: &mut GridState, pos: Vec2) -> bool {

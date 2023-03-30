@@ -29,6 +29,7 @@ mod naming;
 mod pointer;
 mod spatial;
 mod validation;
+mod numerics;
 
 fn main() {
     let mut app = App::new();

@@ -5,7 +5,7 @@
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::Element::{C, H, N, O};
-use crate::naming::{major_numeric, process_name};
+use crate::naming::process_name;
 use crate::spatial::EnumAll;
 use ruscii::spatial::{Direction, Vec2};
 use ruscii::terminal::Color;
@@ -15,6 +15,7 @@ use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use Element::{Br, Cl, F, I};
+use crate::numerics::major_numeric;
 
 /// Represents a type of functional group on a molecule.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

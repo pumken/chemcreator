@@ -9,7 +9,7 @@ use crate::groups::InvalidGraphError::Other;
 use crate::molecule::Group::Alkane;
 use crate::molecule::{Atom, Branch, Group, Substituent};
 use crate::spatial::GridState;
-use crate::{chain, groups, validation};
+use crate::{chain, groups, numerics, validation};
 use chain::get_all_chains;
 use groups::link_groups;
 use std::fmt::{Display, Formatter};
@@ -61,7 +61,7 @@ pub(crate) fn process_name(branch: Branch) -> Result<String, NamingError> {
     let name = format!(
         "{}{}{}{}",
         prefix(collection.secondary_group_fragments())?,
-        major_numeric(len)?,
+        numerics::major_numeric(len)?,
         bonding(collection.unsaturated_group_fragments())?,
         suffix(collection.primary_group_fragment())?,
     );
@@ -89,7 +89,7 @@ pub(crate) fn substitute_names(name: &str) -> Option<&str> {
 ///
 /// ## Errors
 ///
-/// If the occurrences of one of the `fragments` exceeds the limit of [`minor_numeric`], a
+/// If the occurrences of one of the `fragments` exceeds the limit of [`numerics::minor_numeric`], a
 /// [`NamingError::GroupOccurrence`] is returned.
 pub(crate) fn prefix(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
     fragments.sort_by_key(|fragment| fragment.subst.to_string());
@@ -170,7 +170,7 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
 ///
 /// ## Errors
 ///
-/// If the number of `locations` given exceeds the limit of [`minor_numeric`], a
+/// If the number of `locations` given exceeds the limit of [`numerics::minor_numeric`], a
 /// [`NamingError::GroupOccurrence`] without a group is returned.
 pub fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
     locations.sort();
@@ -181,7 +181,7 @@ pub fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
         .collect::<Vec<String>>()
         .join(",");
 
-    let out = format!("{numbers}-{}", minor_numeric(locations.len() as i32)?,);
+    let out = format!("{numbers}-{}", numerics::minor_numeric(locations.len() as i32)?,);
     Ok(out)
 }
 
@@ -194,125 +194,7 @@ pub fn complex_branch_locants(mut locations: Vec<i32>) -> Result<String, NamingE
         .collect::<Vec<String>>()
         .join(",");
 
-    let out = format!("{numbers}-{}", branch_numeric(locations.len() as i32)?,);
-    Ok(out)
-}
-
-/// Returns the numeric prefix for group prefixes for the given `value`.
-///
-/// ## Errors
-///
-/// If `value` exceeds 20, a [`NamingError::GroupOccurrence`] without a group is returned.
-pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
-    let out = match value {
-        1 => "",
-        2 => "di",
-        3 => "tri",
-        4 => "tetra",
-        5 => "penta",
-        6 => "hexa",
-        7 => "hepta",
-        8 => "octa",
-        9 => "nona",
-        10 => "deca",
-        11 => "undeca",
-        12 => "dodeca",
-        13 => "trideca",
-        14 => "tetradeca",
-        15 => "pentadeca",
-        16 => "hexadeca",
-        17 => "heptadeca",
-        18 => "octadeca",
-        19 => "nonadeca",
-        20 => "icosa",
-        _ => return Err(NamingError::GroupOccurrence(None, value)),
-    };
-    Ok(out)
-}
-
-/// Returns the numeric prefix for branch prefixes for the given `value`.
-///
-/// ## Errors
-///
-/// If `value` exceeds 20, a [`NamingError::GroupOccurrence`] without a group is returned.
-pub fn branch_numeric(value: i32) -> Result<&'static str, NamingError> {
-    let out = match value {
-        1 => "",
-        2 => "bis",
-        3 => "tris",
-        4 => "tetrakis",
-        5 => "pentakis",
-        6 => "hexakis",
-        7 => "heptakis",
-        8 => "octakis",
-        9 => "nonakis",
-        10 => "decakis",
-        11 => "undecakis",
-        12 => "dodecakis",
-        13 => "tridecakis",
-        14 => "tetradecakis",
-        15 => "pentadecakis",
-        16 => "hexadecakis",
-        17 => "heptadecakis",
-        18 => "octadecakis",
-        19 => "nonadecakis",
-        20 => "icosakis",
-        _ => return Err(NamingError::GroupOccurrence(None, value)),
-    };
-    Ok(out)
-}
-
-/// Returns the numeric prefix for suffixes for the given `value`.
-///
-/// ## Errors
-///
-/// If `value` exceeds 42, a [`NamingError::CarbonCount`] is returned.
-pub fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
-    let out = match value {
-        1 => "meth",
-        2 => "eth",
-        3 => "prop",
-        4 => "but",
-        5 => "pent",
-        6 => "hex",
-        7 => "hept",
-        8 => "oct",
-        9 => "non",
-        10 => "dec",
-        11 => "undec",
-        12 => "dodec",
-        13 => "tridec",
-        14 => "tetradec",
-        15 => "pentadec",
-        16 => "hexadec",
-        17 => "heptadec",
-        18 => "octadec",
-        19 => "nonadec",
-        20 => "icos",
-        21 => "henicos",
-        22 => "docos",
-        23 => "tricos",
-        24 => "tetracos",
-        25 => "pentacos",
-        26 => "hexacos",
-        27 => "heptacos",
-        28 => "octacos",
-        29 => "nonacos",
-        30 => "triacont",
-        31 => "untriacont",
-        32 => "dotriacont",
-        33 => "tritriacont",
-        34 => "tetratriacont",
-        35 => "pentatriacont",
-        36 => "hexatriacont",
-        37 => "heptatriacont",
-        38 => "octatriacont",
-        39 => "nonatriacont",
-        40 => "tetracont",
-        41 => "hentetracont",
-        42 => "dotetracont",
-        _ => return Err(NamingError::CarbonCount(value)),
-    };
+    let out = format!("{numbers}-{}", numerics::branch_numeric(locations.len() as i32)?,);
     Ok(out)
 }
 

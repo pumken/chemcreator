@@ -3,8 +3,8 @@
 //! Not to be confused with Rust's `macro_rules!` declarations, the `macros` module contains
 //! common actions that should be automatically performed for the user when they make an input.
 
-use crate::molecule::BondOrder::{Double, Single};
-use crate::molecule::Element::{C, H, O};
+use crate::molecule::BondOrder::{Double, Single, Triple};
+use crate::molecule::Element::{C, H, N, O};
 use crate::molecule::{BondOrder, BondOrientation, Cell, ComponentType};
 use crate::pointer::Pointer;
 use crate::spatial::{EnumAll, GridState, ToVec2};
@@ -62,112 +62,261 @@ macro_rules! block {
 pub fn invoke_macro(graph: &mut GridState, new: ComponentType, _previous: ComponentType) {
     match new {
         ComponentType::Element(C) => {
-            for direction in Direction::all() {
-                let mut block = block!(graph, [(0, 1), (0, 2)],);
-                block.direction = direction;
-
-                let first = match block.borrow(0, 0) {
-                    Ok(it) => it,
-                    Err(_) => continue,
-                };
-                let first_pos = first.pos();
-                let second = match block.borrow(0, 1) {
-                    Ok(it) => it,
-                    Err(_) => continue,
-                };
-
-                let carbon_ext = second.is_atom() && second.unwrap_atom().element == C;
-
-                if carbon_ext {
-                    graph.put(first_pos, ComponentType::Order(Single));
-                }
+            let x =
+                carbon_extension(graph) || methane_creation(graph) || carbon_extension_alt(graph);
+            if !x {
+                hydrogen_correction(graph, graph.cursor);
             }
-            hydrogen_extension(graph)
         }
         ComponentType::Element(O) => {
-            for direction in Direction::all() {
-                let mut block = block!(graph, [(0, 1), (0, 2), (0, -1)],);
-                block.direction = direction;
-
-                let first = match block.borrow(0, 0) {
-                    Ok(it) => it,
-                    Err(_) => continue,
-                };
-                let first_pos = first.pos();
-                let second = match block.borrow(0, 1) {
-                    Ok(it) => it,
-                    Err(_) => continue,
-                };
-                let second_pos = second.pos();
-                let third = match block.borrow(0, 2) {
-                    Ok(it) => it,
-                    Err(_) => continue,
-                };
-                let third_pos = third.pos();
-
-                let carbonyl_ext = second.is_atom() && second.unwrap_atom().element == C;
-                let hydroxyl_ext = first.is_atom() && first.unwrap_atom().element == C;
-
-                if carbonyl_ext {
-                    graph.put(first_pos, ComponentType::Order(Double));
-                    hydrogen_correction(graph, second_pos);
-                }
-
-                if hydroxyl_ext {
-                    graph.put(third_pos, ComponentType::Element(H));
-                    hydrogen_correction(graph, first_pos);
-                }
-            }
+            let _ = carbonyl_extension(graph) || hydroxyl_extension(graph);
         }
-        ComponentType::Order(_) => {
-            let dirs = if graph.current_cell().unwrap().unwrap_bond().orient == Horiz {
-                [Direction::Left, Direction::Right]
-            } else {
-                [Direction::Up, Direction::Down]
-            };
-            let ptr = Pointer::new(graph, graph.cursor);
-            let first = match ptr.traverse_bond(dirs[0]) {
-                Ok(it) => it,
-                Err(_) => return,
-            };
-            let second = match ptr.traverse_bond(dirs[1]) {
-                Ok(it) => it,
-                Err(_) => return,
-            };
-
-            if first.element == C && second.element == C {
-                hydrogen_correction(graph, first.pos);
-                hydrogen_correction(graph, second.pos)
-            }
+        ComponentType::Element(N) => {
+            let _ = nitrile_extension(graph) || amine_extension(graph);
         }
-        ComponentType::None => {} // just to appease Clippy
+        ComponentType::Order(_) => cxc_bond_correction(graph),
         _ => {}
     }
 }
 
-pub fn hydrogen_extension(graph: &mut GridState) {
-    let bond_count = Pointer::new(graph, graph.cursor).bond_count().unwrap();
-    let mut bonds_needed = graph
-        .current_cell()
-        .unwrap()
-        .unwrap_atom()
-        .element
-        .bond_number()
-        - bond_count;
+fn cxc_bond_correction(graph: &mut GridState) {
+    let dirs = if graph.current_cell().unwrap().unwrap_bond().orient == Horiz {
+        [Direction::Left, Direction::Right]
+    } else {
+        [Direction::Up, Direction::Down]
+    };
+    let ptr = Pointer::new(graph, graph.cursor);
+    let first = match ptr.traverse_bond(dirs[0]) {
+        Ok(it) => it,
+        Err(_) => return,
+    };
+    let second = match ptr.traverse_bond(dirs[1]) {
+        Ok(it) => it,
+        Err(_) => return,
+    };
+
+    if first.element == C && second.element == C {
+        hydrogen_correction(graph, first.pos);
+        hydrogen_correction(graph, second.pos)
+    }
+}
+
+fn amine_extension(graph: &mut GridState) -> bool {
+    let mut block = block!(graph, [(0, -1), (0, 1), (-1, 1), (1, 1)],);
 
     for direction in Direction::all() {
-        if bonds_needed <= 0 {
-            return;
+        block.direction = direction;
+
+        let first = match block.borrow(0, 0) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let first_pos = first.pos();
+        let second = match block.borrow(0, 1) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let second_pos = second.pos();
+        let third_pos = match block.borrow(0, 2) {
+            Ok(it) => it,
+            Err(_) => continue,
         }
-        if hydrogen_fill(graph, graph.cursor + direction.to_vec2()) {
-            bonds_needed -= 1;
+        .pos();
+        let fourth_pos = match block.borrow(0, 3) {
+            Ok(it) => it,
+            Err(_) => continue,
+        }
+        .pos();
+
+        let condition = first.is_atom()
+            && first.unwrap_atom().element == C
+            && (second.is_empty() || (second.is_atom() && second.unwrap_atom().element == N));
+
+        if condition {
+            graph.put(second_pos, ComponentType::Element(N));
+            graph.put(graph.cursor, ComponentType::Order(Single));
+            graph.put(third_pos, ComponentType::Element(H));
+            graph.put(fourth_pos, ComponentType::Element(H));
+            hydrogen_correction(graph, first_pos);
+            return true;
         }
     }
+
+    false
+}
+
+fn nitrile_extension(graph: &mut GridState) -> bool {
+    let mut block = block!(graph, [(0, 1), (0, 2)],);
+
+    for direction in Direction::all() {
+        block.direction = direction;
+
+        let first = match block.borrow(0, 0) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let first_pos = first.pos();
+        let second = match block.borrow(0, 1) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let second_pos = second.pos();
+
+        let condition = second.is_atom() && second.unwrap_atom().element == C;
+
+        if condition {
+            graph.put(first_pos, ComponentType::Order(Triple));
+            hydrogen_correction(graph, second_pos);
+            hydrogen_correction(graph, graph.cursor);
+            return true;
+        }
+    }
+
+    false
+}
+
+fn carbon_extension(graph: &mut GridState) -> bool {
+    let mut block = block!(graph, [(0, 1), (0, 2)],);
+
+    for direction in Direction::all() {
+        block.direction = direction;
+
+        let first = match block.borrow(0, 0) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let first_pos = first.pos();
+        let second = match block.borrow(0, 1) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+
+        let atom_condition = second.is_atom() && second.unwrap_atom().element == C;
+        let bond_condition = second.is_bond()
+            && BondOrientation::from(direction) == second.unwrap_bond().orient
+            && !first.is_atom();
+
+        if atom_condition || bond_condition {
+            graph.put(first_pos, ComponentType::Order(Single));
+            hydrogen_correction(graph, graph.cursor);
+
+            let ptr = Pointer::new(graph, graph.cursor);
+            let connected_atom_pos = ptr.traverse_bond(direction);
+            if let Ok(it) = connected_atom_pos {
+                hydrogen_correction(graph, it.pos);
+            }
+            return true;
+        }
+    }
+
+    false
+}
+
+fn carbon_extension_alt(graph: &mut GridState) -> bool {
+    let mut block = block!(graph, [(0, -1), (0, 1)],);
+
+    for direction in Direction::all() {
+        block.direction = direction;
+
+        let first = match block.borrow(0, 0) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let first_pos = first.pos();
+        let second = match block.borrow(0, 1) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let second_pos = second.pos();
+
+        let condition = first.is_atom()
+            && first.unwrap_atom().element == C
+            && (second.is_empty() || (second.is_atom() && second.unwrap_atom().element == C));
+
+        if condition {
+            graph.put(second_pos, ComponentType::Element(C));
+            graph.put(graph.cursor, ComponentType::Order(Single));
+            hydrogen_correction(graph, second_pos);
+            hydrogen_correction(graph, first_pos);
+            return true;
+        }
+    }
+
+    false
+}
+
+fn methane_creation(graph: &mut GridState) -> bool {
+    let ptr = Pointer::new(graph, graph.cursor);
+
+    if ptr.connected_directions().is_empty() {
+        hydrogen_correction(graph, graph.cursor);
+        return true;
+    }
+
+    false
+}
+
+fn hydroxyl_extension(graph: &mut GridState) -> bool {
+    let mut block = block!(graph, [(0, 1), (0, -1)],);
+
+    for direction in Direction::all() {
+        block.direction = direction;
+
+        let first = match block.borrow(0, 0) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let first_pos = first.pos();
+        let second = match block.borrow(0, 1) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let second_pos = second.pos();
+
+        let condition = first.is_atom() && first.unwrap_atom().element == C;
+
+        if condition {
+            graph.put(second_pos, ComponentType::Element(H));
+            hydrogen_correction(graph, first_pos);
+            return true;
+        }
+    }
+
+    false
+}
+
+fn carbonyl_extension(graph: &mut GridState) -> bool {
+    let mut block = block!(graph, [(0, 1), (0, 2)],);
+
+    for direction in Direction::all() {
+        block.direction = direction;
+
+        let first = match block.borrow(0, 0) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let first_pos = first.pos();
+        let second = match block.borrow(0, 1) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let second_pos = second.pos();
+
+        let condition = second.is_atom() && second.unwrap_atom().element == C;
+
+        if condition {
+            graph.put(first_pos, ComponentType::Order(Double));
+            hydrogen_correction(graph, second_pos);
+            return true;
+        }
+    }
+
+    false
 }
 
 fn hydrogen_fill(graph: &mut GridState, pos: Vec2) -> bool {
     let ptr = Pointer::new(graph, pos);
-    let first_neighbor = !match ptr.borrow() {
+    let first_neighbor = match ptr.borrow() {
         Ok(it) => it.is_empty(),
         Err(_) => return false,
     };

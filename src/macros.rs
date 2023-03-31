@@ -112,9 +112,12 @@ fn carbon_extension(graph: &mut GridState) -> bool {
             Err(_) => continue,
         };
 
-        let condition = second.is_atom() && second.unwrap_atom().element == C;
+        let atom_condition = second.is_atom() && second.unwrap_atom().element == C;
+        let bond_condition = second.is_bond()
+            && BondOrientation::from(direction) == second.unwrap_bond().orient
+            && !first.is_atom();
 
-        if condition {
+        if atom_condition || bond_condition {
             graph.put(first_pos, ComponentType::Order(Single));
             hydrogen_correction(graph, graph.cursor);
             return true;

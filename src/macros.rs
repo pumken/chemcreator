@@ -120,6 +120,12 @@ fn carbon_extension(graph: &mut GridState) -> bool {
         if atom_condition || bond_condition {
             graph.put(first_pos, ComponentType::Order(Single));
             hydrogen_correction(graph, graph.cursor);
+
+            let ptr = Pointer::new(graph, graph.cursor);
+            let connected_atom_pos = ptr.traverse_bond(direction);
+            if let Ok(it) = connected_atom_pos {
+                hydrogen_correction(graph, it.pos);
+            }
             return true;
         }
     }
@@ -137,6 +143,7 @@ fn carbon_extension_alt(graph: &mut GridState) -> bool {
             Ok(it) => it,
             Err(_) => continue,
         };
+        let first_pos = first.pos();
         let second = match block.borrow(0, 1) {
             Ok(it) => it,
             Err(_) => continue,
@@ -150,6 +157,7 @@ fn carbon_extension_alt(graph: &mut GridState) -> bool {
             graph.put(second_pos, ComponentType::Element(C));
             graph.put(graph.cursor, ComponentType::Order(Single));
             hydrogen_correction(graph, second_pos);
+            hydrogen_correction(graph, first_pos);
             return true;
         }
     }

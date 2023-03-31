@@ -181,7 +181,10 @@ pub fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
         .collect::<Vec<String>>()
         .join(",");
 
-    let out = format!("{numbers}-{}", numerics::minor_numeric(locations.len() as i32)?,);
+    let out = format!(
+        "{numbers}-{}",
+        numerics::minor_numeric(locations.len() as i32)?,
+    );
     Ok(out)
 }
 
@@ -194,7 +197,10 @@ pub fn complex_branch_locants(mut locations: Vec<i32>) -> Result<String, NamingE
         .collect::<Vec<String>>()
         .join(",");
 
-    let out = format!("{numbers}-{}", numerics::branch_numeric(locations.len() as i32)?,);
+    let out = format!(
+        "{numbers}-{}",
+        numerics::branch_numeric(locations.len() as i32)?,
+    );
     Ok(out)
 }
 

@@ -26,10 +26,10 @@ mod input;
 mod macros;
 mod molecule;
 mod naming;
+mod numerics;
 mod pointer;
 mod spatial;
 mod validation;
-mod numerics;
 
 fn main() {
     let mut app = App::new();

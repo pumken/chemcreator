@@ -62,7 +62,10 @@ macro_rules! block {
 pub fn invoke_macro(graph: &mut GridState, new: ComponentType, _previous: ComponentType) {
     match new {
         ComponentType::Element(C) => {
-            let _ = carbon_extension(graph) || methane_creation(graph) || carbon_extension_alt(graph);
+            let x = carbon_extension(graph) || methane_creation(graph) || carbon_extension_alt(graph);
+            if !x {
+                hydrogen_correction(graph, graph.cursor);
+            }
         }
         ComponentType::Element(O) => {
             let _ = carbonyl_extension(graph) || hydroxyl_extension(graph);

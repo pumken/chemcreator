@@ -3,8 +3,8 @@
 //! Not to be confused with Rust's `macro_rules!` declarations, the `macros` module contains
 //! common actions that should be automatically performed for the user when they make an input.
 
-use crate::molecule::BondOrder::{Double, Single};
-use crate::molecule::Element::{C, H, O};
+use crate::molecule::BondOrder::{Double, Single, Triple};
+use crate::molecule::Element::{C, H, N, O};
 use crate::molecule::{BondOrder, BondOrientation, Cell, ComponentType};
 use crate::pointer::Pointer;
 use crate::spatial::{EnumAll, GridState, ToVec2};
@@ -67,6 +67,9 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, _previous: Compon
         ComponentType::Element(O) => {
             let _ = carbonyl_extension(graph) || hydroxyl_extension(graph);
         }
+        ComponentType::Element(N) => {
+            nitrile_extension(graph);
+        }
         ComponentType::Order(_) => {
             cxc_bond_correction(graph)
         }
@@ -94,6 +97,35 @@ fn cxc_bond_correction(graph: &mut GridState) {
         hydrogen_correction(graph, first.pos);
         hydrogen_correction(graph, second.pos)
     }
+}
+
+fn nitrile_extension(graph: &mut GridState) -> bool {
+    let mut block = block!(graph, [(0, 1), (0, 2)],);
+
+    for direction in Direction::all() {
+        block.direction = direction;
+
+        let first = match block.borrow(0, 0) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let first_pos = first.pos();
+        let second = match block.borrow(0, 1) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let second_pos = second.pos();
+
+        let condition = second.is_atom() && second.unwrap_atom().element == C;
+
+        if condition {
+            graph.put(first_pos, ComponentType::Order(Triple));
+            hydrogen_correction(graph, second_pos);
+            return true;
+        }
+    }
+
+    false
 }
 
 fn carbon_extension(graph: &mut GridState) -> bool {

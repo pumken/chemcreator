@@ -68,7 +68,7 @@ pub fn invoke_macro(graph: &mut GridState, new: ComponentType, _previous: Compon
             let _ = carbonyl_extension(graph) || hydroxyl_extension(graph);
         }
         ComponentType::Element(N) => {
-            nitrile_extension(graph);
+            let _ = nitrile_extension(graph) || amine_extension(graph);
         }
         ComponentType::Order(_) => {
             cxc_bond_correction(graph)
@@ -99,6 +99,47 @@ fn cxc_bond_correction(graph: &mut GridState) {
     }
 }
 
+fn amine_extension(graph: &mut GridState) -> bool {
+    let mut block = block!(graph, [(0, -1), (0, 1), (-1, 1), (1, 1)],);
+
+    for direction in Direction::all() {
+        block.direction = direction;
+
+        let first = match block.borrow(0, 0) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let first_pos = first.pos();
+        let second = match block.borrow(0, 1) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        let second_pos = second.pos();
+        let third_pos = match block.borrow(0, 2) {
+            Ok(it) => it,
+            Err(_) => continue,
+        }.pos();
+        let fourth_pos = match block.borrow(0, 3) {
+            Ok(it) => it,
+            Err(_) => continue,
+        }.pos();
+
+        let condition = first.is_atom() && first.unwrap_atom().element == C &&
+            (second.is_empty() || (second.is_atom() && second.unwrap_atom().element == N));
+
+        if condition {
+            graph.put(second_pos, ComponentType::Element(N));
+            graph.put(graph.cursor, ComponentType::Order(Single));
+            graph.put(third_pos, ComponentType::Element(H));
+            graph.put(fourth_pos, ComponentType::Element(H));
+            hydrogen_correction(graph, first_pos);
+            return true;
+        }
+    }
+
+    false
+}
+
 fn nitrile_extension(graph: &mut GridState) -> bool {
     let mut block = block!(graph, [(0, 1), (0, 2)],);
 
@@ -121,6 +162,7 @@ fn nitrile_extension(graph: &mut GridState) -> bool {
         if condition {
             graph.put(first_pos, ComponentType::Order(Triple));
             hydrogen_correction(graph, second_pos);
+            hydrogen_correction(graph, graph.cursor);
             return true;
         }
     }

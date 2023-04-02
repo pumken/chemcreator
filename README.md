@@ -40,7 +40,27 @@ you try it out and find something named incorrectly, please open an issue!
 - [x] Amides
 - [x] Amines
 - [x] Carboxylic acids
-- [ ] Ethers
-- [x] Ketones
-- [x] Halogenoalkanes
 - [ ] Esters
+- [ ] Ethers
+- [x] Halogenoalkanes
+- [x] Ketones
+- [x] Nitriles
+
+## Usage
+
+### Insert Mode
+
+In insert mode, you can edit the grid to create a molecule. If the structure is valid and ChemCreator recognizes it,
+it'll give you a name for it.
+
+![](res/screenshot-insert.png)
+
+## Display Mode
+
+In display mode, a clean picture is shown of your molecule as well as some basic statistics including atom count, atomic
+weight, index of hydrogen deficiency (IHD), and the length of the name in characters.
+
+![](res/screenshot-normal.png)
+
+> ⓘ  These screenshots were taken from CLion's inbuilt terminal, but you could just as easily use a terminal of your 
+> choice.

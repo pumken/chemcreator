@@ -3,9 +3,9 @@
 //! The `validation` module provides two functions that checks the [`GridState`] for three invalid
 //! structures: discontinuities, cycles, and atoms with unfilled or overfilled valence shells.
 
-use crate::chain;
-use crate::groups::InvalidGraphError::{Discontinuity, Other};
-use crate::groups::{Fallible, InvalidGraphError};
+use crate::chain::get_connected_cells;
+use crate::groups::Fallible;
+use crate::groups::InvalidGraphError::{self, Discontinuity, Other};
 use crate::molecule::Group::{Alkene, Alkyne};
 use crate::molecule::{Atom, Branch, Cell, Substituent};
 use crate::naming::{prefix, SubFragment, SubFragmentCollection};
@@ -30,7 +30,7 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
         .iter()
         .map(|&cell| cell.pos())
         .collect::<Vec<Vec2>>();
-    let connectivity = chain::get_connected_cells(starting_cell.pos(), graph)?;
+    let connectivity = get_connected_cells(starting_cell.pos(), graph)?;
 
     for pos in filled_pos_directions {
         if match graph.get(pos).unwrap() {

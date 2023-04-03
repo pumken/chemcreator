@@ -5,8 +5,8 @@
 use crate::groups::debug_branches;
 use crate::macros::invoke_macro;
 use crate::molecule::BondOrder::{Double, Single, Triple};
-use crate::molecule::Element::{Cl, C, H, I, N, O};
-use crate::molecule::{Atom, ComponentType, Element};
+use crate::molecule::Element::{Br, Cl, C, F, H, I, N, O};
+use crate::molecule::{Atom, ComponentType};
 use crate::naming::name_molecule;
 use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};
@@ -14,7 +14,6 @@ use crate::{AppState, Mode};
 use ruscii::app::State;
 use ruscii::keyboard::{Key, KeyEvent};
 use ruscii::spatial::{Direction, Vec2};
-use Element::{Br, F};
 
 pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: &mut GridState) {
     for key_event in app_state.keyboard().last_key_events() {
@@ -49,7 +48,7 @@ pub(crate) fn input_insert_mode(app_state: &State, state: &mut AppState, graph: 
             KeyEvent::Pressed(Key::Left) => graph.move_cursor(Direction::Left),
             KeyEvent::Pressed(Key::Up) => graph.move_cursor(Direction::Up),
             KeyEvent::Pressed(Key::Down) => graph.move_cursor(Direction::Down),
-            KeyEvent::Pressed(Key::Esc) => state.mode = Mode::Normal,
+            KeyEvent::Pressed(Key::Esc) => state.mode = Mode::Display,
             _ => {}
         }
     }

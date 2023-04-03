@@ -3,8 +3,7 @@
 //! The `pointer` module contains the [`Pointer`] struct that allows for traversal over a
 //! [`GridState`] and molecular structures on it.
 
-use crate::groups::InvalidGraphError;
-use crate::groups::InvalidGraphError::{IncompleteBond, InconsistentBond};
+use crate::groups::InvalidGraphError::{self, IncompleteBond, InconsistentBond};
 use crate::molecule::Element::C;
 use crate::molecule::{Atom, BondOrder, BondOrientation, Cell};
 use crate::spatial::{EnumAll, GridState, ToVec2};

@@ -3,18 +3,17 @@
 //! The `naming` module contains functions that makes final validations and finds the name of
 //! an organic molecule as a [`Branch`].
 
-use crate::chain::parent_chain;
+use crate::chain::{get_all_chains, parent_chain};
+use crate::groups::link_groups;
 use crate::groups::Fallible;
 use crate::groups::InvalidGraphError::Other;
 use crate::molecule::Group::Alkane;
 use crate::molecule::{Atom, Branch, Group, Substituent};
+use crate::numerics;
 use crate::spatial::GridState;
-use crate::{chain, groups, numerics, validation};
-use chain::get_all_chains;
-use groups::link_groups;
+use crate::validation::{check_structure, check_valence};
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
-use validation::{check_structure, check_valence};
 
 /// Determines the name of the molecule on the given `graph`.
 ///

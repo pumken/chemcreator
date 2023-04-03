@@ -10,14 +10,12 @@ use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::{Cell, ComponentType};
 use crate::spatial::GridState;
-use crate::Mode::Insert;
+use crate::Mode::{Display, Insert};
 use ruscii::app::{App, State};
 use ruscii::drawing::Pencil;
 use ruscii::spatial::Vec2;
-use ruscii::terminal::Color::{Red, White};
-use ruscii::terminal::{Color, Window};
-use Color::Yellow;
-use Mode::Normal;
+use ruscii::terminal::Color::{Red, White, Yellow};
+use ruscii::terminal::Window;
 
 mod chain;
 mod groups;
@@ -54,7 +52,7 @@ fn main() {
                     Cell::None(_) => ComponentType::None,
                 };
             }
-            Normal => {
+            Display => {
                 state.pos = "".to_string();
                 input_view_mode(app_state, &mut state)
             }
@@ -114,7 +112,7 @@ fn main() {
                 },
                 Vec2::xy(
                     graph.size.x * 3 / 2,
-                    if state.mode == Normal { 1 } else { 0 },
+                    if state.mode == Display { 1 } else { 0 },
                 ),
             )
             .draw_text(pos, Vec2::xy(0, 1))
@@ -166,7 +164,7 @@ fn main() {
         pencil.move_origin(Vec2::xy(graph.size.x * 3 + 5, 1));
         gui::draw_wrapped_name(&mut graph, &mut state, window_size, &mut pencil);
 
-        if matches!(state.mode, Normal) {
+        if matches!(state.mode, Display) {
             gui::draw_statistics(&graph, &mut state, &mut pencil);
         }
     });
@@ -176,7 +174,7 @@ fn main() {
 #[derive(Copy, Clone, Default, Debug, PartialEq)]
 enum Mode {
     Insert,
-    Normal,
+    Display,
     #[default]
     Start,
 }

@@ -5,13 +5,11 @@
 use crate::molecule::BondOrder::{Double, Triple};
 use crate::molecule::{Bond, BondOrientation, Cell, Element};
 use crate::spatial::{EnumAll, GridState, Invert};
-use crate::Mode::{Insert, Normal};
-use crate::{AppState, Mode};
+use crate::AppState;
+use crate::Mode::{self, Display, Insert};
 use ruscii::drawing::{Pencil, RectCharset};
 use ruscii::spatial::Vec2;
-use ruscii::terminal::Color;
-use ruscii::terminal::Color::{Cyan, DarkGrey, White};
-use Color::Red;
+use ruscii::terminal::Color::{Cyan, DarkGrey, Red, White};
 
 pub(crate) fn draw_grid_box(pencil: &mut Pencil, graph_size: Vec2, pos: Vec2) {
     pencil.draw_rect(
@@ -76,7 +74,7 @@ pub(crate) fn draw_grid(
                 Cell::Bond(it) => it.symbol(),
                 Cell::None(_) => match mode {
                     Insert => " • ",
-                    Normal => "   ",
+                    Display => "   ",
                     _ => "   ",
                 },
             },

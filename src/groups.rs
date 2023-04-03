@@ -2,16 +2,15 @@
 //!
 //! The `groups` module provides functionality for identifying functional groups on a branch.
 
-use crate::chain;
-use crate::chain::{endpoint_head_chains, parent_chain};
+use crate::chain::{endpoint_head_chains, get_all_chains, parent_chain};
 use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::molecule::Group::{
-    AcidHalide, Aldehyde, Alkene, Alkyne, Amide, Amine, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro,
-    Hydrogen, Hydroxyl, Iodo, Nitrile,
+    self, AcidHalide, Aldehyde, Alkene, Alkyne, Amide, Amine, Bromo, Carbonyl, Carboxyl, Chloro,
+    Fluoro, Hydrogen, Hydroxyl, Iodo, Nitrile,
 };
 use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
-use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
+use crate::molecule::{Atom, BondOrder, Branch, Element, GroupNode, Substituent};
 use crate::pointer::Pointer;
 use crate::spatial::{FromVec2, GridState};
 use ruscii::spatial::{Direction, Vec2};
@@ -77,7 +76,7 @@ pub(crate) fn link_groups(
 }
 
 pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
-    let all_chains = chain::get_all_chains(graph)?;
+    let all_chains = get_all_chains(graph)?;
     let chain = parent_chain(graph, all_chains, None)?;
     link_groups(graph, chain, None)
 }

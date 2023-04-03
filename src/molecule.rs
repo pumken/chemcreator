@@ -4,18 +4,15 @@
 
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::BondOrientation::{Horiz, Vert};
-use crate::molecule::Element::{C, H, N, O};
+use crate::molecule::Element::{Br, Cl, C, F, H, I, N, O};
 use crate::naming::process_name;
 use crate::numerics::major_numeric;
 use crate::spatial::EnumAll;
 use ruscii::spatial::{Direction, Vec2};
-use ruscii::terminal::Color;
-use ruscii::terminal::Color::{Blue, Green, LightGrey, Magenta, Red, White, Xterm, Yellow};
+use ruscii::terminal::Color::{self, Blue, Green, LightGrey, Magenta, Red, White, Xterm, Yellow};
 use std::cmp::Ordering;
-use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::str::FromStr;
-use Element::{Br, Cl, F, I};
 
 /// Represents a type of functional group on a molecule.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

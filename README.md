@@ -27,24 +27,23 @@ you try it out and find something named incorrectly, please open an issue!
 
 ## Features
 
-- [x] Easy-to-use text-based UI
-- [ ] Variable-size grid
+- Parent chain highlighting
+- Molecule statistics
+- Macros
 
-### Supported Molecule Types
+### Supported Molecule Structures
 
-- [x] Alkanes
-- [x] Alkenes
-- [x] Alkynes
+- [x] Alkanes, Alkenes and Alkynes
 - [x] Alcohols
-- [x] Aldehydes
+- [x] Aldehydes and Ketones
 - [x] Amides
 - [x] Amines
 - [x] Carboxylic acids
 - [ ] Esters
 - [ ] Ethers
 - [x] Halogenoalkanes
-- [x] Ketones
 - [x] Nitriles
+- [x] Side chains
 
 ## Usage
 
@@ -55,12 +54,38 @@ it'll give you a name for it.
 
 ![](res/screenshot-insert.png)
 
-## Display Mode
+> ⓘ  These screenshots were taken from CLion's inbuilt terminal, but you could just as easily use a terminal of your 
+> choice.
+
+### Display Mode
 
 In display mode, a clean picture is shown of your molecule as well as some basic statistics including atom count, atomic
 weight, index of hydrogen deficiency (IHD), and the length of the name in characters.
 
 ![](res/screenshot-normal.png)
 
-> ⓘ  These screenshots were taken from CLion's inbuilt terminal, but you could just as easily use a terminal of your 
-> choice.
+### Macros
+
+You can toggle macro mode with the F7 key. With macros, building common structures can be done in fewer keystrokes.
+
+![](res/record-macro.gif)
+
+### Errors
+
+ChemCreator, using Rust's brilliant error handling system, can tell you precisely where an invalid structure exists in
+the graph.
+
+![](res/screenshot-error.png)
+
+### Parent Chain Highlighting
+
+The parent chain of a complicated molecule can sometimes be difficult to determine, especially when multiple chains
+contain functional groups.
+
+For example, where is the parent chain here?
+
+![](res/screenshot-complex-alkane.png)
+
+You don't have to guess! By pressing the 0 key, ChemCreator will instantly show you.
+
+![](res/screenshot-complex-alkane-highlighted.png)

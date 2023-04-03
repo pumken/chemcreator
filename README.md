@@ -62,6 +62,8 @@ it'll give you a name for it.
 In display mode, a clean picture is shown of your molecule as well as some basic statistics including atom count, atomic
 weight, index of hydrogen deficiency (IHD), and the length of the name in characters.
 
+You can re-enter insert mode with the F8 key.
+
 ![](res/screenshot-normal.png)
 
 ### Macros
@@ -89,3 +91,7 @@ For example, where is the parent chain here?
 You don't have to guess! By pressing the 0 key, ChemCreator will instantly show you.
 
 ![](res/screenshot-complex-alkane-highlighted.png)
+
+> ⓘ  Parent chains are decided according to the 
+> [IUPAC rules](https://en.wikipedia.org/wiki/IUPAC_nomenclature_of_organic_chemistry) on Wikipedia, accessed on March
+> 26, 2023.

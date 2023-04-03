@@ -54,17 +54,22 @@ it'll give you a name for it.
 
 ![](res/screenshot-insert.png)
 
+Atoms are created using the first letter of their atomic symbol (except Cl, which uses the L key). Bonds are created
+using the first three number keys (the 1 key creates a single bond, etc.).
+
 > ⓘ  These screenshots were taken from CLion's inbuilt terminal, but you could just as easily use a terminal of your 
 > choice.
 
 ### Display Mode
 
+You can enter display mode by hitting the Esc key while in insert mode. Pressing Esc while in display mode will exit ChemCreator.
+
 In display mode, a clean picture is shown of your molecule as well as some basic statistics including atom count, atomic
 weight, index of hydrogen deficiency (IHD), and the length of the name in characters.
 
-You can re-enter insert mode with the F8 key.
-
 ![](res/screenshot-normal.png)
+
+You can always re-enter insert mode with the F8 key.
 
 ### Macros
 
@@ -95,3 +100,7 @@ You don't have to guess! By pressing the 0 key, ChemCreator will instantly show 
 > ⓘ  Parent chains are decided according to the 
 > [IUPAC rules](https://en.wikipedia.org/wiki/IUPAC_nomenclature_of_organic_chemistry) on Wikipedia, accessed on March
 > 26, 2023.
+
+### Miscellaneous
+
+The F5 key will clear the graph of all atoms and bonds.

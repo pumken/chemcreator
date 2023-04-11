@@ -25,19 +25,15 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
         Some(it) => it,
         None => return Ok(()),
     };
-    let filled_pos_directions = graph
+    let connectivity = get_connected_cells(starting_cell.pos(), graph)?;
+    let filled_pos_directions: Vec<Vec2> = graph
         .filled_cells()
         .iter()
         .map(|&cell| cell.pos())
-        .collect::<Vec<Vec2>>();
-    let connectivity = get_connected_cells(starting_cell.pos(), graph)?;
+        .collect();
 
     for pos in filled_pos_directions {
-        if match graph.get(pos).unwrap() {
-            Cell::Atom(_) | Cell::Bond(_) => true,
-            Cell::None(_) => false,
-        } != connectivity[pos.x as usize][pos.y as usize]
-        {
+        if graph.get(pos).unwrap().is_not_empty() != connectivity[pos.x as usize][pos.y as usize] {
             return Err(Discontinuity);
         }
     }
@@ -218,9 +214,9 @@ mod tests {
             graph.get(Vec2::xy(3, 1)).unwrap(),
             graph.get(Vec2::xy(5, 1)).unwrap(),
         ]
-        .iter()
-        .map(|&cell| cell.unwrap_atom())
-        .collect::<Vec<Atom>>();
+            .iter()
+            .map(|&cell| cell.unwrap_atom())
+            .collect::<Vec<Atom>>();
 
         assert!(matches!(check_valence(input_atoms, &graph), Ok(_)));
     }

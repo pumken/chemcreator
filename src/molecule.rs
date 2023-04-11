@@ -242,6 +242,10 @@ impl Cell {
         matches!(self, Cell::None(_))
     }
 
+    pub fn is_not_empty(&self) -> bool {
+        !self.is_empty()
+    }
+
     pub fn unwrap_atom(&self) -> Atom {
         match self {
             Cell::Atom(atom) => atom.to_owned(),

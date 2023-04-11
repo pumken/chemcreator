@@ -159,10 +159,7 @@ impl GridState {
 
     /// Returns a [`Vec`] of all non-empty (i.e., not-[`Cell::None`]) [`Cell`]s.
     pub fn filled_cells(&self) -> Vec<&Cell> {
-        self.find_all(|cell| match cell {
-            Cell::Atom(_) | Cell::Bond(_) => true,
-            Cell::None(_) => false,
-        })
+        self.find_all(|cell| !matches!(cell, Cell::None(_)))
     }
 
     /// Moves the cursor safely in the given `direction`.

@@ -311,7 +311,7 @@ pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<
         .expect("pos should be a valid point on the graph")
     {
         panic!(
-            "Passed empty cell ({}, {}) to get_connected_cells",
+            "passed empty cell ({}, {}) to get_connected_cells",
             pos.x, pos.y
         )
     }

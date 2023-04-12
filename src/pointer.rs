@@ -3,7 +3,7 @@
 //! The `pointer` module contains the [`Pointer`] struct that allows for traversal over a
 //! [`GridState`] and molecular structures on it.
 
-use crate::groups::InvalidGraphError;
+use crate::groups::Fallible;
 use crate::groups::InvalidGraphError::{IncompleteBond, InconsistentBond};
 use crate::molecule::Element::C;
 use crate::molecule::{Atom, BondOrder, BondOrientation, Cell};
@@ -78,18 +78,18 @@ impl<'a> Pointer<'a> {
     ///
     /// If one of the bonds to the current cell is found to be dangling, an
     /// [`IncompleteBond`] will be returned.
-    pub(crate) fn bonded(&self) -> Result<Vec<Atom>, InvalidGraphError> {
+    pub(crate) fn bonded(&self) -> Fallible<Vec<Atom>> {
         match self.borrow().unwrap() {
             Cell::Atom(_) => {}
             Cell::Bond(_) => panic!(
-                "Pointer cannot access bonded atoms: atom was expected at ({}, {}) but bond
+                "Pointer cannot access bonded atoms: atom was expected at {} but bond
             was found",
-                self.pos.x, self.pos.y
+                self.pos
             ),
             Cell::None(_) => panic!(
-                "Pointer cannot access bonded atoms: atom was expected at ({}, {}) but none
+                "Pointer cannot access bonded atoms: atom was expected at {} but none
             was found",
-                self.pos.x, self.pos.y
+                self.pos
             ),
         };
 
@@ -121,7 +121,7 @@ impl<'a> Pointer<'a> {
     ///
     /// If one of the bonds to the current cell is found to be dangling, an
     /// [`IncompleteBond`] will be returned.
-    pub fn bonded_carbons(&self) -> Result<Vec<Atom>, InvalidGraphError> {
+    pub fn bonded_carbons(&self) -> Fallible<Vec<Atom>> {
         let bonded = self.bonded()?;
         Ok(bonded
             .iter()
@@ -140,7 +140,7 @@ impl<'a> Pointer<'a> {
     ///
     /// If one of the bonds to the current cell is found to be dangling, an
     /// [`IncompleteBond`] will be returned.
-    pub fn bonded_carbon_count(&self) -> Result<usize, InvalidGraphError> {
+    pub fn bonded_carbon_count(&self) -> Fallible<usize> {
         let bonded = self.bonded()?;
         Ok(bonded.iter().filter(|&atom| atom.element == C).count())
     }
@@ -158,7 +158,7 @@ impl<'a> Pointer<'a> {
     /// If the [`Pointer`] created to traverse the bond encounters a [`Cell::Bond`] of the incorrect
     /// orientation or a [`Cell::None`], an [`IncompleteBond`] is returned. If the bond does not
     /// have one consistent order, an [`InvalidGraphError::InconsistentBond`] is returned.
-    pub fn traverse_bond(&self, direction: Direction) -> Result<Atom, InvalidGraphError> {
+    pub fn traverse_bond(&self, direction: Direction) -> Fallible<Atom> {
         if let Direction::None = direction {
             panic!("Cannot pass Direction::None to traverse_bond");
         }
@@ -236,15 +236,15 @@ impl<'a> Pointer<'a> {
             Cell::Bond(_) => {
                 return Err(format!(
                     "Pointer cannot access bond count: atom was
-            expected at ({}, {}) but bond was found",
-                    self.pos.x, self.pos.y
+            expected at {} but bond was found",
+                    self.pos
                 ));
             }
             Cell::None(_) => {
                 return Err(format!(
                     "Pointer cannot access bond count: atom was
-            expected at ({}, {}) but none was found",
-                    self.pos.x, self.pos.y
+            expected at {} but none was found",
+                    self.pos
                 ));
             }
         };

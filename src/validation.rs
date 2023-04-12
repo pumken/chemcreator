@@ -36,7 +36,7 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
         if match graph.get(pos).unwrap() {
             Cell::Atom(_) | Cell::Bond(_) => true,
             Cell::None(_) => false,
-        } != connectivity[pos.x as usize][pos.y as usize]
+        } != connectivity[pos]
         {
             return Err(Discontinuity);
         }

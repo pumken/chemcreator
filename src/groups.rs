@@ -13,7 +13,7 @@ use crate::molecule::Group::{
 use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
 use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
 use crate::pointer::Pointer;
-use crate::spatial::{FromVec2, GridState};
+use crate::spatial::{GridState, InvertDirection};
 use ruscii::spatial::{Direction, Vec2};
 use thiserror::Error;
 
@@ -238,13 +238,13 @@ fn next_directions(graph: &GridState, pos: Vec2, previous_pos: Vec2) -> Fallible
         .bonded()?
         .into_iter()
         .map(|atom| {
-            Direction::from_points(pos, atom.pos).map_err(|_| {
+            Direction::try_from(atom.pos - pos).inv().map_err(|_| {
                 Other("An unexpected error occurred (groups/next_directions).".to_string())
             })
         })
         .filter(|dir| {
             if let Ok(it) = dir {
-                it != &Direction::from_points(pos, previous_pos).unwrap()
+                it != &Direction::try_from(previous_pos - pos).inv().unwrap()
             } else {
                 true
             }
@@ -281,10 +281,10 @@ fn group_directions(
         .filter(|&direction| {
             if index > 0 {
                 direction
-                    != Direction::from_points(
-                        accumulator.chain[index].pos,
-                        accumulator.chain[index - 1].pos,
+                    != Direction::try_from(
+                        accumulator.chain[index - 1].pos - accumulator.chain[index].pos,
                     )
+                    .inv()
                     .expect("Consecutive indexes should return orthogonal points.")
             } else {
                 true
@@ -310,17 +310,17 @@ pub enum InvalidGraphError {
     Discontinuity,
     #[error("Molecule is cyclic.")]
     Cycle,
-    #[error("Bond at ({}, {}) has no inconsistent order.", .0.x, .0.y)]
+    #[error("Bond at {0} has no inconsistent order.")]
     InconsistentBond(Vec2),
-    #[error("Atom at ({}, {}) is missing bonds ({} requires {}).", .0.x, .0.y, .1, .1.bond_number())]
+    #[error("Atom at {0} is missing bonds ({1} requires {}).", .1.bond_number())]
     UnfilledValence(Vec2, Element),
-    #[error("Atom at ({}, {}) has too many bonds ({} requires {}).", .0.x, .0.y, .1, .1.bond_number())]
+    #[error("Atom at {0} has too many bonds ({1} requires {}).", .1.bond_number())]
     OverfilledValence(Vec2, Element),
-    #[error("Bond at ({}, {}) is incomplete.", .0.x, .0.y)]
+    #[error("Bond at {0} is incomplete.")]
     IncompleteBond(Vec2),
     #[error("Unrecognized group.")]
     UnrecognizedGroup,
-    #[error("{}", .0)]
+    #[error("{0}")]
     Other(String),
 }
 

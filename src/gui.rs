@@ -4,7 +4,7 @@
 
 use crate::molecule::BondOrder::{Double, Triple};
 use crate::molecule::{Bond, BondOrientation, Cell, Element};
-use crate::spatial::{EnumAll, GridState, Invert};
+use crate::spatial::{EnumAll, GridState, InvertVec2};
 use crate::Mode::{Insert, Normal};
 use crate::{AppState, Mode};
 use ruscii::drawing::{Pencil, RectCharset};

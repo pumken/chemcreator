@@ -9,5 +9,5 @@ edition = "2021"
 repository = "https://github.com/pumken/chemcreator"
 
 [dependencies]
-ruscii = "0.3.2"
+ruscii = "0.4.0"
 thiserror = "1.0.38"

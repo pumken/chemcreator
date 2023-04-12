@@ -324,7 +324,7 @@ pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<
         accumulator: &mut Vec<Vec<bool>>,
         graph: &GridState,
     ) -> Fallible<()> {
-        accumulator[pos.x as usize][pos.y as usize] = true;
+        accumulator[pos] = true;
         let ptr = Pointer::new(graph, pos);
         for cell in ptr.connected() {
             if let Some(it) = previous_pos {
@@ -334,13 +334,10 @@ pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<
             }
             match cell {
                 Cell::None(_) => {}
-                _ => {
-                    if !accumulator[cell.pos().x as usize][cell.pos().y as usize] {
-                        accumulate_components(cell.pos(), Some(pos), accumulator, graph)?
-                    } else {
-                        return Err(Cycle);
-                    }
+                _ if !accumulator[cell.pos()] => {
+                    accumulate_components(cell.pos(), Some(pos), accumulator, graph)?
                 }
+                _ => return Err(Cycle),
             }
         }
         Ok(())

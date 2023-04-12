@@ -214,9 +214,9 @@ mod tests {
             graph.get(Vec2::xy(3, 1)).unwrap(),
             graph.get(Vec2::xy(5, 1)).unwrap(),
         ]
-            .iter()
-            .map(|&cell| cell.unwrap_atom())
-            .collect::<Vec<Atom>>();
+        .iter()
+        .map(|&cell| cell.unwrap_atom())
+        .collect::<Vec<Atom>>();
 
         assert!(matches!(check_valence(input_atoms, &graph), Ok(_)));
     }

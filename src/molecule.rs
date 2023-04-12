@@ -88,7 +88,7 @@ impl Group {
 impl Display for Group {
     /// Displays the ionic prefix for the current [`Group`].
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        let str = match *self {
+        let str = match self {
             Group::Hydrogen => "",
             Group::Alkane => "an",
             Group::Alkene => "en",
@@ -317,7 +317,7 @@ pub enum Element {
 impl Element {
     /// Returns the number of bonds the current [`Element`] should have.
     pub const fn bond_number(&self) -> i32 {
-        match *self {
+        match self {
             C => 4,
             N => 3,
             O => 2,
@@ -327,7 +327,7 @@ impl Element {
 
     /// Returns the single-character identifier of the [`Element`].
     pub const fn id(&self) -> &str {
-        match *self {
+        match self {
             Br => "B",
             C => "C",
             Cl => "L",
@@ -423,7 +423,7 @@ impl Bond {
     }
 
     pub fn symbol(&self) -> &str {
-        match (&self.order, &self.orient) {
+        match (self.order, self.orient) {
             (Single, Horiz) => "———",
             (Single, Vert) => " | ",
             (Double, Horiz) => "===",
@@ -635,11 +635,11 @@ fn substitute_common_name(name: &str) -> Option<String> {
 /// Determines if the given `name` is an isoalkyl group. If it is, the full and proper isoalkyl
 /// group name is returned. If it isn't, [`None`] is returned.
 fn isoalkyl(name: &str) -> Option<String> {
-    let locant_str = name
+    let locant_str: String = name
         .chars()
         .take_while(|c| c.is_numeric())
-        .collect::<String>();
-    let locant = match locant_str.parse::<i32>() {
+        .collect();
+    let locant: i32 = match locant_str.parse() {
         Ok(it) => it,
         Err(_) => return None,
     };
@@ -655,7 +655,7 @@ impl FromStr for Branch {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let groups = s
+        let groups: Vec<Vec<Substituent>> = s
             .split("; ")
             .map(|it| {
                 it.trim_start_matches(|c: char| c.is_ascii_digit() || c == ':' || c == ' ')
@@ -666,13 +666,12 @@ impl FromStr for Branch {
                             Err(_) => panic!("\"{str}\" is not a valid group"),
                         })
                     })
-                    .collect::<Vec<Substituent>>()
+                    .collect()
             })
-            .collect::<Vec<Vec<Substituent>>>();
+            .collect();
 
-        let len = 0usize;
         let out = Branch {
-            chain: vec![Atom::default(); len],
+            chain: vec![Atom::default(); 0],
             groups,
             parent_alpha: None,
         };
@@ -695,7 +694,8 @@ impl Display for GroupNode {
         let mut tree = self.next.clone();
         tree.sort_by_key(|node| node.to_string());
         let out = tree.iter().fold(primary, |a, b| format!("{a}({b})"));
-        write!(f, "{}", out)
+
+        write!(f, "{out}")
     }
 }
 

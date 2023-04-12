@@ -43,7 +43,7 @@ pub(crate) fn link_groups(
             .map(|dir| group_node_tree(graph, accumulator.chain[index].pos, dir))
             .collect::<Fallible<Vec<GroupNode>>>()?;
 
-        let mut chain_nodes = directions
+        let mut chain_nodes: Vec<Substituent> = directions
             .1
             .into_iter()
             .map(|dir| branch_node_tree(graph, accumulator.chain[index].pos, dir))
@@ -62,7 +62,7 @@ pub(crate) fn link_groups(
             .collect::<Fallible<Vec<Branch>>>()?
             .into_iter()
             .map(Substituent::Branch)
-            .collect::<Vec<Substituent>>();
+            .collect();
 
         let mut groups = convert_nodes(group_nodes)?;
         groups.append(&mut chain_nodes);
@@ -140,10 +140,10 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     }
     groups.retain(|it| it != &Hydrogen);
 
-    let mut rest = groups
+    let mut rest: Vec<Substituent> = groups
         .into_iter()
         .map(Substituent::Group)
-        .collect::<Vec<Substituent>>();
+        .collect();
     out.append(&mut rest);
 
     out
@@ -191,7 +191,6 @@ pub(crate) fn group_node_tree(
     let mut next = vec![];
 
     if atom.element != Element::C {
-        // don't continue if in carbon chain
         for direction in next_directions(graph, atom.pos, pos)? {
             next.push(group_node_tree(graph, atom.pos, direction)?)
         }

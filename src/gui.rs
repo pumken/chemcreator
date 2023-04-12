@@ -195,13 +195,13 @@ pub(crate) fn draw_wrapped_name(
     pencil: &mut Pencil,
 ) {
     let wrap_length = window_size.x - 14 - graph.size.x * 3;
-    let lines = state
+    let lines: Vec<String> = state
         .name
         .chars()
         .collect::<Vec<char>>()
         .chunks(wrap_length as usize)
         .map(|chunk| chunk.iter().collect())
-        .collect::<Vec<String>>();
+        .collect();
     pencil.set_foreground(if state.err { Red } else { White });
 
     for line in lines {

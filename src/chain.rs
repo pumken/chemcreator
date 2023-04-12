@@ -211,7 +211,7 @@ fn accumulate_carbons(
 
     let next_carbons = next_carbons(pos, previous_pos, graph)?;
 
-    if next_carbons.len() == 0 {
+    if next_carbons.is_empty() {
         return Ok(());
     }
 
@@ -325,6 +325,7 @@ pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<
                     continue;
                 }
             }
+
             match cell {
                 Cell::None(_) => {}
                 _ if !accumulator[cell.pos()] => {

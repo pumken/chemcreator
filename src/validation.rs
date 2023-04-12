@@ -51,12 +51,12 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
 /// for the first cell for which its valence shell is not correctly filled.
 pub fn check_valence(atoms: Vec<Atom>, graph: &GridState) -> Fallible<()> {
     for atom in atoms {
-        // this function eventually could be removed and incorporated into bonded() ?
         let ptr = Pointer::new(graph, atom.pos);
         let bond_count = match ptr.bond_count() {
             Ok(it) => it,
-            Err(it) => panic!("{}", it),
+            Err(it) => panic!("{it}"),
         };
+
         match bond_count.cmp(&atom.element.bond_number()) {
             Ordering::Less => {
                 return Err(InvalidGraphError::UnfilledValence(atom.pos, atom.element));
@@ -67,6 +67,7 @@ pub fn check_valence(atoms: Vec<Atom>, graph: &GridState) -> Fallible<()> {
             _ => {}
         }
     }
+
     Ok(())
 }
 
@@ -145,6 +146,7 @@ fn cmp(first: SubFragment, second: SubFragment) -> Ordering {
             Ordering::Greater => return Ordering::Greater,
         }
     }
+
     Ordering::Equal
 }
 

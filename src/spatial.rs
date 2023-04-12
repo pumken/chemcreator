@@ -8,7 +8,6 @@ use crate::molecule::BondOrientation::{Horiz, Vert};
 use crate::molecule::{Atom, Bond, BondOrder, Cell, ComponentType, Element};
 use crate::pointer::Pointer;
 use ruscii::spatial::{Direction, Vec2};
-use std::cmp::Ordering;
 
 /// Represents the state of a grid, including all its [`Cell`]s and the position of the cursor.
 #[derive(Clone, Debug)]
@@ -47,7 +46,7 @@ impl GridState {
     /// If the `pos` is not a valid point within the graph, this function returns [`Err`].
     pub fn get(&self, pos: Vec2) -> Result<&Cell, String> {
         if !self.contains(pos) {
-            return Err(format!("Invalid access of graph at ({}, {})", pos.x, pos.y));
+            return Err(format!("Invalid access of graph at {pos}"));
         }
         Ok(&self.cells[pos.x as usize][pos.y as usize])
     }
@@ -59,7 +58,7 @@ impl GridState {
     /// If the `pos` is not a valid point within the graph, this function returns [`Err`].
     pub(crate) fn get_mut(&mut self, pos: Vec2) -> Result<&mut Cell, String> {
         if !self.contains(pos) {
-            return Err(format!("Invalid access of graph at ({}, {})", pos.x, pos.y));
+            return Err(format!("Invalid access of graph at {pos}"));
         }
         Ok(&mut self.cells[pos.x as usize][pos.y as usize])
     }
@@ -268,15 +267,41 @@ impl ToVec2 for Direction {
 
 /// A trait made specifically for [`Vec2`] and [`Direction`] to invert the graph so that the origin
 /// is in the bottom-left corner rather than the top left corner.
-pub(crate) trait Invert {
+pub(crate) trait InvertVec2 {
     fn inv(self, graph_height: i32) -> Vec2;
 }
 
-impl Invert for Vec2 {
+impl InvertVec2 for Vec2 {
     /// Inverts the `y` of this [Vec2]. For *why* this exists, see [Invert].
     fn inv(mut self, graph_height: i32) -> Vec2 {
         self.y = graph_height - self.y - 1;
         self
+    }
+}
+
+pub(crate) trait InvertDirection {
+    fn inv(self) -> Self
+    where
+        Self: Sized;
+}
+
+impl InvertDirection for Direction {
+    fn inv(self) -> Direction {
+        match self {
+            Direction::Up => Direction::Down,
+            Direction::Down => Direction::Up,
+            _ => self,
+        }
+    }
+}
+
+impl<E> InvertDirection for Result<Direction, E> {
+    fn inv(self) -> Self
+    where
+        Self: Sized,
+        E: Sized,
+    {
+        self.map(Direction::inv)
     }
 }
 
@@ -321,41 +346,6 @@ impl EnumAll for Direction {
             Direction::Left,
             Direction::Right,
         ]
-    }
-}
-
-pub(crate) trait FromVec2 {
-    fn from_points(first: Vec2, second: Vec2) -> Result<Self, String>
-    where
-        Self: Sized;
-}
-
-impl FromVec2 for Direction {
-    /// Returns the [`Direction`] from the `first` [`Vec2`] to the `second`.
-    ///
-    /// ## Errors
-    ///
-    /// If the two given points do not lie on an orthogonal line, an [`Err`] is returned.
-    fn from_points(first: Vec2, second: Vec2) -> Result<Direction, String> {
-        let displacement = second - first;
-
-        if displacement == Vec2::zero() {
-            return Err(format!(
-                "Passed equal points ({}, {}) to from_points.",
-                first.x, first.y
-            ));
-        }
-
-        match (displacement.x.cmp(&0), displacement.y.cmp(&0)) {
-            (Ordering::Less, Ordering::Equal) => Ok(Direction::Left),
-            (Ordering::Greater, Ordering::Equal) => Ok(Direction::Right),
-            (Ordering::Equal, Ordering::Less) => Ok(Direction::Down),
-            (Ordering::Equal, Ordering::Greater) => Ok(Direction::Up),
-            _ => Err(format!(
-                "Direction from ({}, {}) to ({}, {}) is not orthogonal.",
-                first.x, first.y, second.x, second.y
-            )),
-        }
     }
 }
 
@@ -426,8 +416,8 @@ mod tests {
         let up = Vec2::y(1);
         let right = Vec2::x(1);
 
-        let a = Direction::from_points(center, up).unwrap();
-        let b = Direction::from_points(center, right).unwrap();
+        let a = Direction::try_from(up - center).inv().unwrap();
+        let b = Direction::try_from(right - center).inv().unwrap();
 
         assert_eq!(a, Direction::Up);
         assert_eq!(b, Direction::Right)

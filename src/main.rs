@@ -30,7 +30,7 @@ mod spatial;
 mod validation;
 
 fn main() {
-    let mut app = App::new();
+    let mut app = App::default();
     let version = env!("CARGO_PKG_VERSION");
     let mut graph = GridState::new(27, 11);
     let mut state = AppState::default();

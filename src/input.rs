@@ -9,7 +9,7 @@ use crate::molecule::Element::{Br, Cl, C, F, H, I, N, O};
 use crate::molecule::{Atom, ComponentType};
 use crate::naming::name_molecule;
 use crate::pointer::Pointer;
-use crate::spatial::{FromVec2, GridState};
+use crate::spatial::{GridState, InvertDirection};
 use crate::{AppState, Mode};
 use ruscii::app::State;
 use ruscii::keyboard::{Key, KeyEvent};
@@ -110,7 +110,9 @@ fn get_chain_path(graph: &GridState, chain: Vec<Atom>) -> Vec<Vec2> {
     let mut out = vec![];
 
     for atoms in chain.windows(2) {
-        let direction = Direction::from_points(atoms[0].pos, atoms[1].pos).unwrap();
+        let direction = Direction::try_from(atoms[1].pos - atoms[0].pos)
+            .inv()
+            .unwrap();
         let mut ptr = Pointer::new(graph, atoms[0].pos);
 
         'inner: loop {

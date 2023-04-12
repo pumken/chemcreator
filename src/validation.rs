@@ -33,7 +33,7 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
         .collect();
 
     for pos in filled_pos_directions {
-        if graph.get(pos).unwrap().is_not_empty() != connectivity[pos.x as usize][pos.y as usize] {
+        if graph.get(pos).unwrap().is_not_empty() != connectivity[pos] {
             return Err(Discontinuity);
         }
     }

@@ -8,7 +8,7 @@ use crate::naming::NamingError;
 ///
 /// ## Errors
 ///
-/// If `value` exceeds 20, a [`NamingError::GroupOccurrence`] without a group is returned.
+/// If `value` exceeds 20, a [`NamingError::NumericExcess`] without a group is returned.
 pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "",
@@ -53,7 +53,7 @@ pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
         40 => "tetraconta",
         41 => "hentetraconta",
         42 => "dotetraconta",
-        _ => return Err(NamingError::GroupOccurrence(None, value)),
+        _ => return Err(NamingError::NumericExcess(value, 42)),
     };
     Ok(out)
 }
@@ -62,7 +62,7 @@ pub fn minor_numeric(value: i32) -> Result<&'static str, NamingError> {
 ///
 /// ## Errors
 ///
-/// If `value` exceeds 20, a [`NamingError::GroupOccurrence`] without a group is returned.
+/// If `value` exceeds 20, a [`NamingError::NumericExcess`] without a group is returned.
 pub fn branch_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "",
@@ -85,7 +85,7 @@ pub fn branch_numeric(value: i32) -> Result<&'static str, NamingError> {
         18 => "octadecakis",
         19 => "nonadecakis",
         20 => "icosakis",
-        _ => return Err(NamingError::GroupOccurrence(None, value)),
+        _ => return Err(NamingError::NumericExcess(value, 20)),
     };
     Ok(out)
 }
@@ -94,7 +94,7 @@ pub fn branch_numeric(value: i32) -> Result<&'static str, NamingError> {
 ///
 /// ## Errors
 ///
-/// If `value` exceeds 84, a [`NamingError::CarbonCount`] is returned.
+/// If `value` exceeds 84, a [`NamingError::NumericExcess`] is returned.
 pub fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
     let out = match value {
         1 => "meth",
@@ -181,7 +181,7 @@ pub fn major_numeric(value: i32) -> Result<&'static str, NamingError> {
         82 => "dooctacont",
         83 => "trioctacont",
         84 => "tetraoctacont",
-        _ => return Err(NamingError::CarbonCount(value)),
+        _ => return Err(NamingError::NumericExcess(value, 84)),
     };
     Ok(out)
 }

@@ -140,10 +140,7 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     }
     groups.retain(|it| it != &Hydrogen);
 
-    let mut rest: Vec<Substituent> = groups
-        .into_iter()
-        .map(Substituent::Group)
-        .collect();
+    let mut rest: Vec<Substituent> = groups.into_iter().map(Substituent::Group).collect();
     out.append(&mut rest);
 
     out

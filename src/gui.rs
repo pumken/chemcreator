@@ -6,7 +6,7 @@ use crate::molecule::BondOrder::{Double, Triple};
 use crate::molecule::{Bond, BondOrientation, Cell, Element};
 use crate::spatial::{EnumAll, GridState, InvertVec2};
 use crate::AppState;
-use crate::Mode::{self, Insert, Display};
+use crate::Mode::{self, Display, Insert};
 use ruscii::drawing::{Pencil, RectCharset};
 use ruscii::spatial::Vec2;
 use ruscii::terminal::Color::{Cyan, DarkGrey, Red, White};

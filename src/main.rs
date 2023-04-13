@@ -5,7 +5,10 @@
 
 #![warn(missing_docs)]
 
-use crate::gui::{draw_cursor, draw_grid, draw_grid_box, draw_insert_mode, draw_logo, draw_start_message, draw_statistics, draw_wrapped_name};
+use crate::gui::{
+    draw_cursor, draw_grid, draw_grid_box, draw_insert_mode, draw_logo, draw_start_message,
+    draw_statistics, draw_wrapped_name,
+};
 use crate::input::{input_insert_mode, input_view_mode, start_mode};
 use crate::molecule::BondOrder::{Double, Single, Triple};
 use crate::molecule::{Cell, ComponentType};

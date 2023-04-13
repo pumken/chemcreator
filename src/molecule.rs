@@ -635,10 +635,7 @@ fn substitute_common_name(name: &str) -> Option<String> {
 /// Determines if the given `name` is an isoalkyl group. If it is, the full and proper isoalkyl
 /// group name is returned. If it isn't, [`None`] is returned.
 fn isoalkyl(name: &str) -> Option<String> {
-    let locant_str: String = name
-        .chars()
-        .take_while(|c| c.is_numeric())
-        .collect();
+    let locant_str: String = name.chars().take_while(|c| c.is_numeric()).collect();
     let locant: i32 = match locant_str.parse() {
         Ok(it) => it,
         Err(_) => return None,

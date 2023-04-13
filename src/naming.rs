@@ -249,10 +249,12 @@ impl SubFragmentCollection {
         let primary = self
             .collection
             .iter()
-            .filter_map(|fragment| if fragment.subst.seniority().is_some() {
-                Some(fragment.subst.to_owned())
-            } else {
-                None
+            .filter_map(|fragment| {
+                if fragment.subst.seniority().is_some() {
+                    Some(fragment.subst.to_owned())
+                } else {
+                    None
+                }
             })
             .max_by_key(|group| group.seniority());
 
@@ -274,8 +276,10 @@ impl SubFragmentCollection {
     pub fn secondary_group_fragments(&self) -> Vec<SubFragment> {
         self.collection
             .iter()
-            .filter(|&fragment| fragment.subst != Substituent::Group(self.primary_group())
-                && !fragment.subst.is_cxc_group())
+            .filter(|&fragment| {
+                fragment.subst != Substituent::Group(self.primary_group())
+                    && !fragment.subst.is_cxc_group()
+            })
             .map(SubFragment::to_owned)
             .collect()
     }
@@ -352,7 +356,7 @@ impl NamingError {
                 Group::Amide => "amide",
                 Group::Amine => "amine",
             }
-                .to_string(),
+            .to_string(),
         }
     }
 

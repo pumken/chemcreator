@@ -303,10 +303,7 @@ pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<
         .get(pos)
         .expect("pos should be a valid point on the graph")
     {
-        panic!(
-            "passed empty cell {} to get_connected_cells",
-            it
-        )
+        panic!("passed empty cell {} to get_connected_cells", it)
     }
 
     let mut searched_points = nested_vec![graph.size.x; graph.size.y; false];

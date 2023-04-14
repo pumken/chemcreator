@@ -4,8 +4,8 @@
 //! an organic molecule as a [`Branch`].
 
 use crate::chain::{get_all_chains, parent_chain};
-use crate::groups::{Fallible, link_groups};
 use crate::groups::InvalidGraphError::Other;
+use crate::groups::{link_groups, Fallible};
 use crate::molecule::Group::{self, Alkane};
 use crate::molecule::{Atom, Branch, Substituent};
 use crate::numerics::{branch_numeric, major_numeric, minor_numeric};

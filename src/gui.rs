@@ -5,13 +5,11 @@
 use crate::molecule::BondOrder::{Double, Triple};
 use crate::molecule::{Bond, BondOrientation, Cell, Element};
 use crate::spatial::{EnumAll, GridState, InvertVec2};
-use crate::Mode::{Insert, Normal};
-use crate::{AppState, Mode};
+use crate::AppState;
+use crate::Mode::{self, Display, Insert};
 use ruscii::drawing::{Pencil, RectCharset};
 use ruscii::spatial::Vec2;
-use ruscii::terminal::Color;
-use ruscii::terminal::Color::{Cyan, DarkGrey, White};
-use Color::Red;
+use ruscii::terminal::Color::{Cyan, DarkGrey, Red, White};
 
 pub(crate) fn draw_grid_box(pencil: &mut Pencil, graph_size: Vec2, pos: Vec2) {
     pencil.draw_rect(
@@ -76,7 +74,7 @@ pub(crate) fn draw_grid(
                 Cell::Bond(it) => it.symbol(),
                 Cell::None(_) => match mode {
                     Insert => " • ",
-                    Normal => "   ",
+                    Display => "   ",
                     _ => "   ",
                 },
             },
@@ -197,13 +195,13 @@ pub(crate) fn draw_wrapped_name(
     pencil: &mut Pencil,
 ) {
     let wrap_length = window_size.x - 14 - graph.size.x * 3;
-    let lines = state
+    let lines: Vec<String> = state
         .name
         .chars()
         .collect::<Vec<char>>()
         .chunks(wrap_length as usize)
         .map(|chunk| chunk.iter().collect())
-        .collect::<Vec<String>>();
+        .collect();
     pencil.set_foreground(if state.err { Red } else { White });
 
     for line in lines {

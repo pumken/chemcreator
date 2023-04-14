@@ -48,7 +48,7 @@ impl GridState {
         if !self.contains(pos) {
             return Err(format!("Invalid access of graph at {pos}"));
         }
-        Ok(&self.cells[pos.x as usize][pos.y as usize])
+        Ok(&self.cells[pos])
     }
 
     /// Returns a reference to the [`Cell`] at the given `pos`.
@@ -60,7 +60,7 @@ impl GridState {
         if !self.contains(pos) {
             return Err(format!("Invalid access of graph at {pos}"));
         }
-        Ok(&mut self.cells[pos.x as usize][pos.y as usize])
+        Ok(&mut self.cells[pos])
     }
 
     /// Returns a reference to the [`Cell`] to which the cursor is currently pointing.
@@ -106,6 +106,7 @@ impl GridState {
             order,
             orient,
         });
+
         *self
             .current_cell_mut()
             .expect("cursor should be within bounds") = bond;
@@ -158,10 +159,7 @@ impl GridState {
 
     /// Returns a [`Vec`] of all non-empty (i.e., not-[`Cell::None`]) [`Cell`]s.
     pub fn filled_cells(&self) -> Vec<&Cell> {
-        self.find_all(|cell| match cell {
-            Cell::Atom(_) | Cell::Bond(_) => true,
-            Cell::None(_) => false,
-        })
+        self.find_all(|cell| !matches!(cell, Cell::None(_)))
     }
 
     /// Moves the cursor safely in the given `direction`.
@@ -189,7 +187,7 @@ impl GridState {
             .iter()
             .flatten()
             .filter(|&cell| predicate(cell))
-            .collect::<Vec<&Cell>>()
+            .collect()
     }
 
     pub fn count<F>(&self, predicate: F) -> i32
@@ -241,7 +239,7 @@ impl PartialEq for GridState {
             return false;
         }
         let a = self.cells.iter().flatten();
-        let b = other.cells.iter().flatten().collect::<Vec<&Cell>>();
+        let b: Vec<&Cell> = other.cells.iter().flatten().collect();
 
         for (i, cell) in a.enumerate() {
             if cell != b[i] {

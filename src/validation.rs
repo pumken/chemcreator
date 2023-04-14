@@ -3,9 +3,9 @@
 //! The `validation` module provides two functions that checks the [`GridState`] for three invalid
 //! structures: discontinuities, cycles, and atoms with unfilled or overfilled valence shells.
 
-use crate::chain;
-use crate::groups::InvalidGraphError::{Discontinuity, Other};
-use crate::groups::{Fallible, InvalidGraphError};
+use crate::chain::get_connected_cells;
+use crate::groups::Fallible;
+use crate::groups::InvalidGraphError::{self, Discontinuity, Other};
 use crate::molecule::Group::{Alkene, Alkyne};
 use crate::molecule::{Atom, Branch, Cell, Substituent};
 use crate::naming::{prefix, SubFragment, SubFragmentCollection};
@@ -25,19 +25,15 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
         Some(it) => it,
         None => return Ok(()),
     };
-    let filled_pos_directions = graph
+    let connectivity = get_connected_cells(starting_cell.pos(), graph)?;
+    let filled_pos_directions: Vec<Vec2> = graph
         .filled_cells()
         .iter()
         .map(|&cell| cell.pos())
-        .collect::<Vec<Vec2>>();
-    let connectivity = chain::get_connected_cells(starting_cell.pos(), graph)?;
+        .collect();
 
     for pos in filled_pos_directions {
-        if match graph.get(pos).unwrap() {
-            Cell::Atom(_) | Cell::Bond(_) => true,
-            Cell::None(_) => false,
-        } != connectivity[pos]
-        {
+        if graph.get(pos).unwrap().is_not_empty() != connectivity[pos] {
             return Err(Discontinuity);
         }
     }
@@ -55,12 +51,12 @@ pub fn check_structure(graph: &GridState) -> Fallible<()> {
 /// for the first cell for which its valence shell is not correctly filled.
 pub fn check_valence(atoms: Vec<Atom>, graph: &GridState) -> Fallible<()> {
     for atom in atoms {
-        // this function eventually could be removed and incorporated into bonded() ?
         let ptr = Pointer::new(graph, atom.pos);
         let bond_count = match ptr.bond_count() {
             Ok(it) => it,
-            Err(it) => panic!("{}", it),
+            Err(it) => panic!("{it}"),
         };
+
         match bond_count.cmp(&atom.element.bond_number()) {
             Ordering::Less => {
                 return Err(InvalidGraphError::UnfilledValence(atom.pos, atom.element));
@@ -71,6 +67,7 @@ pub fn check_valence(atoms: Vec<Atom>, graph: &GridState) -> Fallible<()> {
             _ => {}
         }
     }
+
     Ok(())
 }
 
@@ -149,6 +146,7 @@ fn cmp(first: SubFragment, second: SubFragment) -> Ordering {
             Ordering::Greater => return Ordering::Greater,
         }
     }
+
     Ordering::Equal
 }
 

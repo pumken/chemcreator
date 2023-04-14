@@ -145,12 +145,9 @@ pub(crate) fn chain_max_by<F>(branches: Vec<Branch>, f: F) -> Result<Vec<Atom>, 
 where
     F: Fn(&Branch) -> usize,
 {
-    let max: usize = branches.iter().map(&f).max().ok_or(branches.to_owned())?;
+    let max = branches.iter().map(&f).max().ok_or(branches.to_owned())?;
 
-    let primary_by_max = branches
-        .into_iter()
-        .filter(|it| f(it) == max)
-        .collect::<Vec<Branch>>();
+    let primary_by_max: Vec<Branch> = branches.into_iter().filter(|it| f(it) == max).collect();
 
     if primary_by_max.len() == 1 {
         Ok(primary_by_max[0].to_owned().chain)
@@ -166,19 +163,13 @@ where
 ///
 /// Returns [`InvalidGraphError`] if any invalid structures are found while traversing the graph.
 pub(crate) fn get_all_chains(graph: &GridState) -> Fallible<Vec<Vec<Atom>>> {
-    let endpoints = endpoint_carbons(graph)?
-        .iter()
-        .map(|&cell| match cell {
-            Cell::Atom(it) => it.to_owned(),
-            _ => panic!("endpoint_carbons returned non-atom cell"),
-        })
-        .collect::<Vec<Atom>>();
-    // Nested Vec hell
+    let endpoints: Vec<Atom> = endpoint_carbons(graph)?;
     let mut out: Vec<Vec<Atom>> = vec![];
 
     for endpoint in endpoints {
-        out.extend(endpoint_head_chains(endpoint.to_owned(), graph, None)?);
+        out.extend(endpoint_head_chains(endpoint, graph, None)?);
     }
+
     Ok(out)
 }
 
@@ -216,23 +207,24 @@ fn accumulate_carbons(
     accumulator: &mut Vec<Vec<Atom>>,
     graph: &GridState,
 ) -> Fallible<()> {
+    accumulator[branch_index].push(graph.get(pos).unwrap().unwrap_atom());
+
     let next_carbons = next_carbons(pos, previous_pos, graph)?;
 
-    accumulator[branch_index].push(match graph.get(pos) {
-        Ok(Cell::Atom(it)) => it.to_owned(),
-        _ => panic!("Non-atom or invalid cell passed to accumulate_carbons"),
-    });
+    if next_carbons.is_empty() {
+        return Ok(());
+    }
 
-    let new_branches = create_branches(
-        accumulator,
-        branch_index,
-        match next_carbons.len() {
-            0 => return Ok(()),
-            it => it - 1,
-        },
-    );
-    for (i, carbon) in next_carbons.iter().enumerate() {
-        accumulate_carbons(carbon.pos, Some(pos), new_branches[i], accumulator, graph)?
+    let new_branches = create_branches(accumulator, branch_index, next_carbons.len() - 1);
+
+    for (index, carbon) in next_carbons.into_iter().enumerate() {
+        accumulate_carbons(
+            carbon.pos,
+            Some(pos),
+            new_branches[index],
+            accumulator,
+            graph,
+        )?
     }
 
     Ok(())
@@ -278,15 +270,16 @@ fn next_carbons(pos: Vec2, previous_pos: Option<Vec2>, graph: &GridState) -> Fal
 ///
 /// If one of the bonds to the current cell is found to be dangling, an
 /// [`IncompleteBond`] will be returned.
-pub(crate) fn endpoint_carbons(graph: &GridState) -> Fallible<Vec<&Cell>> {
-    let all_carbons = graph.find_all(|cell| match cell {
-        Cell::Atom(atom) => matches!(atom.element, Element::C),
-        _ => false,
-    });
+pub(crate) fn endpoint_carbons(graph: &GridState) -> Fallible<Vec<Atom>> {
+    let all_carbons: Vec<Atom> = graph
+        .find_all(|cell| matches!(cell, Cell::Atom(atom) if atom.element == Element::C))
+        .into_iter()
+        .map(Cell::unwrap_atom)
+        .collect();
     let mut out = vec![];
 
     for carbon in all_carbons {
-        let ptr = Pointer::new(graph, carbon.pos());
+        let ptr = Pointer::new(graph, carbon.pos);
         if ptr.bonded_carbon_count()? <= 1 {
             out.push(carbon);
         }
@@ -306,14 +299,11 @@ pub(crate) fn endpoint_carbons(graph: &GridState) -> Fallible<Vec<&Cell>> {
 /// If this function traverses the molecule and finds that it is not simply connected, [`Cycle`]
 /// will be returned.
 pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<Vec<bool>>> {
-    if let Cell::None(_) = graph
+    if let Cell::None(it) = graph
         .get(pos)
         .expect("pos should be a valid point on the graph")
     {
-        panic!(
-            "Passed empty cell ({}, {}) to get_connected_cells",
-            pos.x, pos.y
-        )
+        panic!("passed empty cell {} to get_connected_cells", it)
     }
 
     let mut searched_points = nested_vec![graph.size.x; graph.size.y; false];
@@ -332,6 +322,7 @@ pub(crate) fn get_connected_cells(pos: Vec2, graph: &GridState) -> Fallible<Vec<
                     continue;
                 }
             }
+
             match cell {
                 Cell::None(_) => {}
                 _ if !accumulator[cell.pos()] => {
@@ -481,8 +472,8 @@ mod tests {
         );
         let cells = endpoint_carbons(&graph).unwrap();
         let expected = vec![
-            graph.get(Vec2::xy(1, 1)).unwrap(),
-            graph.get(Vec2::xy(5, 1)).unwrap(),
+            graph.get(Vec2::xy(1, 1)).unwrap().unwrap_atom(),
+            graph.get(Vec2::xy(5, 1)).unwrap().unwrap_atom(),
         ];
 
         assert_eq!(cells, expected);
@@ -496,7 +487,7 @@ mod tests {
             [2, 1; A(H)],
         );
         let cell = endpoint_carbons(&graph).unwrap();
-        let expected = vec![graph.get(Vec2::xy(1, 1)).unwrap()];
+        let expected = vec![graph.get(Vec2::xy(1, 1)).unwrap().unwrap_atom()];
 
         assert_eq!(cell, expected);
     }

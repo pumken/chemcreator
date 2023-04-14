@@ -3,15 +3,14 @@
 //! Not to be confused with Rust's `macro_rules!` declarations, the `macros` module contains
 //! common actions that should be automatically performed for the user when they make an input.
 
-use crate::molecule::BondOrder::{Double, Single, Triple};
+use crate::molecule::BondOrder::{self, Double, Single, Triple};
+use crate::molecule::BondOrientation::{self, Horiz};
 use crate::molecule::Element::{C, H, N, O};
-use crate::molecule::{BondOrder, BondOrientation, Cell, ComponentType};
+use crate::molecule::{Cell, ComponentType};
 use crate::pointer::Pointer;
 use crate::spatial::{EnumAll, GridState, ToVec2};
 use ruscii::spatial::{Direction, Vec2};
 use std::cmp::Ordering;
-
-use crate::molecule::BondOrientation::Horiz;
 
 #[derive(Clone, Debug, PartialEq)]
 struct CellBlock<'a> {

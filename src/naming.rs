@@ -3,18 +3,16 @@
 //! The `naming` module contains functions that makes final validations and finds the name of
 //! an organic molecule as a [`Branch`].
 
-use crate::chain::parent_chain;
-use crate::groups::Fallible;
+use crate::chain::{get_all_chains, parent_chain};
 use crate::groups::InvalidGraphError::Other;
-use crate::molecule::Group::Alkane;
-use crate::molecule::{Atom, Branch, Group, Substituent};
+use crate::groups::{link_groups, Fallible};
+use crate::molecule::Group::{self, Alkane};
+use crate::molecule::{Atom, Branch, Substituent};
+use crate::numerics::{branch_numeric, major_numeric, minor_numeric};
 use crate::spatial::GridState;
-use crate::{chain, groups, numerics, validation};
-use chain::get_all_chains;
-use groups::link_groups;
+use crate::validation::{check_structure, check_valence};
 use std::fmt::{Display, Formatter};
 use thiserror::Error;
-use validation::{check_structure, check_valence};
 
 /// Determines the name of the molecule on the given `graph`.
 ///
@@ -27,11 +25,11 @@ pub fn name_molecule(
     parent_chain_out: &mut Option<Vec<Atom>>,
 ) -> Fallible<String> {
     *parent_chain_out = None;
-    let cells = graph
+    let cells: Vec<Atom> = graph
         .find_all(|cell| cell.is_atom())
         .iter()
         .map(|&cell| cell.unwrap_atom())
-        .collect::<Vec<Atom>>();
+        .collect();
 
     // Initial checks
     if graph.is_empty() {
@@ -61,7 +59,7 @@ pub(crate) fn process_name(branch: Branch) -> Result<String, NamingError> {
     let name = format!(
         "{}{}{}{}",
         prefix(collection.secondary_group_fragments())?,
-        numerics::major_numeric(len)?,
+        major_numeric(len).map_carbon_count()?,
         bonding(collection.unsaturated_group_fragments())?,
         suffix(collection.primary_group_fragment())?,
     );
@@ -82,6 +80,7 @@ pub(crate) fn substitute_names(name: &str) -> Option<&str> {
         "1-iodomethanoyl iodide" => "methanoyl diiodide",
         _ => return None,
     };
+
     Some(out)
 }
 
@@ -89,19 +88,19 @@ pub(crate) fn substitute_names(name: &str) -> Option<&str> {
 ///
 /// ## Errors
 ///
-/// If the occurrences of one of the `fragments` exceeds the limit of [`numerics::minor_numeric`], a
-/// [`NamingError::GroupOccurrence`] is returned.
+/// If the occurrences of one of the `fragments` exceeds the limit of [`minor_numeric`], a
+/// [`NamingError::SubstOccurrence`] is returned.
 pub(crate) fn prefix(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
     fragments.sort_by_key(|fragment| fragment.subst.to_string());
     let mut out = vec![];
 
-    for fragment in fragments.into_iter() {
+    for fragment in fragments {
         let locants = if matches!(&fragment.subst, Substituent::Branch(branch) if has_number(&branch.to_string()))
         {
-            NamingError::add_substituent(complex_branch_locants(fragment.locants), &fragment.subst)?
+            complex_branch_locants(fragment.locants)
         } else {
-            NamingError::add_substituent(locants(fragment.locants), &fragment.subst)?
-        };
+            locants(fragment.locants)
+        }.map_subst_occur(&fragment.subst)?;
         out.push(format!("{}{}", locants, fragment.subst))
     }
 
@@ -114,18 +113,20 @@ fn has_number(s: &str) -> bool {
             return true;
         }
     }
+
     false
 }
 
 fn bonding(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
     fragments.sort_by_key(|fragment| fragment.subst.to_string());
+
     if fragments.is_empty() {
         Ok("an".to_string())
     } else {
         let mut sequence = vec![];
 
-        for fragment in fragments.into_iter() {
-            let locants = NamingError::add_substituent(locants(fragment.locants), &fragment.subst)?;
+        for fragment in fragments {
+            let locants = locants(fragment.locants).map_subst_occur(&fragment.subst)?;
 
             sequence.push(format!("{}{}", locants, fragment.subst));
         }
@@ -138,8 +139,7 @@ fn bonding(mut fragments: Vec<SubFragment>) -> Result<String, NamingError> {
 
 fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
     if let Substituent::Group(group) = fragment.subst {
-        let locants =
-            NamingError::add_substituent(locants(fragment.locants.clone()), &fragment.subst)?;
+        let locants = locants(fragment.locants.clone()).map_subst_occur(&fragment.subst)?;
 
         let suffix = match group {
             Group::Carboxyl if fragment.locants.len() == 2 => return Ok("edioic acid".to_string()),
@@ -170,8 +170,8 @@ fn suffix(fragment: SubFragment) -> Result<String, NamingError> {
 ///
 /// ## Errors
 ///
-/// If the number of `locations` given exceeds the limit of [`numerics::minor_numeric`], a
-/// [`NamingError::GroupOccurrence`] without a group is returned.
+/// If the number of `locations` given exceeds the limit of [`minor_numeric`], a
+/// [`NamingError::SubstOccurrence`] without a group is returned.
 pub fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
     locations.sort();
 
@@ -180,11 +180,9 @@ pub fn locants(mut locations: Vec<i32>) -> Result<String, NamingError> {
         .map(|&it| (it + 1).to_string())
         .collect::<Vec<String>>()
         .join(",");
+    let numeric_prefix = minor_numeric(locations.len() as i32)?;
 
-    let out = format!(
-        "{numbers}-{}",
-        numerics::minor_numeric(locations.len() as i32)?,
-    );
+    let out = format!("{numbers}-{numeric_prefix}");
     Ok(out)
 }
 
@@ -196,11 +194,9 @@ pub fn complex_branch_locants(mut locations: Vec<i32>) -> Result<String, NamingE
         .map(|&it| (it + 1).to_string())
         .collect::<Vec<String>>()
         .join(",");
+    let numeric_prefix = branch_numeric(locations.len() as i32)?;
 
-    let out = format!(
-        "{numbers}-{}",
-        numerics::branch_numeric(locations.len() as i32)?,
-    );
+    let out = format!("{numbers}-{numeric_prefix}");
     Ok(out)
 }
 
@@ -251,8 +247,13 @@ impl SubFragmentCollection {
         let primary = self
             .collection
             .iter()
-            .map(|fragment| fragment.subst.to_owned())
-            .filter(|group| group.seniority().is_some())
+            .filter_map(|fragment| {
+                if fragment.subst.seniority().is_some() {
+                    Some(fragment.subst.to_owned())
+                } else {
+                    None
+                }
+            })
             .max_by_key(|group| group.seniority());
 
         match primary {
@@ -269,14 +270,16 @@ impl SubFragmentCollection {
             .map_or_else(SubFragment::default, SubFragment::to_owned)
     }
 
-    /// Returns all non-primary groups not including
+    /// Returns all prefix groups, i.e., those that are not the primary nor CXC groups.
     pub fn secondary_group_fragments(&self) -> Vec<SubFragment> {
         self.collection
             .iter()
-            .filter(|&fragment| fragment.subst != Substituent::Group(self.primary_group()))
-            .filter(|&fragment| !fragment.subst.is_cxc_group())
+            .filter(|&fragment| {
+                fragment.subst != Substituent::Group(self.primary_group())
+                    && !fragment.subst.is_cxc_group()
+            })
             .map(SubFragment::to_owned)
-            .collect::<Vec<SubFragment>>()
+            .collect()
     }
 
     pub fn unsaturated_group_fragments(&self) -> Vec<SubFragment> {
@@ -284,7 +287,7 @@ impl SubFragmentCollection {
             .iter()
             .filter(|&fragment| fragment.subst.is_cxc_group())
             .map(SubFragment::to_owned)
-            .collect::<Vec<SubFragment>>()
+            .collect()
     }
 }
 
@@ -322,17 +325,18 @@ impl Display for SubFragment {
 
 #[derive(Debug, Error, PartialEq)]
 pub enum NamingError {
-    #[error("A branch was found with too many carbons ({}).", .0)]
+    #[error("A branch was found with too many carbons ({0}).")]
     CarbonCount(i32),
-    #[error("Found too many occurrences of {} ({}).", NamingError::format(.0), .1)]
-    GroupOccurrence(Option<Substituent>, i32),
+    #[error("Found too many occurrences of {} ({1}).", NamingError::format(.0))]
+    SubstOccurrence(Substituent, i32),
+    #[error("{0} exceeds maximum of {1}.")]
+    NumericExcess(i32, i32),
 }
 
 impl NamingError {
-    fn format(subst: &Option<Substituent>) -> String {
-        let unwrapped = subst.as_ref().expect("substituent should be provided");
-        match unwrapped {
-            Substituent::Branch(it) => format!("the {} branch", it),
+    fn format(subst: &Substituent) -> String {
+        match subst {
+            Substituent::Branch(it) => format!("the {it} branch"),
             Substituent::Group(it) => match it {
                 Group::Hydrogen | Alkane => panic!("process could not handle: {it}"),
                 Group::AcidHalide(_) | Group::Aldehyde | Group::Carboxyl | Group::Nitrile => {
@@ -354,16 +358,30 @@ impl NamingError {
             .to_string(),
         }
     }
+}
 
-    fn add_substituent(
-        e: Result<String, NamingError>,
-        subst: &Substituent,
-    ) -> Result<String, NamingError> {
-        e.map_err(|e| {
-            if let NamingError::GroupOccurrence(_, count) = e {
-                NamingError::GroupOccurrence(Some(subst.clone()), count)
+trait MapError {
+    fn map_carbon_count(self) -> Self;
+    fn map_subst_occur(self, subst: &Substituent) -> Self;
+}
+
+impl<T> MapError for Result<T, NamingError> {
+    fn map_carbon_count(self) -> Self {
+        self.map_err(|e| {
+            if let NamingError::NumericExcess(count, _) = e {
+                NamingError::CarbonCount(count)
             } else {
-                panic!("found unexpected error from locants")
+                panic!("unexpected error passed to map_carbon_count")
+            }
+        })
+    }
+
+    fn map_subst_occur(self, subst: &Substituent) -> Self {
+        self.map_err(|e| {
+            if let NamingError::NumericExcess(count, _) = e {
+                NamingError::SubstOccurrence(subst.clone(), count)
+            } else {
+                panic!("unexpected error passed to map_subst_occur")
             }
         })
     }

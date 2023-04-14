@@ -123,11 +123,18 @@ impl<'a> Pointer<'a> {
     /// [`IncompleteBond`] will be returned.
     pub fn bonded_carbons(&self) -> Fallible<Vec<Atom>> {
         let bonded = self.bonded()?;
-        Ok(bonded
+        let out = bonded
             .iter()
-            .filter(|&atom| atom.element == C)
-            .map(|it| it.to_owned())
-            .collect())
+            .filter_map(|atom| {
+                if let C = atom.element {
+                    Some(atom.to_owned())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        Ok(out)
     }
 
     /// Returns the number of carbon atoms bonded to the current cell.
@@ -142,7 +149,9 @@ impl<'a> Pointer<'a> {
     /// [`IncompleteBond`] will be returned.
     pub fn bonded_carbon_count(&self) -> Fallible<usize> {
         let bonded = self.bonded()?;
-        Ok(bonded.iter().filter(|&atom| atom.element == C).count())
+        let out = bonded.iter().filter(|&atom| atom.element == C).count();
+
+        Ok(out)
     }
 
     /// Gets the [`Cell::Atom`] at the other side of the bond in the given `direction`.
@@ -172,21 +181,16 @@ impl<'a> Pointer<'a> {
             }
             match traversal_ptr.borrow() {
                 Ok(Cell::Atom(it)) => break Ok(it.to_owned()),
-                Ok(Cell::Bond(it)) => {
+                Ok(Cell::Bond(it)) if it.orient == BondOrientation::from(direction) => {
                     if let Some(order) = current_order {
                         if order != it.order {
                             break Err(InconsistentBond(traversal_ptr.pos));
                         }
                     }
-                    if it.orient == BondOrientation::from(direction) {
-                        current_order = Some(it.order);
-                        continue;
-                    } else {
-                        break Err(IncompleteBond(traversal_ptr.pos));
-                    }
+                    current_order = Some(it.order);
+                    continue;
                 }
-                Ok(Cell::None(_)) => break Err(IncompleteBond(traversal_ptr.pos)),
-                Err(_) => break Err(IncompleteBond(traversal_ptr.pos)),
+                _ => break Err(IncompleteBond(traversal_ptr.pos)),
             }
         }
     }
@@ -258,6 +262,7 @@ impl<'a> Pointer<'a> {
                 }
             }
         }
+
         Ok(out)
     }
 

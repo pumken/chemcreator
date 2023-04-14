@@ -2,16 +2,15 @@
 //!
 //! The `groups` module provides functionality for identifying functional groups on a branch.
 
-use crate::chain;
-use crate::chain::{endpoint_head_chains, parent_chain};
+use crate::chain::{endpoint_head_chains, get_all_chains, parent_chain};
 use crate::compound;
 use crate::groups::InvalidGraphError::{Other, UnrecognizedGroup};
 use crate::molecule::Group::{
-    AcidHalide, Aldehyde, Alkene, Alkyne, Amide, Amine, Bromo, Carbonyl, Carboxyl, Chloro, Fluoro,
-    Hydrogen, Hydroxyl, Iodo, Nitrile,
+    self, AcidHalide, Aldehyde, Alkene, Alkyne, Amide, Amine, Bromo, Carbonyl, Carboxyl, Chloro,
+    Fluoro, Hydrogen, Hydroxyl, Iodo, Nitrile,
 };
 use crate::molecule::Halogen::{Bromine, Chlorine, Fluorine, Iodine};
-use crate::molecule::{Atom, BondOrder, Branch, Element, Group, GroupNode, Substituent};
+use crate::molecule::{Atom, BondOrder, Branch, Element, GroupNode, Substituent};
 use crate::pointer::Pointer;
 use crate::spatial::{GridState, InvertDirection};
 use ruscii::spatial::{Direction, Vec2};
@@ -44,7 +43,7 @@ pub(crate) fn link_groups(
             .map(|dir| group_node_tree(graph, accumulator.chain[index].pos, dir))
             .collect::<Fallible<Vec<GroupNode>>>()?;
 
-        let mut chain_nodes = directions
+        let mut chain_nodes: Vec<Substituent> = directions
             .1
             .into_iter()
             .map(|dir| branch_node_tree(graph, accumulator.chain[index].pos, dir))
@@ -63,7 +62,7 @@ pub(crate) fn link_groups(
             .collect::<Fallible<Vec<Branch>>>()?
             .into_iter()
             .map(Substituent::Branch)
-            .collect::<Vec<Substituent>>();
+            .collect();
 
         let mut groups = convert_nodes(group_nodes)?;
         groups.append(&mut chain_nodes);
@@ -77,7 +76,7 @@ pub(crate) fn link_groups(
 }
 
 pub(crate) fn debug_branches(graph: &GridState) -> Fallible<Branch> {
-    let all_chains = chain::get_all_chains(graph)?;
+    let all_chains = get_all_chains(graph)?;
     let chain = parent_chain(graph, all_chains, None)?;
     link_groups(graph, chain, None)
 }
@@ -141,10 +140,7 @@ fn group_patterns(mut groups: Vec<Group>) -> Vec<Substituent> {
     }
     groups.retain(|it| it != &Hydrogen);
 
-    let mut rest = groups
-        .into_iter()
-        .map(Substituent::Group)
-        .collect::<Vec<Substituent>>();
+    let mut rest: Vec<Substituent> = groups.into_iter().map(Substituent::Group).collect();
     out.append(&mut rest);
 
     out
@@ -192,7 +188,6 @@ pub(crate) fn group_node_tree(
     let mut next = vec![];
 
     if atom.element != Element::C {
-        // don't continue if in carbon chain
         for direction in next_directions(graph, atom.pos, pos)? {
             next.push(group_node_tree(graph, atom.pos, direction)?)
         }
